@@ -9,11 +9,10 @@ import {
 // GET /api/auth/twitter - Start Twitter OAuth 2.0 flow
 export async function GET() {
   const clientId = process.env.TWITTER_CLIENT_ID
-  const clientSecret = process.env.TWITTER_CLIENT_SECRET
 
-  if (!clientId || !clientSecret) {
+  if (!clientId) {
     return NextResponse.json(
-      { error: 'Twitter OAuth belum dikonfigurasi. Tambahkan TWITTER_CLIENT_ID dan TWITTER_CLIENT_SECRET ke .env' },
+      { error: 'Twitter OAuth belum dikonfigurasi. Tambahkan TWITTER_CLIENT_ID ke .env' },
       { status: 500 }
     )
   }

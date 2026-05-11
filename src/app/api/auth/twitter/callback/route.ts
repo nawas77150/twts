@@ -43,10 +43,10 @@ export async function GET(req: NextRequest) {
   }
 
   const clientId = process.env.TWITTER_CLIENT_ID
-  const clientSecret = process.env.TWITTER_CLIENT_SECRET
+  const clientSecret = process.env.TWITTER_CLIENT_SECRET // optional - public clients don't need this
 
-  if (!clientId || !clientSecret) {
-    console.error('Missing TWITTER_CLIENT_ID or TWITTER_CLIENT_SECRET env vars')
+  if (!clientId) {
+    console.error('Missing TWITTER_CLIENT_ID env var')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 

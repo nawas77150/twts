@@ -56,83 +56,117 @@ export function buildTwitterAuthUrl(
 // Exchange authorization code for access token
 export async function exchangeCodeForToken(
   clientId: string,
-  clientSecret: string,
+  clientSecret: string | undefined,
   code: string,
   redirectUri: string,
   codeVerifier: string
 ): Promise<{ access_token: string; token_type: string; refresh_token?: string } | null> {
-  // X OAuth 2.0 supports two auth methods for the token endpoint:
-  // 1. "client_secret_basic" — Use HTTP Basic Auth header (client_id:client_secret)
-  //    Do NOT include client_id in the request body when using this method.
-  // 2. "client_secret_post" — Include client_id and client_secret in the request body
-  //    No Authorization header needed.
+  // X OAuth 2.0 token endpoint supports multiple authentication methods:
   //
-  // We use method 1 (Basic Auth) which is the default for X confidential clients.
-  // IMPORTANT: Including client_id in the body WITH Basic auth causes X to reject the request!
+  // 1. PUBLIC CLIENT (no client_secret) — PKCE-only auth
+  //    Just send client_id + code_verifier in the body, no Authorization header.
+  //    This is the most common setup for X apps with "Web App" type + PKCE.
+  //
+  // 2. CONFIDENTIAL CLIENT — client_secret_basic
+  //    HTTP Basic Auth header (base64 of client_id:client_secret)
+  //    Do NOT include client_id in the body when using this method.
+  //
+  // 3. CONFIDENTIAL CLIENT — client_secret_post
+  //    Include client_id + client_secret in the body, no Authorization header.
+  //
+  // We try method 1 first (public client / PKCE-only) because most X apps
+  // are configured this way. If client_secret is provided and method 1 fails,
+  // we fall back to the confidential client methods.
 
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+  console.log('Exchanging code for token, redirect_uri:', redirectUri)
 
-  const params = new URLSearchParams({
+  // === METHOD 1: Public client (PKCE-only, no client_secret) ===
+  const publicParams = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
-    // NOTE: client_id is NOT included here because we're using Basic auth.
-    // X's token endpoint will identify the client from the Authorization header.
+    client_id: clientId,
   })
-
-  console.log('Exchanging code for token, redirect_uri:', redirectUri)
 
   try {
     const res = await fetch(TWITTER_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${basicAuth}`,
       },
-      body: params.toString(),
+      body: publicParams.toString(),
     })
 
-    if (!res.ok) {
-      const errorText = await res.text()
-      console.error('Token exchange failed:', res.status, errorText)
-
-      // If Basic auth failed, try fallback with client_id in body (some X app configs need this)
-      if (res.status === 400 || res.status === 401) {
-        console.log('Trying fallback: client_secret_post method...')
-        const fallbackParams = new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: redirectUri,
-          code_verifier: codeVerifier,
-          client_id: clientId,
-          client_secret: clientSecret,
-        })
-
-        const fallbackRes = await fetch(TWITTER_TOKEN_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: fallbackParams.toString(),
-        })
-
-        if (fallbackRes.ok) {
-          const data = await fallbackRes.json()
-          console.log('Token exchange successful (fallback method), scopes:', data.scope)
-          return data
-        } else {
-          const fallbackErrorText = await fallbackRes.text()
-          console.error('Token exchange fallback also failed:', fallbackRes.status, fallbackErrorText)
-        }
-      }
-
-      return null
+    if (res.ok) {
+      const data = await res.json()
+      console.log('Token exchange successful (public client method), scopes:', data.scope)
+      return data
     }
 
-    const data = await res.json()
-    console.log('Token exchange successful, scopes:', data.scope)
-    return data
+    const errorText = await res.text()
+    console.error('Token exchange failed (public client method):', res.status, errorText)
+
+    // If we have a client_secret, try confidential client methods
+    if (clientSecret && (res.status === 400 || res.status === 401)) {
+      // === METHOD 2: Confidential client - client_secret_basic ===
+      console.log('Trying client_secret_basic method...')
+      const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+      const basicParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+      })
+
+      const basicRes = await fetch(TWITTER_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: basicParams.toString(),
+      })
+
+      if (basicRes.ok) {
+        const data = await basicRes.json()
+        console.log('Token exchange successful (client_secret_basic method), scopes:', data.scope)
+        return data
+      }
+
+      const basicErrorText = await basicRes.text()
+      console.error('Token exchange failed (client_secret_basic):', basicRes.status, basicErrorText)
+
+      // === METHOD 3: Confidential client - client_secret_post ===
+      console.log('Trying client_secret_post method...')
+      const postParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+        client_id: clientId,
+        client_secret: clientSecret,
+      })
+
+      const postRes = await fetch(TWITTER_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: postParams.toString(),
+      })
+
+      if (postRes.ok) {
+        const data = await postRes.json()
+        console.log('Token exchange successful (client_secret_post method), scopes:', data.scope)
+        return data
+      }
+
+      const postErrorText = await postRes.text()
+      console.error('Token exchange failed (client_secret_post):', postRes.status, postErrorText)
+    }
+
+    return null
   } catch (error) {
     console.error('Token exchange error:', error)
     return null

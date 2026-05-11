@@ -97,3 +97,23 @@ Work Log:
 Stage Summary:
 - Token exchange fix: Removed `client_id` from request body when using Basic auth, added fallback method
 - Database: The localhost:5432 error is a Vercel env var configuration issue - user must set DATABASE_URL and DIRECT_URL in Vercel Dashboard
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix "unauthorized_client" / "Missing valid authorization header" token exchange error
+
+Work Log:
+- Analyzed Vercel logs showing X API returns 401 "unauthorized_client" for both Basic auth and client_secret_post
+- Identified root cause: The X app is configured as a PUBLIC CLIENT (not confidential), meaning it should NOT use client_secret at all
+- With PKCE for public clients, the token exchange only needs: client_id + code + redirect_uri + code_verifier
+- Rewrote exchangeCodeForToken() to try 3 methods in order:
+  1. Public client (PKCE-only, no client_secret) — most common for X apps
+  2. Confidential client with client_secret_basic — fallback
+  3. Confidential client with client_secret_post — second fallback
+- Made TWITTER_CLIENT_SECRET optional in all routes
+- Updated .env template to explain that TWITTER_CLIENT_SECRET is optional
+
+Stage Summary:
+- Key fix: Try public client method (no client_secret) FIRST, which matches how most X apps are configured
+- This should resolve the "Failed to exchange code for token" error on Vercel
