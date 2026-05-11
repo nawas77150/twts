@@ -4,9 +4,14 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url      = env("POSTGRES_DATABASE_URL")
+  directUrl = env("POSTGRES_DATABASE_URL_UNPOOLED")
 }
+
+// NOTE: The env var names above match Vercel's Neon Postgres integration:
+//   POSTGRES_DATABASE_URL = pooled connection (for runtime queries)
+//   POSTGRES_DATABASE_URL_UNPOOLED = direct connection (for migrations)
+// For local dev, set these in .env or use the fallback names below.
 
 model Submitter {
   id           String       @id @default(cuid())

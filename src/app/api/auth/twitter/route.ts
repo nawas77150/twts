@@ -4,15 +4,16 @@ import {
   generateCodeChallenge,
   buildTwitterAuthUrl,
   getBaseUrl,
+  getOAuth2Credentials,
 } from '@/lib/twitter-auth'
 
 // GET /api/auth/twitter - Start Twitter OAuth 2.0 flow
 export async function GET() {
-  const clientId = process.env.TWITTER_CLIENT_ID
+  const creds = getOAuth2Credentials()
 
-  if (!clientId) {
+  if (!creds) {
     return NextResponse.json(
-      { error: 'Twitter OAuth belum dikonfigurasi. Tambahkan TWITTER_CLIENT_ID ke .env' },
+      { error: 'Twitter OAuth belum dikonfigurasi. Tambahkan OAUTH2_CLIENT_ID dan OAUTH2_CLIENT_SECRET ke env vars.' },
       { status: 500 }
     )
   }
@@ -27,7 +28,7 @@ export async function GET() {
   const redirectUri = `${baseUrl}/api/auth/twitter/callback`
 
   // Build the authorization URL
-  const authUrl = buildTwitterAuthUrl(clientId, redirectUri, state, codeChallenge)
+  const authUrl = buildTwitterAuthUrl(creds.clientId, redirectUri, state, codeChallenge)
 
   // Store code_verifier and state in cookies for the callback
   const response = NextResponse.redirect(authUrl)

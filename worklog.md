@@ -117,3 +117,22 @@ Work Log:
 Stage Summary:
 - Key fix: Try public client method (no client_secret) FIRST, which matches how most X apps are configured
 - This should resolve the "Failed to exchange code for token" error on Vercel
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix OAuth2 env var names and token exchange method for confidential X client
+
+Work Log:
+- User confirmed from X Developer Portal that the app is CONFIDENTIAL (WebApp type)
+- X uses OAUTH2_CLIENT_ID and OAUTH2_CLIENT_SECRET as env var names, not TWITTER_CLIENT_ID
+- The code was looking for TWITTER_CLIENT_ID/TWITTER_CLIENT_SECRET which weren't set in Vercel
+- Fixed token exchange to use correct method: Basic auth header + PKCE code_verifier (no client_id in body)
+- Added getOAuth2Credentials() helper that supports both OAUTH2_* and TWITTER_* env var names
+- Updated all routes to use getOAuth2Credentials()
+- Also fixed Prisma schema to use POSTGRES_DATABASE_URL / POSTGRES_DATABASE_URL_UNPOOLED (matching Vercel Neon integration)
+
+Stage Summary:
+- Main fix: Code now reads OAUTH2_CLIENT_ID + OAUTH2_CLIENT_SECRET from Vercel env vars
+- Token exchange uses correct confidential client method (Basic auth + PKCE)
+- User needs to verify Vercel env vars have OAUTH2_CLIENT_ID and OAUTH2_CLIENT_SECRET set correctly

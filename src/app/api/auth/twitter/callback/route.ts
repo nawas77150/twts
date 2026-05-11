@@ -5,6 +5,7 @@ import {
   upsertSubmitterFromTwitter,
   createSessionToken,
   getBaseUrl,
+  getOAuth2Credentials,
 } from '@/lib/twitter-auth'
 
 // GET /api/auth/twitter/callback - Handle Twitter OAuth 2.0 callback
@@ -42,11 +43,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
-  const clientId = process.env.TWITTER_CLIENT_ID
-  const clientSecret = process.env.TWITTER_CLIENT_SECRET // optional - public clients don't need this
-
-  if (!clientId) {
-    console.error('Missing TWITTER_CLIENT_ID env var')
+  // Get OAuth2 credentials (supports both OAUTH2_* and TWITTER_* env var names)
+  const creds = getOAuth2Credentials()
+  if (!creds) {
+    console.error('Missing OAuth2 credentials. Set OAUTH2_CLIENT_ID + OAUTH2_CLIENT_SECRET (or TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET) in Vercel env vars.')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
 
   // Exchange code for access token
   const tokenData = await exchangeCodeForToken(
-    clientId,
-    clientSecret,
+    creds.clientId,
+    creds.clientSecret,
     code,
     redirectUri,
     codeVerifier
@@ -87,7 +87,6 @@ export async function GET(req: NextRequest) {
     // Return an intermediate HTML page that sets the session cookie via fetch,
     // then redirects. This is more reliable on Vercel than setting cookies
     // in redirect responses, which can be stripped by the CDN.
-    const isSecure = process.env.NODE_ENV === 'production'
     const html = `<!DOCTYPE html>
 <html>
 <head>

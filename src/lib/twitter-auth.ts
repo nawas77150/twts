@@ -54,123 +54,66 @@ export function buildTwitterAuthUrl(
 }
 
 // Exchange authorization code for access token
+// For X confidential clients (WebApp type), the token endpoint requires:
+// - Authorization: Basic base64(client_id:client_secret) header
+// - Body: grant_type, code, redirect_uri, code_verifier (PKCE)
+// - Do NOT include client_id in the body when using Basic auth
 export async function exchangeCodeForToken(
   clientId: string,
-  clientSecret: string | undefined,
+  clientSecret: string,
   code: string,
   redirectUri: string,
   codeVerifier: string
 ): Promise<{ access_token: string; token_type: string; refresh_token?: string } | null> {
-  // X OAuth 2.0 token endpoint supports multiple authentication methods:
-  //
-  // 1. PUBLIC CLIENT (no client_secret) — PKCE-only auth
-  //    Just send client_id + code_verifier in the body, no Authorization header.
-  //    This is the most common setup for X apps with "Web App" type + PKCE.
-  //
-  // 2. CONFIDENTIAL CLIENT — client_secret_basic
-  //    HTTP Basic Auth header (base64 of client_id:client_secret)
-  //    Do NOT include client_id in the body when using this method.
-  //
-  // 3. CONFIDENTIAL CLIENT — client_secret_post
-  //    Include client_id + client_secret in the body, no Authorization header.
-  //
-  // We try method 1 first (public client / PKCE-only) because most X apps
-  // are configured this way. If client_secret is provided and method 1 fails,
-  // we fall back to the confidential client methods.
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
-  console.log('Exchanging code for token, redirect_uri:', redirectUri)
-
-  // === METHOD 1: Public client (PKCE-only, no client_secret) ===
-  const publicParams = new URLSearchParams({
+  const params = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
-    client_id: clientId,
   })
+
+  console.log('Exchanging code for token, redirect_uri:', redirectUri)
+  console.log('Client ID:', clientId.substring(0, 8) + '...')
 
   try {
     const res = await fetch(TWITTER_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${basicAuth}`,
       },
-      body: publicParams.toString(),
+      body: params.toString(),
     })
 
-    if (res.ok) {
-      const data = await res.json()
-      console.log('Token exchange successful (public client method), scopes:', data.scope)
-      return data
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Token exchange failed:', res.status, errorText)
+      return null
     }
 
-    const errorText = await res.text()
-    console.error('Token exchange failed (public client method):', res.status, errorText)
-
-    // If we have a client_secret, try confidential client methods
-    if (clientSecret && (res.status === 400 || res.status === 401)) {
-      // === METHOD 2: Confidential client - client_secret_basic ===
-      console.log('Trying client_secret_basic method...')
-      const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-      const basicParams = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        code_verifier: codeVerifier,
-      })
-
-      const basicRes = await fetch(TWITTER_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${basicAuth}`,
-        },
-        body: basicParams.toString(),
-      })
-
-      if (basicRes.ok) {
-        const data = await basicRes.json()
-        console.log('Token exchange successful (client_secret_basic method), scopes:', data.scope)
-        return data
-      }
-
-      const basicErrorText = await basicRes.text()
-      console.error('Token exchange failed (client_secret_basic):', basicRes.status, basicErrorText)
-
-      // === METHOD 3: Confidential client - client_secret_post ===
-      console.log('Trying client_secret_post method...')
-      const postParams = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        code_verifier: codeVerifier,
-        client_id: clientId,
-        client_secret: clientSecret,
-      })
-
-      const postRes = await fetch(TWITTER_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: postParams.toString(),
-      })
-
-      if (postRes.ok) {
-        const data = await postRes.json()
-        console.log('Token exchange successful (client_secret_post method), scopes:', data.scope)
-        return data
-      }
-
-      const postErrorText = await postRes.text()
-      console.error('Token exchange failed (client_secret_post):', postRes.status, postErrorText)
-    }
-
-    return null
+    const data = await res.json()
+    console.log('Token exchange successful, scopes:', data.scope)
+    return data
   } catch (error) {
     console.error('Token exchange error:', error)
     return null
   }
+}
+
+// Get OAuth2 credentials from environment variables
+// X Developer Portal uses OAUTH2_CLIENT_ID / OAUTH2_CLIENT_SECRET
+// We also support the older TWITTER_CLIENT_ID / TWITTER_CLIENT_SECRET names
+export function getOAuth2Credentials(): { clientId: string; clientSecret: string } | null {
+  const clientId = process.env.OAUTH2_CLIENT_ID || process.env.TWITTER_CLIENT_ID
+  const clientSecret = process.env.OAUTH2_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) {
+    return null
+  }
+
+  return { clientId, clientSecret }
 }
 
 // Fetch Twitter user info using OAuth 2.0 access token
