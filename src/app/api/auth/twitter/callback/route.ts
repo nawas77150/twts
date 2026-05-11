@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   exchangeCodeForToken,
@@ -17,29 +18,32 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const error = searchParams.get('error')
+  const errorDescription = searchParams.get('error_description')
 
   const baseUrl = getBaseUrl()
 
   // User denied access
   if (error) {
+    console.warn('OAuth denied:', error, errorDescription)
     return NextResponse.redirect(new URL('/?auth=denied', baseUrl))
   }
 
   if (!code || !state) {
+    console.error('OAuth callback missing code or state')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
   // Verify state matches (CSRF protection) - use NextRequest cookies API
   const storedState = req.cookies.get('twitter_oauth_state')?.value
   if (state !== storedState) {
-    console.error('OAuth state mismatch')
+    console.error('OAuth state mismatch - possible CSRF attack')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
   // Get code verifier from cookie - use NextRequest cookies API
   const codeVerifier = req.cookies.get('twitter_oauth_verifier')?.value
   if (!codeVerifier) {
-    console.error('Missing OAuth code verifier cookie')
+    console.error('Missing OAuth code verifier cookie - may have expired')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
@@ -63,16 +67,26 @@ export async function GET(req: NextRequest) {
   )
 
   if (!tokenData?.access_token) {
-    console.error('Failed to exchange code for token - check Vercel logs for details')
+    console.error('Failed to exchange code for token - check server logs for details')
     return NextResponse.redirect(new URL('/?auth=error', baseUrl))
   }
 
   // Fetch Twitter user info
-  const twitterUser = await fetchTwitterUser(tokenData.access_token)
+  // Primary: user's OAuth 2.0 token with tweet.read users.read scope
+  let twitterUser = await fetchTwitterUser(tokenData.access_token)
 
+  // Fallback: if /2/users/me fails (e.g. old token without tweet.read scope),
+  // create an anonymous profile so the user can still use the app
+  // They'll see a warning in the UI suggesting to re-login
   if (!twitterUser) {
-    console.error('Failed to fetch Twitter user')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    console.warn('Failed to fetch Twitter user profile — creating anon fallback')
+    console.warn('This usually means the OAuth token is missing the tweet.read scope.')
+    console.warn('The user should log out and re-login to get a token with the correct scope.')
+    twitterUser = {
+      id: 'anon_' + crypto.randomBytes(8).toString('hex'),
+      name: 'Anonymous User',
+      username: 'anon_' + crypto.randomBytes(4).toString('hex'),
+    }
   }
 
   // Create or update submitter in DB
@@ -85,7 +99,8 @@ export async function GET(req: NextRequest) {
     // Create session token
     const sessionToken = createSessionToken(submitter.id)
 
-    console.log('OAuth success - creating session for user:', twitterUser.username)
+    const isAnon = twitterUser.id.startsWith('anon_')
+    console.log('OAuth success - creating session for user:', twitterUser.username, isAnon ? '(ANON FALLBACK)' : '')
 
     // Return an intermediate HTML page that sets the session cookie via fetch,
     // then redirects. This is more reliable on Vercel than setting cookies

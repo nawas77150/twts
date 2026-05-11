@@ -20,6 +20,10 @@ import {
   LogIn,
   Users,
   ExternalLink,
+  User,
+  ChevronDown,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -35,6 +39,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 
@@ -80,9 +93,11 @@ const statusConfig = {
 function useSubmitterAuth() {
   const [submitter, setSubmitter] = useState<SubmitterInfo | null>(null)
   const [isChecking, setIsChecking] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const checkAuth = useCallback(async () => {
     try {
+      setAuthError(null)
       const res = await fetch('/api/auth/me')
       if (res.ok) {
         const data = await res.json()
@@ -91,8 +106,10 @@ function useSubmitterAuth() {
           return true
         }
       }
+      setSubmitter(null)
     } catch {
-      // ignore - not logged in
+      setAuthError('Tidak dapat terhubung ke server')
+      setSubmitter(null)
     }
     return false
   }, [])
@@ -106,13 +123,10 @@ function useSubmitterAuth() {
   }, [checkAuth])
 
   // Re-check auth after OAuth callback
-  // The callback now sets the session via /api/auth/set-session (fetch from HTML page)
-  // So by the time this runs, the cookie should already be set
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const authResult = params.get('auth')
     if (authResult === 'success') {
-      // Give a small delay for the cookie to be fully processed
       const timer = setTimeout(async () => {
         await checkAuth()
       }, 300)
@@ -122,6 +136,7 @@ function useSubmitterAuth() {
 
   const logout = async () => {
     setSubmitter(null)
+    setAuthError(null)
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
@@ -129,12 +144,12 @@ function useSubmitterAuth() {
     }
   }
 
-  return { submitter, isChecking, logout, checkAuth }
+  return { submitter, isChecking, authError, logout, checkAuth }
 }
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('submit')
-  const { submitter, isChecking, logout: submitterLogout } = useSubmitterAuth()
+  const { submitter, isChecking, authError, logout: submitterLogout, checkAuth } = useSubmitterAuth()
 
   // Admin auth state
   const [isAdmin, setIsAdmin] = useState(false)
@@ -159,6 +174,7 @@ export default function HomePage() {
   const isLoggedOut = !submitter
   const submitterUsername = submitter?.username
   const submitterImage = submitter?.profileImage
+  const isAnonUser = submitter?.username?.startsWith('anon_')
 
   // Check for auth callback params
   useEffect(() => {
@@ -171,7 +187,7 @@ export default function HomePage() {
       toast({ title: 'Login dibatalkan', description: 'Kamu menolak akses ke akun X.', variant: 'destructive' })
       window.history.replaceState({}, '', '/')
     } else if (authResult === 'error') {
-      toast({ title: 'Login gagal', description: 'Terjadi kesalahan saat login dengan X.', variant: 'destructive' })
+      toast({ title: 'Login gagal', description: 'Terjadi kesalahan saat login dengan X. Coba lagi.', variant: 'destructive' })
       window.history.replaceState({}, '', '/')
     }
   }, [toast])
@@ -179,7 +195,7 @@ export default function HomePage() {
   // Handle logout
   const handleLogout = () => {
     submitterLogout()
-    toast({ title: 'Logout berhasil' })
+    toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' })
   }
 
   // Twitter OAuth login
@@ -429,30 +445,60 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             {/* User info / login */}
             {isChecking ? (
-              <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
-            ) : !isLoggedOut ? (
-              <div className="flex items-center gap-2">
-                {submitterImage ? (
-                  <img src={submitterImage} alt="" className="w-6 h-6 rounded-full border border-sky-200" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-white text-[10px] font-bold">
-                    {(submitterUsername || 'U').charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <Badge variant="outline" className="text-xs gap-1 border-sky-300 text-sky-700 bg-sky-50">
-                  @{submitterUsername || 'user'}
-                </Badge>
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="text-slate-400 h-7 w-7 p-0">
-                  <LogOut className="w-3.5 h-3.5" />
-                </Button>
+              <div className="flex items-center gap-2 text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs hidden sm:inline">Memeriksa...</span>
               </div>
+            ) : !isLoggedOut ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 px-2 h-9 hover:bg-sky-50">
+                    <Avatar className="w-6 h-6">
+                      {submitterImage ? (
+                        <AvatarImage src={submitterImage} alt={submitterUsername || ''} />
+                      ) : null}
+                      <AvatarFallback className="bg-gradient-to-br from-sky-400 to-sky-600 text-white text-[10px] font-bold">
+                        {(submitterUsername || 'U').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Badge variant="outline" className="text-xs gap-1 border-sky-300 text-sky-700 bg-sky-50">
+                      @{submitterUsername || 'user'}
+                    </Badge>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{submitter?.displayName || submitterUsername}</p>
+                      <p className="text-xs leading-none text-mutedforeground">@{submitterUsername}</p>
+                      {isAnonUser && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                          <AlertTriangle className="w-3 h-3" /> Profil X gagal dimuat
+                        </p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {isAnonUser && (
+                    <DropdownMenuItem onClick={handleLogout} className="text-amber-600 focus:text-amber-700">
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Coba Login Ulang
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={handleLogout} variant="destructive">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <Button
                 size="sm"
                 onClick={handleTwitterLogin}
-                className="bg-sky-500 hover:bg-sky-600 text-white h-8 px-3"
+                className="bg-sky-500 hover:bg-sky-600 text-white h-9 px-4"
               >
-                <Twitter className="w-3.5 h-3.5 mr-1.5" /> Login X
+                <Twitter className="w-4 h-4 mr-2" /> Login X
               </Button>
             )}
 
@@ -527,6 +573,23 @@ export default function HomePage() {
                     <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
                   </CardContent>
                 </Card>
+              ) : authError ? (
+                <Card className="max-w-lg mx-auto shadow-lg border-amber-200">
+                  <CardContent className="py-10 text-center space-y-5">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto">
+                      <AlertTriangle className="w-7 h-7 text-amber-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-800">Koneksi Bermasalah</h3>
+                    <p className="text-sm text-slate-500">{authError}</p>
+                    <Button
+                      onClick={checkAuth}
+                      variant="outline"
+                      className="border-slate-200"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" /> Coba Lagi
+                    </Button>
+                  </CardContent>
+                </Card>
               ) : isLoggedOut ? (
                 <Card className="max-w-lg mx-auto shadow-lg border-slate-200">
                   <CardContent className="py-10 text-center space-y-5">
@@ -545,6 +608,35 @@ export default function HomePage() {
                     >
                       <Twitter className="w-5 h-5 mr-2" /> Login dengan X
                     </Button>
+                  </CardContent>
+                </Card>
+              ) : isAnonUser ? (
+                /* Logged in as anonymous fallback — profile fetch failed, suggest re-login */
+                <Card className="max-w-lg mx-auto shadow-lg border-amber-200">
+                  <CardContent className="py-10 text-center space-y-5">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto">
+                      <AlertTriangle className="w-7 h-7 text-amber-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-800">Profil X Gagal Dimuat</h3>
+                    <p className="text-sm text-slate-500">
+                      Login berhasil tapi profil X kamu tidak bisa dimuat. <br />
+                      <span className="text-slate-400 text-xs">Kamu tetap bisa mengirim pesan, atau coba login ulang.</span>
+                    </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <Button
+                        onClick={handleLogout}
+                        variant="outline"
+                        className="border-slate-200"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" /> Logout & Coba Lagi
+                      </Button>
+                      <Button
+                        onClick={handleTwitterLogin}
+                        className="bg-sky-500 hover:bg-sky-600 text-white"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" /> Re-Login X
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (

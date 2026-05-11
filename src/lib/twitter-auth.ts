@@ -45,7 +45,7 @@ export function buildTwitterAuthUrl(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'users.read offline.access',
+    scope: 'tweet.read users.read offline.access',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
@@ -117,6 +117,9 @@ export function getOAuth2Credentials(): { clientId: string; clientSecret: string
 }
 
 // Fetch Twitter user info using OAuth 2.0 access token
+// Requires scope: tweet.read users.read (X API /2/users/me needs tweet.read context)
+// IMPORTANT: Do NOT use App Bearer Token as fallback — /2/users/me with app token
+// returns the APP OWNER's profile, NOT the logged-in user!
 export async function fetchTwitterUser(accessToken: string): Promise<{
   id: string
   name: string
@@ -130,13 +133,14 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
       },
     })
 
-    if (!res.ok) {
-      console.error('Fetch user failed:', res.status)
-      return null
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.data) return data.data
     }
 
-    const data = await res.json()
-    return data?.data || null
+    const errorText = await res.text()
+    console.error('Fetch user failed:', res.status, errorText)
+    return null
   } catch (error) {
     console.error('Fetch user error:', error)
     return null
