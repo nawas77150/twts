@@ -81,23 +81,44 @@ function useSubmitterAuth() {
   const [submitter, setSubmitter] = useState<SubmitterInfo | null>(null)
   const [isChecking, setIsChecking] = useState(true)
 
-  useEffect(() => {
-    async function check() {
-      try {
-        const res = await fetch('/api/auth/me')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.authenticated && data.submitter) {
-            setSubmitter(data.submitter)
-          }
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.authenticated && data.submitter) {
+          setSubmitter(data.submitter)
+          return true
         }
-      } catch {
-        // ignore - not logged in
       }
+    } catch {
+      // ignore - not logged in
+    }
+    return false
+  }, [])
+
+  useEffect(() => {
+    async function initialCheck() {
+      await checkAuth()
       setIsChecking(false)
     }
-    check()
-  }, [])
+    initialCheck()
+  }, [checkAuth])
+
+  // Re-check auth after OAuth callback
+  // The callback now sets the session via /api/auth/set-session (fetch from HTML page)
+  // So by the time this runs, the cookie should already be set
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authResult = params.get('auth')
+    if (authResult === 'success') {
+      // Give a small delay for the cookie to be fully processed
+      const timer = setTimeout(async () => {
+        await checkAuth()
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [checkAuth])
 
   const logout = async () => {
     setSubmitter(null)
@@ -108,7 +129,7 @@ function useSubmitterAuth() {
     }
   }
 
-  return { submitter, isChecking, logout }
+  return { submitter, isChecking, logout, checkAuth }
 }
 
 export default function HomePage() {

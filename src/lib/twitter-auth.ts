@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 
 // Twitter OAuth 2.0 with PKCE implementation
@@ -60,6 +61,15 @@ export async function exchangeCodeForToken(
   redirectUri: string,
   codeVerifier: string
 ): Promise<{ access_token: string; token_type: string; refresh_token?: string } | null> {
+  // X OAuth 2.0 supports two auth methods for the token endpoint:
+  // 1. "client_secret_basic" — Use HTTP Basic Auth header (client_id:client_secret)
+  //    Do NOT include client_id in the request body when using this method.
+  // 2. "client_secret_post" — Include client_id and client_secret in the request body
+  //    No Authorization header needed.
+  //
+  // We use method 1 (Basic Auth) which is the default for X confidential clients.
+  // IMPORTANT: Including client_id in the body WITH Basic auth causes X to reject the request!
+
   const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
   const params = new URLSearchParams({
@@ -67,8 +77,11 @@ export async function exchangeCodeForToken(
     code,
     redirect_uri: redirectUri,
     code_verifier: codeVerifier,
-    client_id: clientId,
+    // NOTE: client_id is NOT included here because we're using Basic auth.
+    // X's token endpoint will identify the client from the Authorization header.
   })
+
+  console.log('Exchanging code for token, redirect_uri:', redirectUri)
 
   try {
     const res = await fetch(TWITTER_TOKEN_URL, {
@@ -83,6 +96,37 @@ export async function exchangeCodeForToken(
     if (!res.ok) {
       const errorText = await res.text()
       console.error('Token exchange failed:', res.status, errorText)
+
+      // If Basic auth failed, try fallback with client_id in body (some X app configs need this)
+      if (res.status === 400 || res.status === 401) {
+        console.log('Trying fallback: client_secret_post method...')
+        const fallbackParams = new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirectUri,
+          code_verifier: codeVerifier,
+          client_id: clientId,
+          client_secret: clientSecret,
+        })
+
+        const fallbackRes = await fetch(TWITTER_TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: fallbackParams.toString(),
+        })
+
+        if (fallbackRes.ok) {
+          const data = await fallbackRes.json()
+          console.log('Token exchange successful (fallback method), scopes:', data.scope)
+          return data
+        } else {
+          const fallbackErrorText = await fallbackRes.text()
+          console.error('Token exchange fallback also failed:', fallbackRes.status, fallbackErrorText)
+        }
+      }
+
       return null
     }
 
@@ -208,7 +252,30 @@ export function verifySessionToken(token: string): SessionData | null {
   }
 }
 
-// Get submitter from request cookies
+// Get submitter from NextRequest cookies (recommended for API routes)
+export async function getSubmitterFromNextRequest(request: NextRequest): Promise<{
+  id: string
+  username: string
+  displayName: string | null
+  profileImage: string | null
+  twitterId: string | null
+} | null> {
+  const tokenCookie = request.cookies.get(SESSION_COOKIE_NAME)
+  const token = tokenCookie?.value
+  if (!token) return null
+
+  const session = verifySessionToken(token)
+  if (!session) return null
+
+  const submitter = await db.submitter.findUnique({
+    where: { id: session.submitterId },
+    select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+  })
+
+  return submitter
+}
+
+// Get submitter from generic Request (fallback, uses manual cookie parsing)
 export async function getSubmitterFromRequest(request: Request): Promise<{
   id: string
   username: string
@@ -216,6 +283,23 @@ export async function getSubmitterFromRequest(request: Request): Promise<{
   profileImage: string | null
   twitterId: string | null
 } | null> {
+  // Try NextRequest cookies API first
+  if ('cookies' in request && typeof (request as any).cookies?.get === 'function') {
+    const tokenCookie = (request as any).cookies.get(SESSION_COOKIE_NAME)
+    const token = tokenCookie?.value
+    if (token) {
+      const session = verifySessionToken(token)
+      if (session) {
+        const submitter = await db.submitter.findUnique({
+          where: { id: session.submitterId },
+          select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+        })
+        if (submitter) return submitter
+      }
+    }
+  }
+
+  // Fallback: manual cookie parsing
   const cookieHeader = request.headers.get('cookie') || ''
   const cookies = Object.fromEntries(
     cookieHeader.split(';').map(c => {

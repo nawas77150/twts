@@ -56,3 +56,44 @@ Stage Summary:
 - OAuth callback URLs now auto-detect Vercel deployment via VERCEL_URL
 - Build process includes automatic `prisma generate` via postinstall
 - App is ready for Vercel deployment with Vercel Postgres
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix session cookie not persisting after OAuth login - user gets redirected back to login page
+
+Work Log:
+- Identified root cause: Vercel's CDN drops Set-Cookie headers in redirect responses
+- The OAuth callback was setting the session cookie in a NextResponse.redirect() response, which Vercel's CDN may strip
+- Also found that /api/auth/me was using manual cookie parsing instead of NextRequest.cookies API
+- Also found api.twitter.com URLs in post/tweet routes (should be api.x.com)
+
+Fixes applied:
+1. Created new `/api/auth/set-session` endpoint that sets httpOnly session cookie in a regular JSON response (not a redirect)
+2. Changed the OAuth callback to render an intermediate HTML page instead of redirecting with cookies - the HTML page fetches `/api/auth/set-session` then redirects
+3. Updated `/api/auth/me` to use `NextRequest.cookies.get()` via new `getSubmitterFromNextRequest()` function
+4. Updated `/api/submissions` route to use `getSubmitterFromNextRequest()`
+5. Fixed `api.twitter.com` → `api.x.com` in both post route files
+6. Added frontend re-check mechanism after auth=success redirect
+
+Stage Summary:
+- Core fix: Session cookie is now set via a fetch POST to `/api/auth/set-session` from an intermediate HTML page, bypassing Vercel's CDN cookie-stripping in redirect responses
+- All API routes now use `NextRequest.cookies.get()` for reliable cookie reading
+- TypeScript compiles clean, lint passes
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix "Failed to exchange code for token" and database connection errors on Vercel
+
+Work Log:
+- Identified root cause of token exchange failure: the code was sending BOTH `Authorization: Basic` header AND `client_id` in the request body. X's OAuth 2.0 token endpoint rejects this combination - when using Basic auth, client_id must NOT be in the body.
+- Fixed `exchangeCodeForToken()` to NOT include `client_id` in the body when using Basic auth
+- Added a fallback mechanism: if Basic auth fails (400/401), automatically tries the `client_secret_post` method (client_id + client_secret in body, no auth header)
+- Added detailed console.log/error messages for debugging
+- Fixed callback route to validate TWITTER_CLIENT_ID and TWITTER_CLIENT_SECRET exist before using them
+- Updated .env template with clearer instructions for Vercel database setup
+
+Stage Summary:
+- Token exchange fix: Removed `client_id` from request body when using Basic auth, added fallback method
+- Database: The localhost:5432 error is a Vercel env var configuration issue - user must set DATABASE_URL and DIRECT_URL in Vercel Dashboard

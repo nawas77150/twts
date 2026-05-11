@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { getSubmitterFromRequest } from '@/lib/twitter-auth'
+import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/submissions - List all submissions (admin only, includes submitter info)
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Get submitter from session cookie (Twitter OAuth)
-    const submitter = await getSubmitterFromRequest(req)
+    const submitter = await getSubmitterFromNextRequest(req)
 
     if (!submitter) {
       return NextResponse.json({ error: 'Silakan login dengan akun X terlebih dahulu' }, { status: 401 })

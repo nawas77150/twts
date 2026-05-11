@@ -85,8 +85,8 @@ async function postTweet(
     const oauth = await import('oauth')
 
     const oauthClient = new oauth.OAuth(
-      'https://api.twitter.com/oauth/request_token',
-      'https://api.twitter.com/oauth/access_token',
+      'https://api.x.com/oauth/request_token',
+      'https://api.x.com/oauth/access_token',
       apiKey,
       apiSecret,
       '1.0A',
@@ -98,7 +98,7 @@ async function postTweet(
       const postData = JSON.stringify({ text })
 
       oauthClient.post(
-        'https://api.twitter.com/2/tweets',
+        'https://api.x.com/2/tweets',
         accessToken,
         accessTokenSecret,
         postData,
