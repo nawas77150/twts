@@ -14,14 +14,16 @@ datasource db {
 // For local dev, set these in .env or use the fallback names below.
 
 model Submitter {
-  id           String       @id @default(cuid())
-  twitterId    String       @unique  // Required - all users login via Twitter
-  username     String       @unique
-  displayName  String?
-  profileImage String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  submissions  Submission[]
+  id                String       @id @default(cuid())
+  twitterId         String       @unique  // X user ID from OAuth 2.0
+  username          String       @unique
+  displayName       String?
+  profileImage      String?
+  oauth2AccessToken String?      // OAuth 2.0 access token (for user identity)
+  oauth2RefreshToken String?     // OAuth 2.0 refresh token
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  submissions       Submission[]
 }
 
 model Submission {

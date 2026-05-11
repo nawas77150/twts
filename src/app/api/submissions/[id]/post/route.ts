@@ -1,7 +1,8 @@
 import { db } from '@/lib/db'
+import { postTweetViaOAuth1 } from '@/lib/twitter-post'
 import { NextRequest, NextResponse } from 'next/server'
 
-// POST /api/submissions/[id]/post - Post submission to X (Twitter)
+// POST /api/submissions/[id]/post - Post submission to X (manual retry)
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -29,27 +30,8 @@ export async function POST(
       return NextResponse.json({ error: 'Submission sudah ditolak' }, { status: 400 })
     }
 
-    // Post to X using API v2
-    const apiKey = process.env.X_API_KEY
-    const apiSecret = process.env.X_API_SECRET
-    const accessToken = process.env.X_ACCESS_TOKEN
-    const accessTokenSecret = process.env.X_ACCESS_TOKEN_SECRET
-
-    if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
-      return NextResponse.json(
-        { error: 'X API credentials belum dikonfigurasi. Tambahkan environment variables.' },
-        { status: 500 }
-      )
-    }
-
-    // Use OAuth 1.0a to post tweet
-    const tweetResult = await postTweet(
-      submission.message,
-      apiKey,
-      apiSecret,
-      accessToken,
-      accessTokenSecret
-    )
+    // Post to your autobase X account using OAuth 1.0a
+    const tweetResult = await postTweetViaOAuth1(submission.message)
 
     if (!tweetResult.success) {
       return NextResponse.json(
@@ -71,57 +53,5 @@ export async function POST(
   } catch (error) {
     console.error('Post to X error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
-  }
-}
-
-async function postTweet(
-  text: string,
-  apiKey: string,
-  apiSecret: string,
-  accessToken: string,
-  accessTokenSecret: string
-): Promise<{ success: boolean; tweetId?: string; error?: string }> {
-  try {
-    const oauth = await import('oauth')
-
-    const oauthClient = new oauth.OAuth(
-      'https://api.x.com/oauth/request_token',
-      'https://api.x.com/oauth/access_token',
-      apiKey,
-      apiSecret,
-      '1.0A',
-      null,
-      'HMAC-SHA1'
-    )
-
-    return new Promise((resolve) => {
-      const postData = JSON.stringify({ text })
-
-      oauthClient.post(
-        'https://api.x.com/2/tweets',
-        accessToken,
-        accessTokenSecret,
-        postData,
-        'application/json',
-        (err, _data) => {
-          if (err) {
-            console.error('Twitter API error:', err)
-            resolve({ success: false, error: String(err.data || err) })
-            return
-          }
-
-          try {
-            const result = JSON.parse(_data as string)
-            const tweetId = result?.data?.id
-            resolve({ success: true, tweetId })
-          } catch {
-            resolve({ success: false, error: 'Failed to parse response' })
-          }
-        }
-      )
-    })
-  } catch (error) {
-    console.error('OAuth error:', error)
-    return { success: false, error: 'OAuth library error' }
   }
 }

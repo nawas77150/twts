@@ -1,58 +1,6 @@
 import { db } from '@/lib/db'
+import { postTweetViaOAuth1 } from '@/lib/twitter-post'
 import { NextRequest, NextResponse } from 'next/server'
-
-// POST tweet to X via OAuth 1.0a
-async function postTweet(
-  text: string,
-  apiKey: string,
-  apiSecret: string,
-  accessToken: string,
-  accessTokenSecret: string
-): Promise<{ success: boolean; tweetId?: string; error?: string }> {
-  try {
-    const oauth = await import('oauth')
-
-    const oauthClient = new oauth.OAuth(
-      'https://api.x.com/oauth/request_token',
-      'https://api.x.com/oauth/access_token',
-      apiKey,
-      apiSecret,
-      '1.0A',
-      null,
-      'HMAC-SHA1'
-    )
-
-    return new Promise((resolve) => {
-      const postData = JSON.stringify({ text })
-
-      oauthClient.post(
-        'https://api.x.com/2/tweets',
-        accessToken,
-        accessTokenSecret,
-        postData,
-        'application/json',
-        (err, _data) => {
-          if (err) {
-            console.error('Twitter API error:', err)
-            resolve({ success: false, error: String(err.data || err) })
-            return
-          }
-
-          try {
-            const result = JSON.parse(_data as string)
-            const tweetId = result?.data?.id
-            resolve({ success: true, tweetId })
-          } catch {
-            resolve({ success: false, error: 'Failed to parse response' })
-          }
-        }
-      )
-    })
-  } catch (error) {
-    console.error('OAuth error:', error)
-    return { success: false, error: 'OAuth library error' }
-  }
-}
 
 // PATCH /api/submissions/[id] - Approve (auto-post) or reject
 export async function PATCH(
@@ -89,31 +37,8 @@ export async function PATCH(
 
     // If approving, auto-post to X
     if (status === 'approved') {
-      const apiKey = process.env.X_API_KEY
-      const apiSecret = process.env.X_API_SECRET
-      const accessToken = process.env.X_ACCESS_TOKEN
-      const accessTokenSecret = process.env.X_ACCESS_TOKEN_SECRET
-
-      if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
-        // No X credentials — just approve without posting
-        const updated = await db.submission.update({
-          where: { id },
-          data: { status: 'approved' },
-        })
-        return NextResponse.json({
-          submission: updated,
-          warning: 'Disetujui tapi X API credentials belum dikonfigurasi. Tweet tidak dikirim.',
-        })
-      }
-
-      // Post to X
-      const tweetResult = await postTweet(
-        submission.message,
-        apiKey,
-        apiSecret,
-        accessToken,
-        accessTokenSecret
-      )
+      // Post to your autobase X account using OAuth 1.0a
+      const tweetResult = await postTweetViaOAuth1(submission.message)
 
       if (tweetResult.success) {
         const updated = await db.submission.update({
@@ -130,6 +55,7 @@ export async function PATCH(
         })
       } else {
         // Failed to post — still approve but mark as approved (not posted)
+        // Admin can manually retry posting later
         const updated = await db.submission.update({
           where: { id },
           data: { status: 'approved' },

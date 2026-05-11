@@ -77,7 +77,10 @@ export async function GET(req: NextRequest) {
 
   // Create or update submitter in DB
   try {
-    const submitter = await upsertSubmitterFromTwitter(twitterUser)
+    const submitter = await upsertSubmitterFromTwitter(twitterUser, {
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+    })
 
     // Create session token
     const sessionToken = createSessionToken(submitter.id)

@@ -45,7 +45,7 @@ export function buildTwitterAuthUrl(
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'tweet.read users.read offline.access',
+    scope: 'users.read offline.access',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
@@ -149,7 +149,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
   name: string
   username: string
   profile_image_url?: string
-}) {
+}, tokens?: { accessToken?: string; refreshToken?: string }) {
   const { id: twitterId, name: displayName, username, profile_image_url } = twitterUser
 
   // Try to find existing submitter by twitterId
@@ -163,6 +163,8 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
         username,
         displayName: displayName || null,
         profileImage: profile_image_url || null,
+        ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
+        ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
       },
     })
   }
@@ -177,6 +179,8 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       username: finalUsername,
       displayName: displayName || null,
       profileImage: profile_image_url || null,
+      ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
+      ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
     },
   })
 }
