@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Submitter {
+  id           String       @id @default(cuid())
+  twitterId    String       @unique  // Required - all users login via Twitter
+  username     String       @unique
+  displayName  String?
+  profileImage String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  submissions  Submission[]
+}
+
+model Submission {
+  id          String    @id @default(cuid())
+  message     String
+  status      String    @default("pending") // pending, approved, rejected, posted
+  tweetId     String?   // X tweet ID after posting
+  category    String?   // optional category/tag
+  submitterId String
+  submitter   Submitter @relation(fields: [submitterId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
