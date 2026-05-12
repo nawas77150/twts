@@ -350,7 +350,7 @@ export default function HomePage() {
         toast({ title: 'Cookie disimpan!', description: parsedInfo })
         // Clear input on success only — keep value on error so admin can edit and retry
         setCookieString('')
-        fetchCookieStatus()
+        fetchStats()
       } else {
         toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
       }
@@ -360,22 +360,6 @@ export default function HomePage() {
       setIsSavingCookie(false)
     }
   }
-
-  // Fetch cookie status only
-  const fetchCookieStatus = useCallback(async () => {
-    if (!adminToken) return
-    try {
-      const res = await fetch('/api/admin/stats', {
-        headers: { authorization: `Bearer ${adminToken}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setCookieStatus(data.cookieAuthStatus)
-      }
-    } catch {
-      // silently fail
-    }
-  }, [adminToken])
 
   // Approve submission (auto-posts to X)
   const handleApprove = async (id: string) => {
