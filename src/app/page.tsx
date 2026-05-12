@@ -85,6 +85,7 @@ interface Stats {
     configured: boolean
     source: string | null
     lastUpdated: string | null
+    missing: string[]
   } | null
 }
 
@@ -178,10 +179,15 @@ export default function HomePage() {
 
   // X Settings state
   const [cookieString, setCookieString] = useState('')
+  const [queryId, setQueryId] = useState('')
+  const [bearerToken, setBearerToken] = useState('')
   const [cookieStatus, setCookieStatus] = useState<Stats['cookieAuthStatus']>(null)
-  const [isSavingCookie, setIsSavingCookie] = useState(false)
+  const [isSavingSetting, setIsSavingSetting] = useState<string | null>(null) // key being saved
   const [showCookieGuide, setShowCookieGuide] = useState(false)
   const [showCookieValue, setShowCookieValue] = useState(false)
+  const [showBearerValue, setShowBearerValue] = useState(false)
+  const [showQueryIdGuide, setShowQueryIdGuide] = useState(false)
+  const [showBearerGuide, setShowBearerGuide] = useState(false)
 
   const { toast } = useToast()
 
@@ -249,6 +255,8 @@ export default function HomePage() {
     setStats(null)
     setCookieStatus(null)
     setCookieString('')
+    setQueryId('')
+    setBearerToken('')
     toast({ title: 'Logout berhasil' })
   }
 
@@ -329,9 +337,9 @@ export default function HomePage() {
     }
   }, [adminToken])
 
-  // Save cookie string
-  const handleSaveCookie = async () => {
-    setIsSavingCookie(true)
+  // Generic save for any X setting
+  const handleSaveSetting = async (key: string, value: string, onSuccess?: () => void) => {
+    setIsSavingSetting(key)
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
@@ -339,17 +347,22 @@ export default function HomePage() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${adminToken}`,
         },
-        body: JSON.stringify({ key: 'x_cookie_string', value: cookieString }),
+        body: JSON.stringify({ key, value }),
       })
       const data = await res.json()
       if (res.ok) {
-        // Show parsed confirmation in toast so admin can verify both fields were found
-        const parsedInfo = data.parsed
-          ? `auth_token: ${data.parsed.auth_token}, ct0: ${data.parsed.ct0}`
-          : 'Cookie auth berhasil diperbarui.'
-        toast({ title: 'Cookie disimpan!', description: parsedInfo })
-        // Clear input on success only — keep value on error so admin can edit and retry
-        setCookieString('')
+        // Cookie string gets parsed confirmation toast
+        if (key === 'x_cookie_string' && data.parsed) {
+          const parsedInfo = `auth_token: ${data.parsed.auth_token}, ct0: ${data.parsed.ct0}`
+          toast({ title: 'Cookie disimpan!', description: parsedInfo })
+        } else {
+          const labels: Record<string, string> = {
+            x_query_id: 'Query ID',
+            x_bearer_token: 'Bearer Token',
+          }
+          toast({ title: `${labels[key] || key} disimpan!` })
+        }
+        onSuccess?.()
         fetchStats()
       } else {
         toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
@@ -357,7 +370,7 @@ export default function HomePage() {
     } catch {
       toast({ title: 'Error', description: 'Gagal menyimpan', variant: 'destructive' })
     } finally {
-      setIsSavingCookie(false)
+      setIsSavingSetting(null)
     }
   }
 
@@ -839,7 +852,7 @@ export default function HomePage() {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px] px-1.5 bg-red-50 text-red-700 border-red-300">
-                          Belum dikonfigurasi
+                          Belum lengkap
                         </Badge>
                       )}
                       {cookieStatus?.source && (
@@ -847,9 +860,22 @@ export default function HomePage() {
                           via {cookieStatus.source === 'database' ? 'Database' : 'Env Var'}
                         </span>
                       )}
+                      {cookieStatus?.missing && cookieStatus.missing.length > 0 && (
+                        <span className="text-[10px] text-red-500">
+                          Kurang: {cookieStatus.missing
+                            .filter(k => k !== 'x_query_id')
+                            .map(k => k.replace('x_', '').replace(/_/g, ' '))
+                            .join(', ')
+                          }
+                          {cookieStatus.missing.includes('x_query_id') && (
+                            <span className="text-slate-400"> (query ID: auto-fetch)</span>
+                          )}
+                        </span>
+                      )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-4">
+                    {/* Cookie String */}
                     <div className="space-y-2">
                       <label className="text-xs font-medium text-slate-600">Cookie String</label>
                       <div className="flex gap-2">
@@ -871,41 +897,141 @@ export default function HomePage() {
                           </Button>
                         </div>
                         <Button
-                          onClick={handleSaveCookie}
-                          disabled={isSavingCookie || !cookieString.trim()}
+                          onClick={() => handleSaveSetting('x_cookie_string', cookieString, () => setCookieString(''))}
+                          disabled={!!isSavingSetting || !cookieString.trim()}
                           className="bg-sky-500 hover:bg-sky-600"
                         >
-                          {isSavingCookie ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
+                          {isSavingSetting === 'x_cookie_string' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
                         </Button>
                       </div>
+                      <button
+                        onClick={() => setShowCookieGuide(!showCookieGuide)}
+                        className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showCookieGuide ? 'rotate-180' : ''}`} />
+                        Cara mendapatkan cookie string
+                      </button>
+                      {showCookieGuide && (
+                        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 space-y-2 border border-slate-200">
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Login ke <strong>x.com</strong> di browser (Chrome/Firefox)</li>
+                            <li>Tekan <kbd className="bg-slate-200 px-1 rounded">F12</kbd> → tab <strong>Application</strong></li>
+                            <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
+                            <li>Temukan baris <code className="bg-slate-200 px-1 rounded">auth_token</code> → copy value-nya</li>
+                            <li>Temukan baris <code className="bg-slate-200 px-1 rounded">ct0</code> → copy value-nya</li>
+                            <li>Gabungkan: <code className="bg-slate-200 px-1 rounded">auth_token=...; ct0=...</code></li>
+                            <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
+                          </ol>
+                          <div className="flex items-start gap-1.5 text-amber-600 pt-1">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Inline guide */}
-                    <button
-                      onClick={() => setShowCookieGuide(!showCookieGuide)}
-                      className="text-xs text-sky-600 hover:underline flex items-center gap-1"
-                    >
-                      <ChevronDown className={`w-3 h-3 transition-transform ${showCookieGuide ? 'rotate-180' : ''}`} />
-                      Cara mendapatkan cookie string
-                    </button>
+                    <Separator />
 
-                    {showCookieGuide && (
-                      <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 space-y-2 border border-slate-200">
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li>Login ke <strong>x.com</strong> di browser (Chrome/Firefox)</li>
-                          <li>Tekan <kbd className="bg-slate-200 px-1 rounded">F12</kbd> → tab <strong>Application</strong></li>
-                          <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
-                          <li>Temukan baris <code className="bg-slate-200 px-1 rounded">auth_token</code> → copy value-nya</li>
-                          <li>Temukan baris <code className="bg-slate-200 px-1 rounded">ct0</code> → copy value-nya</li>
-                          <li>Gabungkan: <code className="bg-slate-200 px-1 rounded">auth_token=...; ct0=...</code></li>
-                          <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
-                        </ol>
-                        <div className="flex items-start gap-1.5 text-amber-600 pt-1">
-                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                          <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
-                        </div>
+                    {/* Query ID (auto-fetch, manual fallback) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-slate-600">Query ID</label>
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 bg-sky-50 text-sky-600 border-sky-200">
+                          Auto-fetch
+                        </Badge>
                       </div>
-                    )}
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="Manual fallback (optional)"
+                          value={queryId}
+                          onChange={(e) => setQueryId(e.target.value)}
+                          className="border-slate-200"
+                        />
+                        <Button
+                          onClick={() => handleSaveSetting('x_query_id', queryId, () => setQueryId(''))}
+                          disabled={!!isSavingSetting || !queryId.trim()}
+                          className="bg-sky-500 hover:bg-sky-600"
+                        >
+                          {isSavingSetting === 'x_query_id' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
+                        </Button>
+                      </div>
+                      <button
+                        onClick={() => setShowQueryIdGuide(!showQueryIdGuide)}
+                        className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showQueryIdGuide ? 'rotate-180' : ''}`} />
+                        Tentang auto-fetch & manual fallback
+                      </button>
+                      {showQueryIdGuide && (
+                        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 space-y-2 border border-slate-200">
+                          <p>Query ID otomatis di-fetch dari JS bundle X sebelum setiap post. Kamu <strong>tidak perlu mengisi ini manual</strong>.</p>
+                          <p>Isi manual hanya jika auto-fetch gagal (jarang terjadi). Cara manual:</p>
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Step 1 — ambil nama bundle terbaru:<br />
+                              <code className="bg-slate-200 px-1 rounded text-[10px]">curl -sL &apos;https://x.com&apos; | grep -oP &apos;main\.[a-z0-9]+\.js&apos; | head -1</code>
+                            </li>
+                            <li>Step 2 — extract dari bundle tersebut:<br />
+                              <code className="bg-slate-200 px-1 rounded text-[10px] break-all">curl -sL &apos;https://abs.twimg.com/responsive-web/client-web/&lt;BUNDLE&gt;.js&apos; | grep -oP &apos;queryId:&quot;[^&quot;]+&quot;,operationName:&quot;CreateTweet&apos;</code>
+                            </li>
+                            <li>Copy value setelah <code className="bg-slate-200 px-1 rounded">queryId:</code> → paste di atas</li>
+                          </ol>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Bearer Token */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-600">Bearer Token</label>
+                      <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                          <Input
+                            type={showBearerValue ? 'text' : 'password'}
+                            placeholder="AAAAAAAAAAAAAAAAAAAAANRILg..."
+                            value={bearerToken}
+                            onChange={(e) => setBearerToken(e.target.value)}
+                            className="pr-10 border-slate-200"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-7 w-7 p-0"
+                            onClick={() => setShowBearerValue(!showBearerValue)}
+                          >
+                            {showBearerValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => handleSaveSetting('x_bearer_token', bearerToken, () => setBearerToken(''))}
+                          disabled={!!isSavingSetting || !bearerToken.trim()}
+                          className="bg-sky-500 hover:bg-sky-600"
+                        >
+                          {isSavingSetting === 'x_bearer_token' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
+                        </Button>
+                      </div>
+                      <button
+                        onClick={() => setShowBearerGuide(!showBearerGuide)}
+                        className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showBearerGuide ? 'rotate-180' : ''}`} />
+                        Cara mendapatkan Bearer Token
+                      </button>
+                      {showBearerGuide && (
+                        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 space-y-2 border border-slate-200">
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Login ke <strong>x.com</strong> di browser</li>
+                            <li>Tekan <kbd className="bg-slate-200 px-1 rounded">F12</kbd> → tab <strong>Network</strong></li>
+                            <li>Lakukan aksi apapun (scroll, like, dll)</li>
+                            <li>Klik salah satu request ke <code className="bg-slate-200 px-1 rounded">/i/api/</code></li>
+                            <li>Cek header <strong>Authorization</strong> → copy value setelah <code className="bg-slate-200 px-1 rounded">Bearer </code></li>
+                            <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
+                          </ol>
+                          <p className="text-slate-400 pt-1">Token ini sama untuk semua user X (public consumer token). Jarang berubah.</p>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Last updated info */}
                     {cookieStatus?.lastUpdated && (

@@ -35,11 +35,7 @@ Work Log:
 - Ran `bun install` — 2 packages removed
 - Build passes cleanly (npx next build — zero errors)
 - Lint passes cleanly (bun run lint — zero errors)
-- All API endpoints verified working via curl:
-  - GET /api/admin/stats → 200 with cookieAuthStatus
-  - POST /api/admin/settings → 200 with parsed confirmation
-  - DELETE /api/admin/settings → 200
-  - GET /api/test-x → 200 with cookieAuth info
+- All API endpoints verified working via curl
 
 Stage Summary:
 - All 12 implementation steps completed
@@ -48,3 +44,39 @@ Stage Summary:
 - Build succeeds
 - All API endpoints tested and working
 - Project ready for deployment to Vercel with PostgreSQL (Neon)
+
+---
+Task ID: 2
+Agent: Main
+Task: Add auto-fetch queryId from X's live JS bundle before each tweet post
+
+Work Log:
+- Verified 3 pending items from previous session: all pass (batched getSettings, Stats type has missing:string[], bearer guide accurate)
+- Added `BROWSER_UA` constant (shared across fetchLiveQueryId and postTweetViaCookie)
+- Added `fetchLiveQueryId()` function to twitter-post-cookie.ts:
+  - Step 1: fetch x.com HTML, extract main bundle filename via regex
+  - Step 2: fetch bundle JS from abs.twimg.com, extract queryId via regex
+  - Returns null on any failure (silent fallback)
+- Modified `postTweetViaCookie` queryId resolution:
+  - Auto-fetch from live bundle first
+  - If new value differs from DB, auto-upsert to DB (so next request is faster)
+  - Fall back to DB value if live fetch fails
+  - Clear error message if both sources fail
+- Updated `getCookieAuthStatus`:
+  - "Configured" now requires only cookie + bearer (queryId auto-fetched)
+  - queryId still tracked in `missing` array but not blocking
+  - When configured=true with no queryId, missing shows ['x_query_id'] as advisory
+- Updated admin UI (page.tsx):
+  - Query ID label now shows "Auto-fetch" badge
+  - Placeholder changed to "Manual fallback (optional)"
+  - Guide updated: explains auto-fetch, manual steps are fallback only
+  - Missing display: required items in red, queryId shown as "(query ID: auto-fetch)" in slate
+- Replaced inline User-Agent string with BROWSER_UA constant
+- Updated module header comments to reflect auto-fetch flow
+- Lint passes cleanly, dev server running
+
+Stage Summary:
+- Auto-fetch queryId implemented with graceful DB fallback
+- queryId no longer required for "Terhubung" status — only cookie + bearer needed
+- Admin UI updated to reflect auto-fetch capability
+- Zero lint errors

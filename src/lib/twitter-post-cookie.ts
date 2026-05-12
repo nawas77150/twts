@@ -9,8 +9,8 @@ import { db } from '@/lib/db'
 // How it works:
 // 1. Read cookie string from DB → env var → null
 // 2. Parse auth_token and ct0 from the cookie string
-// 3. Read queryId from DB → default
-// 4. Read bearer token from DB → default
+// 3. Auto-fetch queryId from X's live JS bundle (with DB fallback)
+// 4. Read bearer token from DB (required, no default)
 // 5. POST to X GraphQL CreateTweet
 // 6. Parse response with comprehensive error checking
 //
@@ -24,17 +24,51 @@ import { db } from '@/lib/db'
 // for crypto, fetch, and Prisma.
 // ============================================================
 
-// Default queryId for CreateTweet.
-// This changes when X updates their frontend (every 2-8 weeks).
-// When it breaks, get the new one from browser DevTools → Network →
-// post a tweet → find the CreateTweet request URL → copy the queryId.
-const DEFAULT_QUERY_ID = 'FtGeaqS11k1UG-kGv_YUVg'
+// No hardcoded defaults for queryId or bearer token.
+// queryId is auto-fetched from X's live JS bundle before each post.
+// bearer token must be set via Admin → X Settings. Stale defaults cause
+// silent 404s that are hard to debug. Explicit configuration = clear errors.
 
-// X's public "consumer" Bearer token — the same one the x.com web
-// client uses. It's not secret and doesn't change frequently, but
-// should be updatable from the admin UI if requests start returning 401.
-const DEFAULT_BEARER_TOKEN =
-  'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+
+/**
+ * Auto-fetch the current CreateTweet queryId from X's live JS bundle.
+ * Steps:
+ *   1. Fetch x.com HTML → extract main bundle filename (e.g. main.05927b2a.js)
+ *   2. Fetch that bundle → extract queryId from CreateTweet operation definition
+ *
+ * If X changes their bundle structure, this silently returns null and
+ * postTweetViaCookie falls back to the DB-stored value.
+ *
+ * Adds ~200-400ms per post (two extra fetches). Acceptable for
+ * admin-moderated menfess — posts aren't time-critical.
+ */
+async function fetchLiveQueryId(): Promise<string | null> {
+  try {
+    // Step 1: get current bundle name from x.com homepage
+    const html = await fetch('https://x.com', {
+      headers: { 'User-Agent': BROWSER_UA },
+    }).then((r) => r.text())
+
+    const bundle = html.match(/main\.[a-z0-9]+\.js/)?.[0]
+    if (!bundle) return null
+
+    // Step 2: extract queryId from the bundle JS
+    const js = await fetch(
+      `https://abs.twimg.com/responsive-web/client-web/${bundle}`,
+      { headers: { 'User-Agent': BROWSER_UA } }
+    ).then((r) => r.text())
+
+    // Match pattern like: {queryId:"FtGeaqS11k1UG-kGv_YUVg",operationName:"CreateTweet"}
+    const match = js.match(
+      /([A-Za-z0-9_-]{15,35})",operationName:"CreateTweet"/
+    )
+    return match?.[1] ?? null
+  } catch {
+    return null
+  }
+}
 
 /**
  * Batch-read all X-related settings from DB in one query.
@@ -108,15 +142,41 @@ export async function postTweetViaCookie(
     }
   }
 
-  // 4. Resolve queryId: DB → default
-  const queryId = settings.x_query_id || DEFAULT_QUERY_ID
+  // 4. Resolve queryId: auto-fetch from live JS bundle, fall back to DB
+  let queryId = await fetchLiveQueryId()
 
-  // 5. Resolve bearer token: DB → default
-  const bearerToken = settings.x_bearer_token || DEFAULT_BEARER_TOKEN
+  if (queryId && queryId !== settings.x_query_id) {
+    // Auto-update DB with fresh value so next request is faster
+    await db.setting.upsert({
+      where: { key: 'x_query_id' },
+      update: { value: queryId },
+      create: { key: 'x_query_id', value: queryId },
+    })
+  }
+
+  // Fall back to DB if live fetch failed
+  queryId = queryId || settings.x_query_id || null
+  if (!queryId) {
+    return {
+      success: false,
+      error: 'x_query_id not set and live fetch failed. Check network or set manually in Admin → X Settings.',
+      method: 'cookie',
+    }
+  }
+
+  // 5. Resolve bearer token (required — no default)
+  const bearerToken = settings.x_bearer_token || null
+  if (!bearerToken) {
+    return {
+      success: false,
+      error: 'x_bearer_token not set. Update in Admin → X Settings.',
+      method: 'cookie',
+    }
+  }
 
   // 6. Make the request
   try {
-    const url = `https://x.com/i/api/graphql/${queryId}/CreateTweet`
+    const url = `https://twitter.com/i/api/graphql/${queryId}/CreateTweet`
 
     const variables = {
       tweet_text: text,
@@ -176,8 +236,11 @@ export async function postTweetViaCookie(
         Cookie: cookies.raw,
         'X-Csrf-Token': cookies.ct0,
         'Content-Type': 'application/json',
+        'X-Twitter-Auth-Type': 'OAuth2Session',
         'X-Twitter-Active-User': 'yes',
         'X-Twitter-Client-Language': 'en',
+        'User-Agent': BROWSER_UA,
+        Referer: 'https://x.com/',
       },
       body: JSON.stringify({
         variables,
@@ -248,15 +311,32 @@ export async function postTweetViaCookie(
 /**
  * Check if cookie auth is configured and return status info.
  * Used by the admin dashboard to show connection status.
+ * "Configured" means the two required values are set: cookie and bearer.
+ * queryId is optional (auto-fetched at post time), but tracked in `missing`
+ * so admins know it's not stored as a fallback.
  */
 export async function getCookieAuthStatus(): Promise<{
   configured: boolean
   source: 'database' | 'env_var' | null
   lastUpdated: Date | null
+  missing: string[]
 }> {
   const settings = await getSettings()
+  const missing: string[] = []
 
-  if (settings.x_cookie_string) {
+  const hasCookie = !!(settings.x_cookie_string || process.env.X_COOKIE_STRING?.trim())
+  const hasBearer = !!settings.x_bearer_token
+  const hasQueryId = !!settings.x_query_id
+
+  // Cookie and bearer are required; queryId is auto-fetched but tracked
+  if (!hasCookie) missing.push('x_cookie_string')
+  if (!hasBearer) missing.push('x_bearer_token')
+  if (!hasQueryId) missing.push('x_query_id')
+
+  // "Configured" = can post (cookie + bearer present; queryId auto-fetched)
+  const configured = hasCookie && hasBearer
+
+  if (configured) {
     // Need updatedAt — targeted query for just the timestamp
     const dbSetting = await db.setting.findUnique({
       where: { key: 'x_cookie_string' },
@@ -264,15 +344,11 @@ export async function getCookieAuthStatus(): Promise<{
     })
     return {
       configured: true,
-      source: 'database',
+      source: settings.x_cookie_string ? 'database' : 'env_var',
       lastUpdated: dbSetting?.updatedAt ?? null,
+      missing: hasQueryId ? [] : ['x_query_id'],
     }
   }
 
-  const envCookie = process.env.X_COOKIE_STRING?.trim()
-  if (envCookie) {
-    return { configured: true, source: 'env_var', lastUpdated: null }
-  }
-
-  return { configured: false, source: null, lastUpdated: null }
+  return { configured: false, source: null, lastUpdated: null, missing }
 }
