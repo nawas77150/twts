@@ -34,9 +34,11 @@ export async function POST(
     const tweetResult = await postTweetViaCookie(submission.message)
 
     if (!tweetResult.success) {
+      // Log the actual X error for debugging (visible in Vercel runtime logs)
+      console.error('X API error:', tweetResult.error)
       return NextResponse.json(
         { error: `Gagal posting ke X: ${tweetResult.error}` },
-        { status: 500 }
+        { status: 502 }  // 502 = upstream (X API) rejected, not our server error
       )
     }
 

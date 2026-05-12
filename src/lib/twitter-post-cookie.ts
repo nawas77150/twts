@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { generateTransactionId, fetchXcomHtml, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
 
 // ============================================================
 // Cookie-based tweet posting via X's internal GraphQL API
@@ -9,9 +10,9 @@ import { db } from '@/lib/db'
 // How it works:
 // 1. Read cookie string from DB → env var → null
 // 2. Parse auth_token and ct0 from the cookie string
-// 3. Auto-fetch queryId from X's live JS bundle (with DB fallback)
+// 3. Resolve queryId: in-memory cache → DB → live fetch → DB fallback
 // 4. Read bearer token from DB (required, no default)
-// 5. POST to X GraphQL CreateTweet
+// 5. POST to X GraphQL CreateTweet with Chrome-matching headers
 // 6. Parse response with comprehensive error checking
 //
 // Error detection checks THREE layers:
@@ -21,35 +22,58 @@ import { db } from '@/lib/db'
 //
 // IMPORTANT: Do NOT add `export const runtime = 'edge'` to any
 // route file that uses this module — it requires Node.js runtime
-// for crypto, fetch, and Prisma.
+// for fetch and Prisma.
+//
+// Header accuracy verified against:
+// - X's live JS bundle (main.05927b2a.js)
+// - TwitterInternalAPIDocument (daily auto-updated Chrome captures)
+// - emusks reverse-engineering project (npm)
 // ============================================================
 
 // No hardcoded defaults for queryId or bearer token.
-// queryId is auto-fetched from X's live JS bundle before each post.
+// queryId is auto-fetched from X's live JS bundle (with in-memory + DB cache).
 // bearer token must be set via Admin → X Settings. Stale defaults cause
 // silent 404s that are hard to debug. Explicit configuration = clear errors.
 
 const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+
+// Chrome Client Hints — matches the User-Agent above (Chrome 144 format)
+const SEC_CH_UA = '"Chromium";v="144", "Not;A=Brand";v="24", "Google Chrome";v="144"'
+
+// --- Query ID Cache ---
+// In-memory cache avoids re-fetching X's homepage + JS bundle on every post.
+// On Vercel cold starts this resets, but the DB upsert (below) serves as the
+// persistent fallback. The in-memory cache only helps during warm instances
+// (burst posting), while the DB is the effective cache for cold starts.
+let cachedQueryId: string | null = null
+let cachedQueryIdTime: number = 0
+const QUERY_ID_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours — matches x-transaction-id.ts
 
 /**
  * Auto-fetch the current CreateTweet queryId from X's live JS bundle.
  * Steps:
- *   1. Fetch x.com HTML → extract main bundle filename (e.g. main.05927b2a.js)
- *   2. Fetch that bundle → extract queryId from CreateTweet operation definition
+ *   1. Check in-memory cache (warm instance optimization)
+ *   2. Fetch x.com HTML → extract main bundle filename (e.g. main.05927b2a.js)
+ *   3. Fetch that bundle → extract queryId from CreateTweet operation definition
  *
  * If X changes their bundle structure, this silently returns null and
  * postTweetViaCookie falls back to the DB-stored value.
  *
- * Adds ~200-400ms per post (two extra fetches). Acceptable for
- * admin-moderated menfess — posts aren't time-critical.
+ * Cache strategy: in-memory (4h TTL) + DB upsert (persistent across cold starts).
+ * This minimizes requests to X's servers — fetching the homepage + JS bundle
+ * before every tweet is a bot fingerprint pattern that real browsers don't exhibit.
  */
 async function fetchLiveQueryId(): Promise<string | null> {
+  // Check in-memory cache first (only helps during warm instances)
+  const now = Date.now()
+  if (cachedQueryId && now - cachedQueryIdTime < QUERY_ID_CACHE_TTL) {
+    return cachedQueryId
+  }
+
   try {
-    // Step 1: get current bundle name from x.com homepage
-    const html = await fetch('https://x.com', {
-      headers: { 'User-Agent': BROWSER_UA },
-    }).then((r) => r.text())
+    // Step 1: get current bundle name from x.com homepage (shared cache)
+    const html = await fetchXcomHtml()
 
     const bundle = html.match(/main\.[a-z0-9]+\.js/)?.[0]
     if (!bundle) return null
@@ -64,7 +88,16 @@ async function fetchLiveQueryId(): Promise<string | null> {
     const match = js.match(
       /([A-Za-z0-9_-]{15,35})",operationName:"CreateTweet"/
     )
-    return match?.[1] ?? null
+
+    const result = match?.[1] ?? null
+
+    // Update in-memory cache
+    if (result) {
+      cachedQueryId = result
+      cachedQueryIdTime = now
+    }
+
+    return result
   } catch {
     return null
   }
@@ -142,11 +175,11 @@ export async function postTweetViaCookie(
     }
   }
 
-  // 4. Resolve queryId: auto-fetch from live JS bundle, fall back to DB
+  // 4. Resolve queryId: in-memory cache → live fetch → DB fallback
   let queryId = await fetchLiveQueryId()
 
   if (queryId && queryId !== settings.x_query_id) {
-    // Auto-update DB with fresh value so next request is faster
+    // Auto-update DB with fresh value so cold starts can skip the live fetch
     await db.setting.upsert({
       where: { key: 'x_query_id' },
       update: { value: queryId },
@@ -185,7 +218,14 @@ export async function postTweetViaCookie(
       semantic_annotation_ids: [],
     }
 
-    // Feature switches — synced from X's main.05927b2a.js on 2025-07-19.
+    // Feature switches — synced from X's main.05927b2a.js on 2025-07-19
+    // + TwitterInternalAPIDocument (daily auto-updated Chrome captures).
+    //
+    // Grok flags updated: 7 flags changed from false → true.
+    // Having ALL Grok features disabled was a suspicious pattern — Grok is
+    // X's flagship AI product and virtually all modern accounts have it enabled.
+    // Values sourced from TwitterInternalAPIDocument's Chrome DevTools captures.
+    //
     // When queryId 404s, this list may also need updating.
     // Step 1 — get current bundle name (changes every X deploy):
     //   curl -sL 'https://x.com' | grep -oP 'main\.[a-z0-9]+\.js' | head -1
@@ -198,63 +238,98 @@ export async function postTweetViaCookie(
       responsive_web_grok_analyze_button_fetch_trends_enabled: false,
       responsive_web_grok_analyze_post_followups_enabled: false,
       rweb_cashtags_composer_attachment_enabled: false,
-      responsive_web_jetfuel_frame: false,
-      responsive_web_grok_share_attachment_enabled: false,
-      responsive_web_grok_annotations_enabled: false,
+      responsive_web_jetfuel_frame: true,
+      responsive_web_grok_share_attachment_enabled: true,
+      responsive_web_grok_annotations_enabled: true,
       responsive_web_edit_tweet_api_enabled: true,
       graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
       view_counts_everywhere_api_enabled: true,
       longform_notetweets_consumption_enabled: true,
       responsive_web_twitter_article_tweet_consumption_enabled: true,
-      content_disclosure_indicator_enabled: false,
-      content_disclosure_ai_generated_indicator_enabled: false,
-      responsive_web_grok_show_grok_translated_post: false,
-      responsive_web_grok_analysis_button_from_backend: false,
+      content_disclosure_indicator_enabled: true,
+      content_disclosure_ai_generated_indicator_enabled: true,
+      responsive_web_grok_show_grok_translated_post: true,
+      responsive_web_grok_analysis_button_from_backend: true,
       post_ctas_fetch_enabled: false,
       longform_notetweets_rich_text_read_enabled: true,
-      longform_notetweets_inline_media_enabled: true,
-      profile_label_improvements_pcf_label_in_post_enabled: false,
+      longform_notetweets_inline_media_enabled: false,   // TwitterInternalAPIDocument: false
+      profile_label_improvements_pcf_label_in_post_enabled: true,
       responsive_web_profile_redirect_enabled: false,
-      rweb_tipjar_consumption_enabled: true,
+      rweb_tipjar_consumption_enabled: false,   // TwitterInternalAPIDocument: false
       verified_phone_label_enabled: false,
       articles_preview_enabled: true,
-      rweb_cashtags_enabled: false,
-      responsive_web_grok_community_note_auto_translation_is_enabled: false,
+      rweb_cashtags_enabled: true,
+      responsive_web_grok_community_note_auto_translation_is_enabled: true,
       responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
       freedom_of_speech_not_reach_fetch_enabled: true,
       standardized_nudges_misinfo: true,
       tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
-      responsive_web_grok_image_annotation_enabled: false,
-      responsive_web_grok_imagine_annotation_enabled: false,
+      responsive_web_grok_image_annotation_enabled: true,
+      responsive_web_grok_imagine_annotation_enabled: true,
       responsive_web_graphql_timeline_navigation_enabled: true,
+      responsive_web_enhance_cards_enabled: false,
+    }
+
+    // Generate x-client-transaction-id (X's primary anti-bot header)
+    const apiPath = `/i/api/graphql/${queryId}/CreateTweet`
+    let transactionId: string | null = null
+    try {
+      transactionId = await generateTransactionId('POST', apiPath)
+    } catch {
+      // Non-fatal: if transaction ID generation fails, continue without it
+    }
+
+    // Build headers — matches real Chrome browser request structure
+    // Verified against Chrome DevTools captures + emusks + TwitterInternalAPIDocument
+    //
+    // DO NOT add headers that real Chrome doesn't send — X can detect
+    // non-standard headers (like x-client-uuid, x-xp-forwarded-for)
+    // as bot signals. See Phase 1 analysis for details.
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${bearerToken}`,
+      Cookie: cookies.raw,
+      'X-Csrf-Token': cookies.ct0,
+      'Content-Type': 'application/json',
+      'X-Twitter-Auth-Type': 'OAuth2Session',
+      'X-Twitter-Active-User': 'yes',
+      'X-Twitter-Client-Language': 'en',
+      'User-Agent': BROWSER_UA,
+      Referer: 'https://x.com/',
+      // Chrome Client Hints — every Chromium browser sends these
+      'sec-ch-ua': SEC_CH_UA,
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      // Origin — required by Fetch spec for POST with application/json
+      // (even same-origin). Missing Origin is impossible from a real browser.
+      origin: 'https://x.com',
+      // Fetch Metadata — standard browser behavior
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'same-origin',
+      // Additional Chrome headers (verified present in emusks)
+      'sec-gpc': '1',
+      'priority': 'u=1, i',
+      // Standard HTTP headers
+      Accept: '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+    }
+
+    // Add x-client-transaction-id (non-fatal if generation fails)
+    if (transactionId) {
+      headers['x-client-transaction-id'] = transactionId
     }
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        Cookie: cookies.raw,
-        'X-Csrf-Token': cookies.ct0,
-        'Content-Type': 'application/json',
-        'X-Twitter-Auth-Type': 'OAuth2Session',
-        'X-Twitter-Active-User': 'yes',
-        'X-Twitter-Client-Language': 'en',
-        'User-Agent': BROWSER_UA,
-        Referer: 'https://x.com/',
-      },
+      headers,
       body: JSON.stringify({
         variables,
+        queryId,  // Required by X's GraphQL schema — must match URL path
         features,
-        fieldToggles: {
-          withArticleRichContentState: false,
-          withArticlePlainText: false,
-          withArticleSummaryText: false,
-          withArticleVoiceOver: false,
-          withGrokAnalyze: false,
-          withDisallowedReplyControls: false,
-          withPayments: false,
-          withAuxiliaryUserLabels: false,
-        },
+        // NOTE: fieldToggles intentionally omitted.
+        // Real Chrome does NOT send fieldToggles for CreateTweet
+        // (confirmed by twitter-openapi Chrome captures + emusks + twikit).
+        // Sending it was a bot signal.
       }),
     })
 
@@ -276,6 +351,7 @@ export async function postTweetViaCookie(
     //   131 → Internal error (possibly bad queryId)
     //   48  → Endpoint retired (queryId outdated)
     //   88  → Rate limit exceeded
+    //   344 → Bot detection / daily tweet limit (may not be a real limit)
     if (body.errors?.length) {
       const errorMessages = body.errors
         .map((e: { message: string; code?: number }) => `${e.message} (code: ${e.code || 'unknown'})`)
@@ -351,4 +427,15 @@ export async function getCookieAuthStatus(): Promise<{
   }
 
   return { configured: false, source: null, lastUpdated: null, missing }
+}
+
+/**
+ * Clear all in-memory caches (queryId + transaction ID + HTML).
+ * Useful when X updates their frontend and cached data becomes stale.
+ * Exposed via Admin → X Settings → "Clear Cache" button.
+ */
+export function clearAllCaches(): void {
+  cachedQueryId = null
+  cachedQueryIdTime = 0
+  clearXactCache()
 }

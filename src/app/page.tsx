@@ -188,6 +188,7 @@ export default function HomePage() {
   const [showBearerValue, setShowBearerValue] = useState(false)
   const [showQueryIdGuide, setShowQueryIdGuide] = useState(false)
   const [showBearerGuide, setShowBearerGuide] = useState(false)
+  const [isClearingCache, setIsClearingCache] = useState(false)
 
   const { toast } = useToast()
 
@@ -919,12 +920,17 @@ export default function HomePage() {
                             <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
                             <li>Temukan baris <code className="bg-slate-200 px-1 rounded">auth_token</code> → copy value-nya</li>
                             <li>Temukan baris <code className="bg-slate-200 px-1 rounded">ct0</code> → copy value-nya</li>
-                            <li>Gabungkan: <code className="bg-slate-200 px-1 rounded">auth_token=...; ct0=...</code></li>
+                            <li>Temukan baris <code className="bg-slate-200 px-1 rounded">guest_id</code> → copy value-nya</li>
+                            <li>Gabungkan: <code className="bg-slate-200 px-1 rounded">auth_token=...; ct0=...; guest_id=...</code></li>
                             <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
                           </ol>
                           <div className="flex items-start gap-1.5 text-amber-600 pt-1">
                             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                             <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
+                          </div>
+                          <div className="flex items-start gap-1.5 text-sky-600 pt-1">
+                            <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span>Sertikan semua cookie dari browser untuk hasil terbaik. Cookie yang lengkap membuat request lebih mirip browser asli.</span>
                           </div>
                         </div>
                       )}
@@ -1031,6 +1037,42 @@ export default function HomePage() {
                           <p className="text-slate-400 pt-1">Token ini sama untuk semua user X (public consumer token). Jarang berubah.</p>
                         </div>
                       )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Clear Cache */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs text-slate-500">
+                        <span className="font-medium">Cache</span> — queryId & transaction ID di-cache di memori (4 jam). Bersihkan jika X update frontend-nya.
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          setIsClearingCache(true)
+                          try {
+                            const res = await fetch('/api/admin/clear-cache', {
+                              method: 'POST',
+                              headers: { authorization: `Bearer ${adminToken}` },
+                            })
+                            if (res.ok) {
+                              toast({ title: 'Cache dibersihkan!', description: 'Query ID & transaction ID cache telah direset.' })
+                            } else {
+                              toast({ title: 'Gagal', description: 'Tidak dapat membersihkan cache', variant: 'destructive' })
+                            }
+                          } catch {
+                            toast({ title: 'Error', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
+                          } finally {
+                            setIsClearingCache(false)
+                          }
+                        }}
+                        disabled={isClearingCache}
+                        className="border-slate-200 text-slate-600 shrink-0"
+                      >
+                        {isClearingCache ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 mr-1" />}
+                        Clear Cache
+                      </Button>
                     </div>
 
                     {/* Last updated info */}

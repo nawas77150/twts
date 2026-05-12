@@ -54,15 +54,28 @@ export async function PATCH(
         })
       } else {
         // Cookie failed — mark as approved but NOT posted
-        // Admin can retry later after fixing the cookie
         const updated = await db.submission.update({
           where: { id },
           data: { status: 'approved' },
         })
+
+        // Context-aware hint based on error type
+        const errorMsg = tweetResult.error || ''
+        let hint = ''
+        if (errorMsg.includes('code: 344') || errorMsg.includes('daily limit')) {
+          hint = 'Batas harian tweet tercapai. Coba lagi besok.'
+        } else if (errorMsg.includes('code: 32') || errorMsg.includes('Could not authenticate')) {
+          hint = 'Cookie expired. Perbarui cookie di X Settings lalu klik "Post to X".'
+        } else if (errorMsg.includes('code: 88') || errorMsg.includes('Rate limit')) {
+          hint = 'Rate limit tercapai. Tunggu beberapa menit lalu coba lagi.'
+        } else {
+          hint = 'Cek X Settings lalu klik "Post to X" untuk retry.'
+        }
+
         return NextResponse.json({
           submission: updated,
           autoPosted: false,
-          error: `Disetujui, tapi gagal posting ke X: ${tweetResult.error}. Perbarui cookie di X Settings lalu klik "Post to X".`,
+          error: `Disetujui, tapi gagal posting ke X: ${errorMsg}. ${hint}`,
         })
       }
     }
