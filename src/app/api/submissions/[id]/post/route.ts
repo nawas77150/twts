@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
-import { postTweetViaOAuth1 } from '@/lib/twitter-post'
+import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
 import { NextRequest, NextResponse } from 'next/server'
 
-// POST /api/submissions/[id]/post - Post submission to X (manual retry)
+// POST /api/submissions/[id]/post - Post submission to X via cookie auth (manual retry)
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -30,8 +30,8 @@ export async function POST(
       return NextResponse.json({ error: 'Submission sudah ditolak' }, { status: 400 })
     }
 
-    // Post to your autobase X account using OAuth 1.0a
-    const tweetResult = await postTweetViaOAuth1(submission.message)
+    // Post to your autobase X account using cookie-based auth
+    const tweetResult = await postTweetViaCookie(submission.message)
 
     if (!tweetResult.success) {
       return NextResponse.json(

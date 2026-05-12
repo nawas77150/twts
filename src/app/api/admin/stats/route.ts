@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/admin/stats - Get dashboard stats
@@ -10,14 +11,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const [pending, approved, rejected, posted, total, submitters] = await Promise.all([
-    db.submission.count({ where: { status: 'pending' } }),
-    db.submission.count({ where: { status: 'approved' } }),
-    db.submission.count({ where: { status: 'rejected' } }),
-    db.submission.count({ where: { status: 'posted' } }),
-    db.submission.count(),
-    db.submitter.count(),
-  ])
+  const [pending, approved, rejected, posted, total, submitters, cookieAuthStatus] =
+    await Promise.all([
+      db.submission.count({ where: { status: 'pending' } }),
+      db.submission.count({ where: { status: 'approved' } }),
+      db.submission.count({ where: { status: 'rejected' } }),
+      db.submission.count({ where: { status: 'posted' } }),
+      db.submission.count(),
+      db.submitter.count(),
+      getCookieAuthStatus(),
+    ])
 
   return NextResponse.json({
     pending,
@@ -26,5 +29,6 @@ export async function GET(req: NextRequest) {
     posted,
     total,
     submitters,
+    cookieAuthStatus,
   })
 }

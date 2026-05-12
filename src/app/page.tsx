@@ -24,6 +24,8 @@ import {
   ChevronDown,
   AlertTriangle,
   RotateCcw,
+  EyeOff,
+  Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -79,6 +81,11 @@ interface Stats {
   posted: number
   total: number
   submitters: number
+  cookieAuthStatus: {
+    configured: boolean
+    source: string | null
+    lastUpdated: string | null
+  } | null
 }
 
 // Status config
@@ -169,6 +176,13 @@ export default function HomePage() {
   const [isLoadingAdmin, setIsLoadingAdmin] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // X Settings state
+  const [cookieString, setCookieString] = useState('')
+  const [cookieStatus, setCookieStatus] = useState<Stats['cookieAuthStatus']>(null)
+  const [isSavingCookie, setIsSavingCookie] = useState(false)
+  const [showCookieGuide, setShowCookieGuide] = useState(false)
+  const [showCookieValue, setShowCookieValue] = useState(false)
+
   const { toast } = useToast()
 
   const isLoggedOut = !submitter
@@ -233,6 +247,8 @@ export default function HomePage() {
     setAdminToken('')
     setSubmissions([])
     setStats(null)
+    setCookieStatus(null)
+    setCookieString('')
     toast({ title: 'Logout berhasil' })
   }
 
@@ -306,6 +322,55 @@ export default function HomePage() {
       if (res.ok) {
         const data = await res.json()
         setStats(data)
+        setCookieStatus(data.cookieAuthStatus)
+      }
+    } catch {
+      // silently fail
+    }
+  }, [adminToken])
+
+  // Save cookie string
+  const handleSaveCookie = async () => {
+    setIsSavingCookie(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ key: 'x_cookie_string', value: cookieString }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        // Show parsed confirmation in toast so admin can verify both fields were found
+        const parsedInfo = data.parsed
+          ? `auth_token: ${data.parsed.auth_token}, ct0: ${data.parsed.ct0}`
+          : 'Cookie auth berhasil diperbarui.'
+        toast({ title: 'Cookie disimpan!', description: parsedInfo })
+        // Clear input on success only — keep value on error so admin can edit and retry
+        setCookieString('')
+        fetchCookieStatus()
+      } else {
+        toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Gagal menyimpan', variant: 'destructive' })
+    } finally {
+      setIsSavingCookie(false)
+    }
+  }
+
+  // Fetch cookie status only
+  const fetchCookieStatus = useCallback(async () => {
+    if (!adminToken) return
+    try {
+      const res = await fetch('/api/admin/stats', {
+        headers: { authorization: `Bearer ${adminToken}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCookieStatus(data.cookieAuthStatus)
       }
     } catch {
       // silently fail
@@ -778,6 +843,94 @@ export default function HomePage() {
                     ))}
                   </div>
                 )}
+
+                {/* X Settings Card */}
+                <Card className="shadow-sm border-slate-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-sky-500" /> X Settings
+                      {cookieStatus?.configured ? (
+                        <Badge variant="outline" className="text-[10px] px-1.5 bg-green-50 text-green-700 border-green-300">
+                          Terhubung
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] px-1.5 bg-red-50 text-red-700 border-red-300">
+                          Belum dikonfigurasi
+                        </Badge>
+                      )}
+                      {cookieStatus?.source && (
+                        <span className="text-[10px] text-slate-400">
+                          via {cookieStatus.source === 'database' ? 'Database' : 'Env Var'}
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-600">Cookie String</label>
+                      <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                          <Input
+                            type={showCookieValue ? 'text' : 'password'}
+                            placeholder="auth_token=...; ct0=...; ..."
+                            value={cookieString}
+                            onChange={(e) => setCookieString(e.target.value)}
+                            className="pr-10 border-slate-200"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-7 w-7 p-0"
+                            onClick={() => setShowCookieValue(!showCookieValue)}
+                          >
+                            {showCookieValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={handleSaveCookie}
+                          disabled={isSavingCookie || !cookieString.trim()}
+                          className="bg-sky-500 hover:bg-sky-600"
+                        >
+                          {isSavingCookie ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Inline guide */}
+                    <button
+                      onClick={() => setShowCookieGuide(!showCookieGuide)}
+                      className="text-xs text-sky-600 hover:underline flex items-center gap-1"
+                    >
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showCookieGuide ? 'rotate-180' : ''}`} />
+                      Cara mendapatkan cookie string
+                    </button>
+
+                    {showCookieGuide && (
+                      <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600 space-y-2 border border-slate-200">
+                        <ol className="list-decimal list-inside space-y-1">
+                          <li>Login ke <strong>x.com</strong> di browser (Chrome/Firefox)</li>
+                          <li>Tekan <kbd className="bg-slate-200 px-1 rounded">F12</kbd> → tab <strong>Application</strong></li>
+                          <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
+                          <li>Temukan baris <code className="bg-slate-200 px-1 rounded">auth_token</code> → copy value-nya</li>
+                          <li>Temukan baris <code className="bg-slate-200 px-1 rounded">ct0</code> → copy value-nya</li>
+                          <li>Gabungkan: <code className="bg-slate-200 px-1 rounded">auth_token=...; ct0=...</code></li>
+                          <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
+                        </ol>
+                        <div className="flex items-start gap-1.5 text-amber-600 pt-1">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Last updated info */}
+                    {cookieStatus?.lastUpdated && (
+                      <span className="text-[10px] text-slate-400">
+                        Terakhir diperbarui: {new Date(cookieStatus.lastUpdated).toLocaleString('id-ID')}
+                      </span>
+                    )}
+                  </CardContent>
+                </Card>
 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-slate-600">Filter:</span>

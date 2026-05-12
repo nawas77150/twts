@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { postTweetViaOAuth1 } from '@/lib/twitter-post'
+import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
 import { NextRequest, NextResponse } from 'next/server'
 
 // PATCH /api/submissions/[id] - Approve (auto-post) or reject
@@ -35,10 +35,9 @@ export async function PATCH(
       )
     }
 
-    // If approving, auto-post to X
+    // If approving, auto-post to X via cookie auth
     if (status === 'approved') {
-      // Post to your autobase X account using OAuth 1.0a
-      const tweetResult = await postTweetViaOAuth1(submission.message)
+      const tweetResult = await postTweetViaCookie(submission.message)
 
       if (tweetResult.success) {
         const updated = await db.submission.update({
@@ -54,8 +53,8 @@ export async function PATCH(
           tweetId: tweetResult.tweetId,
         })
       } else {
-        // Failed to post — still approve but mark as approved (not posted)
-        // Admin can manually retry posting later
+        // Cookie failed — mark as approved but NOT posted
+        // Admin can retry later after fixing the cookie
         const updated = await db.submission.update({
           where: { id },
           data: { status: 'approved' },
@@ -63,7 +62,7 @@ export async function PATCH(
         return NextResponse.json({
           submission: updated,
           autoPosted: false,
-          error: `Disetujui, tapi gagal posting ke X: ${tweetResult.error}`,
+          error: `Disetujui, tapi gagal posting ke X: ${tweetResult.error}. Perbarui cookie di X Settings lalu klik "Post to X".`,
         })
       }
     }
