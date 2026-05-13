@@ -125,23 +125,24 @@ export async function POST(req: NextRequest) {
           geminiChecked = geminiResult.checked
 
           if (!geminiResult.passed) {
-            // Gemini flagged the submission
+            // Gemini flagged the submission (or error/timeout — sends to pending)
             geminiPassed = false
             const geminiReason = geminiResult.reason || 'Flagged by AI'
             allFilterReasons.push(`ai:${geminiReason}`)
-            debug('[submit] Gemini flagged submission:', geminiReason)
+            if (geminiResult.error) {
+              debug('[submit] Gemini error (sending to pending):', geminiResult.error)
+            } else {
+              debug('[submit] Gemini flagged submission:', geminiReason)
+            }
           } else {
             debug('[submit] Gemini passed submission')
           }
-
-          // Log Gemini errors (but don't block the submission)
-          if (geminiResult.error) {
-            debug('[submit] Gemini error (fail-open, submission passes):', geminiResult.error)
-          }
         }
       } catch (err) {
-        // Gemini threw an exception — fail-open, don't block
-        debug('[submit] Gemini exception (fail-open):', err)
+        // Gemini threw an exception — send to pending for manual review
+        geminiPassed = false
+        allFilterReasons.push('ai:gemini_error')
+        debug('[submit] Gemini exception (sending to pending):', err)
       }
     }
 

@@ -3,7 +3,7 @@
 // ============================================================
 // Optional enhancement over the rule-based content filter.
 // If no Gemini API key is configured, this is skipped entirely.
-// If Gemini returns an error/timeout, the submission passes (fail-open).
+// If Gemini returns an error/timeout, the submission goes to pending for manual review.
 // Gemini only runs if the rule-based filter PASSES (saves API calls).
 // ============================================================
 
@@ -52,7 +52,7 @@ RESPOND IN THIS EXACT FORMAT (no other text):
 - If SAFE: {"safe": true}
 - If NEEDS REVIEW: {"safe": false, "reason": "brief explanation in English"}
 
-Important: When in doubt, mark as SAFE. It's better to let something through than to over-censor. The rule-based filter already catches explicit words — you're here for nuance only.`
+Important: When in doubt, flag for manual review. It's better to have an admin double-check than to let harmful content through. The rule-based filter already catches explicit words — you're here for nuance the rules can't catch. Flagged submissions go to a pending queue where an admin can review and approve if appropriate.`
 
 // --- Main Filter Function ---
 
@@ -97,11 +97,11 @@ export async function runGeminiFilter(
     if (!response.ok) {
       const errorBody = await response.text().catch(() => 'unknown')
       debug('[gemini-filter] API error:', response.status, errorBody)
-      // Fail-open: don't block submissions on API errors
+      // Send to pending on API errors — don't auto-approve if we can't verify
       return {
         checked: true,
-        passed: true,
-        reason: null,
+        passed: false,
+        reason: `Gemini API error (${response.status})`,
         error: `Gemini API error (${response.status}): ${errorBody.slice(0, 100)}`,
       }
     }
@@ -114,8 +114,8 @@ export async function runGeminiFilter(
       debug('[gemini-filter] Empty response from Gemini')
       return {
         checked: true,
-        passed: true,
-        reason: null,
+        passed: false,
+        reason: 'Empty Gemini response',
         error: 'Empty response from Gemini',
       }
     }
@@ -128,11 +128,11 @@ export async function runGeminiFilter(
       result = JSON.parse(text)
     } catch {
       debug('[gemini-filter] Failed to parse Gemini response as JSON:', text)
-      // If we can't parse, fail-open
+      // Can't parse — send to pending for manual review
       return {
         checked: true,
-        passed: true,
-        reason: null,
+        passed: false,
+        reason: 'Gemini parse error',
         error: `Failed to parse Gemini response: ${text.slice(0, 100)}`,
       }
     }
@@ -155,18 +155,18 @@ export async function runGeminiFilter(
       debug('[gemini-filter] Request timed out')
       return {
         checked: true,
-        passed: true,
-        reason: null,
+        passed: false,
+        reason: 'Gemini timeout',
         error: 'Gemini request timed out (8s)',
       }
     }
 
     debug('[gemini-filter] Exception:', errorMsg)
-    // Fail-open: don't block submissions on errors
+    // Send to pending on exceptions — don't auto-approve if we can't verify
     return {
       checked: true,
-      passed: true,
-      reason: null,
+      passed: false,
+      reason: 'Gemini exception',
       error: `Gemini filter error: ${errorMsg.slice(0, 100)}`,
     }
   }
