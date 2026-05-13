@@ -136,6 +136,16 @@ async function cacheLoginCookie(loginCookie: string): Promise<void> {
 export async function loginViaTwitterApi(): Promise<LoginResult> {
   const settings = await getApiSettings()
 
+  // Debug: log what we're sending (mask sensitive values)
+  console.log('[twitterapi] loginViaTwitterApi settings:', {
+    x_username: settings.x_username || '(missing)',
+    x_email: settings.x_email ? settings.x_email.slice(0, 3) + '***' : '(missing)',
+    x_password: settings.x_password ? `(${settings.x_password.length} chars)` : '(missing)',
+    x_totp_secret: settings.x_totp_secret ? `(${settings.x_totp_secret.length} chars, starts: ${settings.x_totp_secret.slice(0, 4)})` : '(missing)',
+    twitterapi_proxy: settings.twitterapi_proxy ? settings.twitterapi_proxy.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@') : '(missing)',
+    twitterapi_keys: settings.twitterapi_keys ? '(present)' : '(missing)',
+  })
+
   // Validate all required fields
   const missing: string[] = []
   if (!settings.x_username) missing.push('x_username')
@@ -186,11 +196,22 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
     })
 
     const data = await response.json()
+    console.log('[twitterapi] user_login_v2 response:', JSON.stringify(data))
 
     if (response.ok && data?.login_cookie) {
       // Cache the login_cookie (encrypted)
       await cacheLoginCookie(data.login_cookie)
       return { success: true, loginCookie: data.login_cookie }
+    }
+
+    // Login succeeded but no login_cookie returned
+    // Per docs: "We highly recommend enabling 2FA — otherwise the login_cookie may be faulty"
+    // Also: "residential proxies" recommended for cookie validity
+    if (response.ok) {
+      return {
+        success: false,
+        error: `user_login_v2 returned success but no login_cookie in response. Response: ${JSON.stringify(data)}. Possible causes: (1) Proxy issue — use a residential proxy in the same region as your X account, (2) 2FA misconfigured — verify totp_secret matches your X account's authentication app secret.`,
+      }
     }
 
     const errorMsg = data?.msg || data?.detail || data?.error || data?.message || JSON.stringify(data)
