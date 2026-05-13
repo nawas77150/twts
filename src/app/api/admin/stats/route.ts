@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
 import { getAllKeyCredits, getApiLoginStatus } from '@/lib/twitter-api-fallback'
 import { verifyAdmin } from '@/lib/admin-auth'
+import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — multiple DB queries + external API calls
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
-  const [pending, approved, rejected, posted, total, submitters, cookieAuthStatus, postMethodStats, apiCredits, apiLoginStatus, postMethodSetting] =
+  const [pending, approved, rejected, posted, total, submitters, cookieAuthStatus, postMethodStats, apiCredits, apiLoginStatus, postMethodSetting, filterSettingsData] =
     await Promise.all([
       db.submission.count({ where: { status: 'pending' } }),
       db.submission.count({ where: { status: 'approved' } }),
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
       getAllKeyCredits(),
       getApiLoginStatus(),
       getPostMethodSetting(),
+      getFilterSettings(),
     ])
 
   return NextResponse.json({
@@ -39,6 +41,7 @@ export async function GET(req: NextRequest) {
     apiCredits,
     apiLoginStatus,
     postMethodSetting,
+    filterSettings: filterSettingsData,
   })
 }
 

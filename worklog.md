@@ -388,3 +388,115 @@ Stage Summary:
 - Lint passes clean, dev server running fine
 - Kept sharp per user request
 - Noted but not deleted: logo.svg, api/test-x route
+
+---
+Task ID: 8
+Agent: Main
+Task: Implement auto-approve filter feature for Alter menfess
+
+Work Log:
+- Researched Indonesian menfess community blocked words and content moderation practices
+- Designed filter architecture with 10 configurable checks + 4 always-on checks
+- Added `filterReasons` column to Submission model in prisma/schema.prisma (nullable String, JSON array)
+- Created `src/lib/content-filter.ts` — filter engine with:
+  - DEFAULT_BLOCKED_WORDS: 80+ Indonesian profanity + English profanity + marketplace tags (WTS/WTB/WTT)
+  - DEFAULT_NSFW_WORDS: explicit sexual terms (OFF by default for Alter menfess)
+  - FilterRules interface: 10 rules (blockedWords, jualan, urls, mentions, phoneNumbers, nsfw, capsSpam, repeatedChars, tooShort, duplicate24h)
+  - ALWAYS_ON_RULES: capsSpam, repeatedChars, tooShort, duplicate24h (cannot be disabled)
+  - runContentFilter(): main filter function with text normalization, whole-word matching, regex patterns
+  - checkDuplicate24h(): async DB check for exact duplicate within 24h
+  - getFilterReasonLabel(): human-readable labels for filter reasons (with masked profanity)
+  - Unicode normalization to prevent bypass via zero-width chars or leet-speak
+- Created `src/app/api/admin/filter-settings/route.ts`:
+  - GET: returns autoApprove, blockedWords, nsfwWords, filterRules, and defaults
+  - POST: saves any combination of autoApprove, blockedWords, nsfwWords, filterRules
+  - Settings stored in Setting table: auto_approve (not encrypted), blocked_words (encrypted), nsfw_words (encrypted), filter_rules (encrypted)
+  - getFilterSettings() helper exported for use by other routes
+- Modified `src/app/api/submissions/route.ts`:
+  - POST handler now runs content filter before creating submission
+  - Auto-approve OFF: all submissions go to pending (original behavior, with filterReasons if flagged)
+  - Auto-approve ON + filter PASS: submission auto-approved and auto-posted to X immediately
+  - Auto-approve ON + filter FAIL: submission goes to pending with filterReasons for manual review
+  - If auto-post fails, submission stays as "approved" for manual retry
+  - maxDuration = 30 for auto-post timeout
+- Modified `src/app/api/admin/stats/route.ts`:
+  - Added getFilterSettings() to Promise.all
+  - Returns filterSettings object in stats response
+- Modified `src/app/page.tsx`:
+  - Added Filter, ShieldCheck, ShieldAlert icons
+  - Added FilterRules and FilterSettings interfaces
+  - Added filterReasons to Submission interface
+  - Added filter state: autoApprove, blockedWordsText, filterRules, isSavingFilter, filterOpen
+  - Load filter settings from stats response on fetchStats
+  - Clear filter state on admin logout
+  - Updated submission toast: different messages for auto-posted, filtered, and normal submissions
+  - Added filter reasons badges on submission cards (ShieldAlert icon + individual reason tags with masked profanity)
+  - Added Filter & Auto-Approve collapsible section in Settings sub-tab:
+    - Auto-Approve toggle with warning banner
+    - Blocked Words textarea with Reset Default button
+    - Filter Rules: 6 toggleable rules with descriptions + 4 always-on rule badges
+    - Save Filter Settings button
+- Lint: 0 errors
+- TypeScript: 0 errors (tsc --noEmit)
+- Dev server: compiles and serves page (HTTP 200)
+
+Stage Summary:
+- Auto-approve filter feature fully implemented
+- Default blocked words list covers Indonesian profanity (80+ words), English profanity, marketplace tags
+- NSFW filter OFF by default (Alter menfess community is more permissive)
+- 4 spam/quality rules are always-on (caps, repeated chars, too short, duplicates)
+- Admin can fully customize: toggle auto-approve, edit blocked words, toggle individual rules
+- Filter reasons displayed on flagged submissions in admin dashboard
+- Zero lint/TS errors
+
+---
+Task ID: 9
+Agent: Main
+Task: Add Gemini AI filter as optional enhancement (works without API key)
+
+Work Log:
+- Created `src/lib/gemini-filter.ts` — Gemini AI content filter:
+  - Uses `gemini-2.0-flash` model (fast, cheap, good for classification)
+  - Lenient prompt designed for Alter menfess: allows profanity/venting, only blocks hate speech/threats/doxxing
+  - 8-second timeout — don't block submissions too long
+  - Fail-open: if Gemini errors/times out, submission passes through
+  - Only runs if rule-based filter PASSES (saves API calls)
+  - Returns structured result: { checked, passed, reason, error }
+- Modified `src/app/api/admin/filter-settings/route.ts`:
+  - Added `gemini_enabled` and `gemini_api_key` to filter settings
+  - GET returns `geminiEnabled` and `geminiApiKeySet` (never exposes the actual key)
+  - POST saves `geminiEnabled` (not encrypted) and `geminiApiKey` (encrypted)
+  - Added `getGeminiApiKey()` export for server-side use in submission route
+- Modified `src/app/api/submissions/route.ts`:
+  - After rule-based filter passes, if Gemini enabled + API key set → run Gemini
+  - Gemini result merged with rule-based result
+  - AI flags stored as `ai:reason` in filterReasons
+  - If Gemini errors → fail-open (submission passes)
+  - If no API key → Gemini skipped entirely, rule-based result is final
+- Modified `src/app/page.tsx`:
+  - Added Sparkles icon
+  - Added FilterSettings.geminiEnabled, geminiApiKeySet
+  - Added Gemini state: geminiEnabled, geminiApiKeyInput, geminiApiKeySet, showGeminiKey
+  - Load Gemini settings from stats response
+  - Clear Gemini state on admin logout
+  - Added Gemini AI Filter section in Settings:
+    - Toggle with Active/No API Key badges
+    - API key input (password type with show/hide) + Save Key button
+    - Warning when enabled but no key set
+    - "How it works" info box
+  - Added purple Gemini badge on Filter & Auto-Approve header
+  - Added `ai:` reason display in filter badges
+  - Save Filter Settings now includes geminiEnabled
+- Lint: 0 errors
+- TypeScript: 0 errors
+- Dev server: compiles and serves page (HTTP 200)
+
+Stage Summary:
+- Gemini AI filter fully integrated as optional enhancement
+- Works perfectly without Gemini API key — just uses rule-based filter
+- No Gemini key = zero changes to behavior (rule-based filter is final)
+- Gemini errors/timeouts = fail-open (submissions pass through)
+- Gemini only runs AFTER rule-based filter passes (saves API calls)
+- Admin UI: toggle Gemini, set API key, see status
+- AI-flagged submissions show "AI: reason" badges
+- Zero lint/TS errors

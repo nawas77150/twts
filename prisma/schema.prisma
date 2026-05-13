@@ -27,8 +27,9 @@ model Submission {
   status      String    @default("pending") // pending, approved, rejected, posted
   tweetId     String?   // X tweet ID after posting
   postMethod  String?   // "direct" | "retry" | "fallback" — which method posted this tweet
-  category    String?   // optional category/tag
-  submitterId String
+  category      String?   // optional category/tag
+  filterReasons String?   // JSON array of filter reasons e.g. ["blocked_word:kontol","contains_mention"]
+  submitterId   String
   submitter   Submitter @relation(fields: [submitterId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

@@ -31,6 +31,10 @@ import {
   LayoutDashboard,
   Wifi,
   CircleDot,
+  Filter,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +62,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useToast } from '@/hooks/use-toast'
+import { DEFAULT_BLOCKED_WORDS } from '@/lib/content-filter'
 
 // Types
 interface SubmitterInfo {
@@ -75,6 +80,7 @@ interface Submission {
   tweetId: string | null
   postMethod: string | null // "direct" | "retry" | "fallback"
   category: string | null
+  filterReasons: string | null // JSON array of filter reasons
   submitterId: string
   submitter: SubmitterInfo
   createdAt: string
@@ -106,6 +112,28 @@ interface PostMethodStats {
   fallbackRate: number
 }
 
+interface FilterRules {
+  blockedWords: boolean
+  jualan: boolean
+  urls: boolean
+  mentions: boolean
+  phoneNumbers: boolean
+  nsfw: boolean
+  capsSpam: boolean
+  repeatedChars: boolean
+  tooShort: boolean
+  duplicate24h: boolean
+}
+
+interface FilterSettings {
+  autoApprove: boolean
+  blockedWords: string[]
+  nsfwWords: string[]
+  filterRules: FilterRules
+  geminiEnabled: boolean
+  geminiApiKeySet: boolean
+}
+
 interface Stats {
   pending: number
   approved: number
@@ -122,6 +150,7 @@ interface Stats {
   postMethodStats: PostMethodStats | null
   apiCredits: KeyCredits[] | null
   apiLoginStatus: ApiLoginStatus | null
+  filterSettings: FilterSettings | null
 }
 
 // Status config
@@ -269,6 +298,30 @@ export default function HomePage() {
   // Settings collapsible state
   const [directPostingOpen, setDirectPostingOpen] = useState(true)
   const [apiFallbackOpen, setApiFallbackOpen] = useState(true)
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  // Filter & Auto-Approve state
+  const [autoApprove, setAutoApprove] = useState(false)
+  const [blockedWordsText, setBlockedWordsText] = useState('') // textarea value
+  const [filterRules, setFilterRules] = useState<FilterRules>({
+    blockedWords: true,
+    jualan: true,
+    urls: true,
+    mentions: true,
+    phoneNumbers: true,
+    nsfw: false,
+    capsSpam: true,
+    repeatedChars: true,
+    tooShort: true,
+    duplicate24h: true,
+  })
+  const [isSavingFilter, setIsSavingFilter] = useState(false)
+
+  // Gemini AI filter state
+  const [geminiEnabled, setGeminiEnabled] = useState(false)
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('') // input field value
+  const [geminiApiKeySet, setGeminiApiKeySet] = useState(false) // whether a key is saved in DB
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
 
   // Batch saving state
   const [isSavingAllCredentials, setIsSavingAllCredentials] = useState(false)
@@ -374,6 +427,23 @@ export default function HomePage() {
     setXEmail('')
     setXPassword('')
     setXTotpSecret('')
+    setAutoApprove(false)
+    setBlockedWordsText('')
+    setFilterRules({
+      blockedWords: true,
+      jualan: true,
+      urls: true,
+      mentions: true,
+      phoneNumbers: true,
+      nsfw: false,
+      capsSpam: true,
+      repeatedChars: true,
+      tooShort: true,
+      duplicate24h: true,
+    })
+    setGeminiEnabled(false)
+    setGeminiApiKeyInput('')
+    setGeminiApiKeySet(false)
     toast({ title: 'Logout berhasil' })
   }
 
@@ -402,7 +472,13 @@ export default function HomePage() {
       const data = await res.json()
 
       if (res.ok) {
-        toast({ title: 'Berhasil dikirim!', description: 'Pesanmu sedang menunggu moderasi admin.' })
+        if (data.autoPosted) {
+          toast({ title: 'Terkirim & diposting!', description: 'Pesanmu langsung diposting ke X (auto-approve).' })
+        } else if (data.filtered) {
+          toast({ title: 'Menunggu review', description: 'Pesanmu sedang menunggu review admin.' })
+        } else {
+          toast({ title: 'Berhasil dikirim!', description: 'Pesanmu sedang menunggu moderasi admin.' })
+        }
         setMessage('')
         setCategory('')
       } else {
@@ -453,6 +529,14 @@ export default function HomePage() {
         if (data.apiCredits) setApiCredits(data.apiCredits)
         if (data.apiLoginStatus) setApiLoginStatus(data.apiLoginStatus)
         if (data.postMethodSetting) setPostMethodSetting(data.postMethodSetting)
+        // Load filter settings
+        if (data.filterSettings) {
+          setAutoApprove(data.filterSettings.autoApprove)
+          setBlockedWordsText(data.filterSettings.blockedWords.join(', '))
+          setFilterRules(data.filterSettings.filterRules)
+          setGeminiEnabled(data.filterSettings.geminiEnabled)
+          setGeminiApiKeySet(data.filterSettings.geminiApiKeySet)
+        }
       }
     } catch {
       // silently fail
@@ -1348,6 +1432,54 @@ export default function HomePage() {
                                           {sub.category && (
                                             <span className="inline-block text-xs text-[#71767B] mt-1">#{sub.category}</span>
                                           )}
+                                          {/* Filter reasons badge */}
+                                          {sub.filterReasons && (() => {
+                                            try {
+                                              const reasons: string[] = JSON.parse(sub.filterReasons)
+                                              if (reasons.length === 0) return null
+                                              return (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-200 gap-0.5">
+                                                    <ShieldAlert className="w-2.5 h-2.5" />
+                                                    {reasons.length} filter flag{reasons.length > 1 ? 's' : ''}
+                                                  </Badge>
+                                                  {reasons.slice(0, 3).map((reason, i) => {
+                                                    const label = reason.startsWith('blocked_word:')
+                                                      ? `"${reason.replace('blocked_word:', '').replace(/(.).+(.)/, (_, a, b) => a + '***' + b)}"`
+                                                      : reason.startsWith('ai:')
+                                                      ? `AI: ${reason.replace('ai:', '')}`
+                                                      : reason.startsWith('jualan:')
+                                                      ? `Jualan (${reason.replace('jualan:', '')})`
+                                                      : reason === 'contains_url'
+                                                      ? 'Link'
+                                                      : reason.startsWith('contains_mention')
+                                                      ? '@Mention'
+                                                      : reason === 'contains_phone_number'
+                                                      ? 'No. HP'
+                                                      : reason === 'caps_spam'
+                                                      ? 'ALL CAPS'
+                                                      : reason === 'repeated_characters'
+                                                      ? 'Spam chars'
+                                                      : reason === 'too_short'
+                                                      ? 'Terlalu pendek'
+                                                      : reason === 'duplicate_24h'
+                                                      ? 'Duplikat (24j)'
+                                                      : reason
+                                                    return (
+                                                      <span key={i} className="text-[8px] px-1 py-0.5 rounded bg-red-50 text-red-600 border border-red-200">
+                                                        {label}
+                                                      </span>
+                                                    )
+                                                  })}
+                                                  {reasons.length > 3 && (
+                                                    <span className="text-[8px] text-[#71767B]">+{reasons.length - 3} more</span>
+                                                  )}
+                                                </div>
+                                              )
+                                            } catch {
+                                              return null
+                                            }
+                                          })()}
                                           <p className="text-[10px] text-[#71767B] mt-1">{formatDate(sub.createdAt)}</p>
                                           {sub.tweetId && (
                                             <a
@@ -1926,6 +2058,284 @@ export default function HomePage() {
                                 </div>
                               </div>
                             )}
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+
+                    {/* Section 3: Filter & Auto-Approve */}
+                    <Collapsible open={filterOpen} onOpenChange={setFilterOpen}>
+                      <Card className="shadow-sm border-[#EFF3F4]">
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="pb-3 cursor-pointer hover:bg-[#F7F9F9]/50 rounded-t-lg transition-colors">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Filter className="w-4 h-4 text-[#536471]" /> Filter & Auto-Approve
+                              {autoApprove ? (
+                                <Badge variant="outline" className="text-[10px] px-1.5 bg-green-50 text-green-700 border-green-300">
+                                  <ShieldCheck className="w-2.5 h-2.5 mr-1" />
+                                  Auto-Approve ON
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] px-1.5 bg-[#F7F9F9] text-[#71767B] border-[#EFF3F4]">
+                                  Manual Review
+                                </Badge>
+                              )}
+                              {geminiEnabled && geminiApiKeySet && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200 gap-0.5">
+                                  <Sparkles className="w-2.5 h-2.5" /> Gemini
+                                </Badge>
+                              )}
+                              <ChevronDown className={`w-4 h-4 text-[#71767B] ml-auto transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+                            </CardTitle>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="space-y-4">
+                            {/* Auto-Approve Toggle */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-medium text-[#536471]">Auto-Approve</label>
+                                <button
+                                  onClick={() => {
+                                    const newVal = !autoApprove
+                                    setAutoApprove(newVal)
+                                  }}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoApprove ? 'bg-green-500' : 'bg-[#EFF3F4]'}`}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${autoApprove ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                              </div>
+                              {autoApprove && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-700 flex items-start gap-1.5">
+                                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                  <span>Submissions that pass the filter will be <strong>auto-posted to X</strong> without admin review. Flagged submissions still need manual approval.</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <Separator />
+
+                            {/* Blocked Words */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-[#536471] flex items-center justify-between">
+                                <span>Blocked Words</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
+                                  onClick={() => {
+                                    // Reset to default
+                                    setBlockedWordsText(DEFAULT_BLOCKED_WORDS.join(', '))
+                                  }}
+                                >
+                                  <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
+                                </Button>
+                              </label>
+                              <Textarea
+                                placeholder="kontol, memek, ngentot, wts, wtb, ..."
+                                value={blockedWordsText}
+                                onChange={(e) => setBlockedWordsText(e.target.value)}
+                                className="min-h-[100px] resize-y border-[#EFF3F4] text-xs"
+                              />
+                              <p className="text-[10px] text-[#71767B]">
+                                Comma-separated. Matches whole words only (case-insensitive). Submissions containing these words will be flagged for manual review.
+                              </p>
+                            </div>
+
+                            <Separator />
+
+                            {/* Filter Rules */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-[#536471]">Filter Rules</label>
+                              <div className="space-y-2">
+                                {/* Toggleable rules */}
+                                {[
+                                  { key: 'blockedWords' as const, label: 'Block profanity & blocked words', desc: 'Match against the blocked words list above' },
+                                  { key: 'jualan' as const, label: 'Block jualan/promosi (WTS/WTB/WTT/LF)', desc: 'Marketplace tags are not confessions' },
+                                  { key: 'urls' as const, label: 'Block links/URLs', desc: 'Prevents spam links and phishing' },
+                                  { key: 'mentions' as const, label: 'Block @mentions', desc: 'Prevents targeted harassment via @username' },
+                                  { key: 'phoneNumbers' as const, label: 'Block phone numbers', desc: 'Prevents doxxing and privacy leaks' },
+                                  { key: 'nsfw' as const, label: 'Block NSFW/explicit content', desc: 'OFF by default for Alter menfess — toggle on if needed', defaultOff: true },
+                                ].map((rule) => (
+                                  <div key={rule.key} className="flex items-center justify-between bg-[#F7F9F9] rounded-lg p-2 border border-[#EFF3F4]">
+                                    <div>
+                                      <span className="text-xs font-medium text-[#0F1419]">{rule.label}</span>
+                                      <p className="text-[10px] text-[#71767B]">{rule.desc}</p>
+                                    </div>
+                                    <button
+                                      onClick={() => setFilterRules({ ...filterRules, [rule.key]: !filterRules[rule.key] })}
+                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ml-2 ${filterRules[rule.key] ? 'bg-green-500' : 'bg-[#EFF3F4]'}`}
+                                    >
+                                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${filterRules[rule.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </button>
+                                  </div>
+                                ))}
+
+                                {/* Always-on rules (not toggleable) */}
+                                <div className="mt-2">
+                                  <p className="text-[10px] text-[#71767B] mb-1.5">Always on (cannot be disabled):</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {[
+                                      { key: 'capsSpam', label: 'ALL CAPS spam' },
+                                      { key: 'repeatedChars', label: 'Repeated chars' },
+                                      { key: 'tooShort', label: 'Too short (&lt;5)' },
+                                      { key: 'duplicate24h', label: 'Duplicate (24h)' },
+                                    ].map((rule) => (
+                                      <Badge key={rule.key} variant="outline" className="text-[9px] px-1.5 py-0 bg-[#F7F9F9] text-[#536471] border-[#EFF3F4] gap-0.5">
+                                        <ShieldCheck className="w-2.5 h-2.5 text-green-500" />
+                                        {rule.label}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Gemini AI Filter */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-medium text-[#536471] flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5" /> Gemini AI Filter
+                                  {geminiEnabled && geminiApiKeySet && (
+                                    <Badge variant="outline" className="text-[8px] px-1 py-0 bg-green-50 text-green-700 border-green-300">
+                                      Active
+                                    </Badge>
+                                  )}
+                                  {geminiEnabled && !geminiApiKeySet && (
+                                    <Badge variant="outline" className="text-[8px] px-1 py-0 bg-amber-50 text-amber-700 border-amber-300">
+                                      No API Key
+                                    </Badge>
+                                  )}
+                                </label>
+                                <button
+                                  onClick={() => setGeminiEnabled(!geminiEnabled)}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${geminiEnabled ? 'bg-green-500' : 'bg-[#EFF3F4]'}`}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${geminiEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-[#71767B]">
+                                Uses Gemini AI for nuanced content moderation — catches coded language, subtle harassment, and context-dependent hate speech that word filters miss.
+                                {!geminiApiKeySet && ' Works even without an API key — just uses rule-based filter only.'}
+                              </p>
+                              {geminiEnabled && !geminiApiKeySet && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[10px] text-amber-700 flex items-start gap-1.5">
+                                  <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                                  <span>Set your Gemini API key below to enable AI filtering. Without a key, only rule-based filter will be used.</span>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <div className="flex-1 relative">
+                                  <Input
+                                    type={showGeminiKey ? 'text' : 'password'}
+                                    placeholder={geminiApiKeySet ? 'Key is set — enter new key to replace' : 'AIzaSy...'}
+                                    value={geminiApiKeyInput}
+                                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                                    className="pr-10 border-[#EFF3F4] text-xs"
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-1 top-1 h-6 w-6 p-0"
+                                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                                  >
+                                    {showGeminiKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                  </Button>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs border-[#EFF3F4] h-8"
+                                  disabled={!geminiApiKeyInput.trim()}
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch('/api/admin/filter-settings', {
+                                        method: 'POST',
+                                        headers: {
+                                          'Content-Type': 'application/json',
+                                          authorization: `Bearer ${adminToken}`,
+                                        },
+                                        body: JSON.stringify({ geminiApiKey: geminiApiKeyInput.trim() }),
+                                      })
+                                      if (res.ok) {
+                                        setGeminiApiKeyInput('')
+                                        setGeminiApiKeySet(true)
+                                        toast({ title: 'Gemini API key saved!' })
+                                        fetchStats()
+                                      } else {
+                                        const data = await res.json()
+                                        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+                                      }
+                                    } catch {
+                                      toast({ title: 'Error', description: 'Failed to save API key', variant: 'destructive' })
+                                    }
+                                  }}
+                                >
+                                  Save Key
+                                </Button>
+                              </div>
+                              {geminiApiKeySet && (
+                                <p className="text-[10px] text-green-600 flex items-center gap-1">
+                                  <ShieldCheck className="w-3 h-3" /> API key is configured
+                                </p>
+                              )}
+                              <div className="bg-[#F7F9F9] rounded-lg p-2 border border-[#EFF3F4] space-y-1">
+                                <p className="text-[10px] font-medium text-[#536471]">How it works:</p>
+                                <ul className="text-[10px] text-[#71767B] space-y-0.5 list-disc list-inside">
+                                  <li>Runs <strong>after</strong> rule-based filter passes (saves API calls)</li>
+                                  <li>If Gemini is down or errors → submission passes (fail-open)</li>
+                                  <li>Only blocks genuinely harmful content (hate speech, threats, doxxing)</li>
+                                  <li>Does NOT block typical alter content (venting, profanity, drama)</li>
+                                </ul>
+                              </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Save Filter Settings */}
+                            <Button
+                              onClick={async () => {
+                                setIsSavingFilter(true)
+                                try {
+                                  const words = blockedWordsText
+                                    .split(/[,\n]+/)
+                                    .map(w => w.trim().toLowerCase())
+                                    .filter(w => w.length > 0)
+
+                                  const res = await fetch('/api/admin/filter-settings', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      authorization: `Bearer ${adminToken}`,
+                                    },
+                                    body: JSON.stringify({
+                                      autoApprove,
+                                      blockedWords: words,
+                                      filterRules,
+                                      geminiEnabled,
+                                    }),
+                                  })
+                                  const data = await res.json()
+                                  if (res.ok) {
+                                    toast({ title: 'Filter settings saved!', description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}` })
+                                    fetchStats()
+                                  } else {
+                                    toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+                                  }
+                                } catch {
+                                  toast({ title: 'Error', description: 'Failed to save filter settings', variant: 'destructive' })
+                                } finally {
+                                  setIsSavingFilter(false)
+                                }
+                              }}
+                              disabled={isSavingFilter}
+                              className="w-full bg-[#0F1419] hover:bg-[#272c30]"
+                            >
+                              {isSavingFilter ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                              Save Filter Settings
+                            </Button>
                           </CardContent>
                         </CollapsibleContent>
                       </Card>
