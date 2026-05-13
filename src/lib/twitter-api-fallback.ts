@@ -290,6 +290,12 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
         body.proxy = proxy
       }
 
+      console.log('[twitterapi] create_tweet_v2 request:', {
+        login_cookies: loginCookie ? `(${loginCookie.length} chars)` : '(missing)',
+        tweet_text: text ? `(${text.length} chars)` : '(missing)',
+        proxy: proxy ? proxy.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@') : '(missing)',
+      })
+
       const response = await fetch(`${TWITTERAPI_BASE}/twitter/create_tweet_v2`, {
         method: 'POST',
         headers: {
