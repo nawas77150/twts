@@ -300,13 +300,16 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
       })
 
       const data = await response.json()
+      console.log('[twitterapi] create_tweet_v2 response:', JSON.stringify(data))
 
-      // Success
-      if (response.ok && data?.data?.tweet_id) {
+      // Success — try multiple possible response formats
+      const tweetId = data?.data?.tweet_id || data?.data?.id || data?.tweet_id || data?.id || null
+
+      if (response.ok && tweetId) {
         await setRotationIndex((keyIndex + 1) % apiKeys.length)
         return {
           success: true,
-          tweetId: String(data.data.tweet_id),
+          tweetId: String(tweetId),
           method: 'fallback',
           apiKeyUsed: apiKey.slice(0, 8) + '...',
         }
@@ -342,12 +345,15 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
           })
 
           const retryData = await retryResponse.json()
+          console.log('[twitterapi] create_tweet_v2 retry response:', JSON.stringify(retryData))
 
-          if (retryResponse.ok && retryData?.data?.tweet_id) {
+          const retryTweetId = retryData?.data?.tweet_id || retryData?.data?.id || retryData?.tweet_id || retryData?.id || null
+
+          if (retryResponse.ok && retryTweetId) {
             await setRotationIndex((keyIndex + 1) % apiKeys.length)
             return {
               success: true,
-              tweetId: String(retryData.data.tweet_id),
+              tweetId: String(retryTweetId),
               method: 'fallback',
               apiKeyUsed: apiKey.slice(0, 8) + '...',
             }
