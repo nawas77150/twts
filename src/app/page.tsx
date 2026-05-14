@@ -285,6 +285,7 @@ export default function HomePage() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [filterStatus, setFilterStatus] = useState('pending')
+  const [postSearch, setPostSearch] = useState('')
   const [isLoadingAdmin, setIsLoadingAdmin] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -1807,6 +1808,23 @@ export default function HomePage() {
                             </button>
                           )
                         })}
+                        <div className="relative ml-2 shrink-0">
+                          <Input
+                            placeholder="Cari pesan..."
+                            value={postSearch}
+                            onChange={(e) => setPostSearch(e.target.value)}
+                            className="pl-7 h-7 text-xs w-32 sm:w-44 border-[#EFF3F4]"
+                          />
+                          <Filter className="w-3 h-3 text-[#71767B] absolute left-2 top-1/2 -translate-y-1/2" />
+                          {postSearch && (
+                            <button
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419] text-xs leading-none"
+                              onClick={() => setPostSearch('')}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                         <Button variant="ghost" size="sm" onClick={() => { fetchSubmissions(); fetchStats() }} className="ml-auto shrink-0 text-[#71767B] h-7 w-7 p-0">
                           <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAdmin ? 'animate-spin' : ''}`} />
                         </Button>
@@ -1831,7 +1849,17 @@ export default function HomePage() {
                           </Card>
                         ) : (
                           <AnimatePresence mode="popLayout">
-                            {submissions.map((sub) => {
+                            {submissions
+                              .filter((sub) => {
+                                if (!postSearch) return true
+                                const q = postSearch.toLowerCase()
+                                return (
+                                  sub.message.toLowerCase().includes(q) ||
+                                  sub.submitter.username.toLowerCase().includes(q) ||
+                                  (sub.submitter.displayName?.toLowerCase().includes(q) ?? false)
+                                )
+                              })
+                              .map((sub) => {
                               const config = statusConfig[sub.status as keyof typeof statusConfig]
                               return (
                                 <motion.div key={sub.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
