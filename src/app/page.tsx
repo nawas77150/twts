@@ -361,6 +361,10 @@ export default function HomePage() {
   })
   const [whitelistText, setWhitelistText] = useState('') // textarea value
 
+  // Pengguna dialog state
+  const [penggunaDialogOpen, setPenggunaDialogOpen] = useState(false)
+  const [penggunaSearch, setPenggunaSearch] = useState('')
+
   // Circuit breaker state (read-only, from server)
   const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<{ paused: boolean; failCount: number; remainingMinutes: number; threshold: number } | null>(null)
 
@@ -1375,22 +1379,222 @@ export default function HomePage() {
                           { label: 'Ditolak', value: stats.rejected, icon: Ban, color: 'bg-red-50 text-red-700' },
                           { label: 'Diposting', value: stats.posted, icon: CheckCircle, color: 'bg-[#F7F9F9] text-[#536471]' },
                           { label: 'Pengguna', value: stats.submitters, icon: Users, color: 'bg-purple-50 text-purple-700' },
-                        ].map((stat) => (
-                          <Card key={stat.label} className="border-0 shadow-sm">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className={`w-7 h-7 rounded-lg ${stat.color} flex items-center justify-center`}>
-                                  <stat.icon className="w-3.5 h-3.5" />
+                        ].map((stat) => {
+                          const isPengguna = stat.label === 'Pengguna'
+                          return (
+                            <Card
+                              key={stat.label}
+                              className={`border-0 shadow-sm ${isPengguna ? 'cursor-pointer hover:ring-2 hover:ring-purple-200 hover:shadow-md transition-all' : ''}`}
+                              onClick={isPengguna ? () => {
+                                setPenggunaDialogOpen(true)
+                                fetchSubmitters()
+                              } : undefined}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-7 h-7 rounded-lg ${stat.color} flex items-center justify-center`}>
+                                    <stat.icon className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span className="text-xs text-[#536471] hidden sm:inline">{stat.label}</span>
                                 </div>
-                                <span className="text-xs text-[#536471] hidden sm:inline">{stat.label}</span>
-                              </div>
-                              <p className="text-2xl font-bold text-[#0F1419]">{stat.value}</p>
-                              <span className="text-xs text-[#71767B] sm:hidden">{stat.label}</span>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                <p className="text-2xl font-bold text-[#0F1419]">{stat.value}</p>
+                                <span className="text-xs text-[#71767B] sm:hidden">{stat.label}</span>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
                       </div>
                     )}
+
+                    {/* Pengguna Dialog */}
+                    <Dialog open={penggunaDialogOpen} onOpenChange={(open) => { setPenggunaDialogOpen(open); if (!open) setPenggunaSearch('') }}>
+                      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Users className="w-5 h-5 text-purple-600" /> Pengguna
+                          </DialogTitle>
+                          <DialogDescription>
+                            Kelola pengguna — blokir yang spam atau bermasalah.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        {/* Search */}
+                        <div className="relative">
+                          <Input
+                            placeholder="Cari username..."
+                            value={penggunaSearch}
+                            onChange={(e) => setPenggunaSearch(e.target.value)}
+                            className="pl-8 h-8 text-xs border-[#EFF3F4]"
+                          />
+                          <Filter className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          {penggunaSearch && (
+                            <button
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419]"
+                              onClick={() => setPenggunaSearch('')}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-1" style={{ scrollbarWidth: 'thin' }}>
+                          {/* Blocklist */}
+                          {blockedUsernames.filter((u) => u.includes(penggunaSearch.toLowerCase())).length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Ban className="w-4 h-4 text-red-500" />
+                                <span className="text-sm font-semibold text-[#0F1419]">Blocklist</span>
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+                                  {blockedUsernames.length} diblokir
+                                </Badge>
+                              </div>
+                              <div className="space-y-1">
+                                {blockedUsernames.filter((u) => u.includes(penggunaSearch.toLowerCase())).map((username) => (
+                                  <div key={username} className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs">
+                                    <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                      <Ban className="w-3.5 h-3.5 text-red-400" />
+                                    </div>
+                                    <span className="font-medium text-[#0F1419]">@{username}</span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-[10px] h-6 px-2 ml-auto text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch('/api/admin/submitters/unblock', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
+                                            body: JSON.stringify({ username }),
+                                          })
+                                          if (res.ok) {
+                                            setBlockedUsernames(blockedUsernames.filter((u) => u !== username))
+                                            toast({ title: `@${username} dibebaskan` })
+                                            fetchSubmitters()
+                                          } else {
+                                            const data = await res.json()
+                                            toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                          }
+                                        } catch { /* ignore */ }
+                                      }}
+                                    >
+                                      Unblock
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* All Users */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-[#536471]" />
+                              <span className="text-sm font-semibold text-[#0F1419]">Semua Pengguna</span>
+                              {submitters.length > 0 && (
+                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+                                  {submitters.length}
+                                </Badge>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[10px] h-6 px-2 ml-auto"
+                                onClick={fetchSubmitters}
+                                disabled={isLoadingSubmitters}
+                              >
+                                {isLoadingSubmitters ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                              </Button>
+                            </div>
+                            {isLoadingSubmitters ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#536471]" />
+                              </div>
+                            ) : submitters.length === 0 ? (
+                              <p className="text-xs text-[#71767B] text-center py-6">Klik refresh untuk memuat daftar pengguna</p>
+                            ) : (
+                              <div className="max-h-96 overflow-y-auto space-y-1 pr-1" style={{ scrollbarWidth: 'thin' }}>
+                                {submitters
+                                  .filter((s) => {
+                                    if (!penggunaSearch) return true
+                                    const q = penggunaSearch.toLowerCase()
+                                    return s.username.toLowerCase().includes(q) || (s.displayName?.toLowerCase().includes(q) ?? false)
+                                  })
+                                  .map((s) => {
+                                  const isBlocked = blockedUsernames.includes(s.username.toLowerCase())
+                                  return (
+                                    <div key={s.id} className={`flex items-center gap-2 p-2 rounded-lg text-xs ${isBlocked ? 'bg-red-50 border border-red-200' : 'bg-[#F7F9F9] border border-[#EFF3F4]'}`}>
+                                      {s.profileImage ? (
+                                        <img src={s.profileImage} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-[#EFF3F4] flex items-center justify-center flex-shrink-0">
+                                          <User className="w-4 h-4 text-[#71767B]" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-medium text-[#0F1419] truncate">@{s.username}</span>
+                                          {isBlocked && <Badge variant="destructive" className="text-[8px] px-1 py-0">BLOCKED</Badge>}
+                                        </div>
+                                        <span className="text-[#71767B]">{s.totalSubmissions} pesan · {s.posted} posted · {s.pending} pending</span>
+                                      </div>
+                                      {!isBlocked ? (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-shrink-0"
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch('/api/admin/submitters/block', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
+                                                body: JSON.stringify({ username: s.username }),
+                                              })
+                                              if (res.ok) {
+                                                setBlockedUsernames([...blockedUsernames, s.username.toLowerCase()])
+                                                toast({ title: `@${s.username} diblokir` })
+                                              } else {
+                                                const data = await res.json()
+                                                toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                              }
+                                            } catch { /* ignore */ }
+                                          }}
+                                        >
+                                          <Ban className="w-3 h-3 mr-1" /> Block
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch('/api/admin/submitters/unblock', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
+                                                body: JSON.stringify({ username: s.username }),
+                                              })
+                                              if (res.ok) {
+                                                setBlockedUsernames(blockedUsernames.filter((u) => u !== s.username.toLowerCase()))
+                                                toast({ title: `@${s.username} dibebaskan` })
+                                              } else {
+                                                const data = await res.json()
+                                                toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                              }
+                                            } catch { /* ignore */ }
+                                          }}
+                                        >
+                                          Unblock
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
 
                     {/* Connection Status Banner */}
                     <Card className="shadow-sm border-[#EFF3F4]">
@@ -2750,126 +2954,6 @@ export default function HomePage() {
                             </div>
 
                             <Separator />
-
-                            {/* Pengguna */}
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4 text-[#536471]" />
-                                <span className="text-sm font-semibold text-[#0F1419]">Pengguna</span>
-                                {submitters.length > 0 && (
-                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                                    {submitters.length} user
-                                  </Badge>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-[9px] h-5 px-2 ml-auto"
-                                  onClick={fetchSubmitters}
-                                  disabled={isLoadingSubmitters}
-                                >
-                                  {isLoadingSubmitters ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Muat'}
-                                </Button>
-                              </div>
-                              {submitters.length === 0 ? (
-                                <p className="text-[10px] text-[#71767B]">Klik "Muat" untuk menampilkan daftar pengguna</p>
-                              ) : (
-                                <div className="max-h-64 overflow-y-auto space-y-1 pr-1" style={{ scrollbarWidth: 'thin' }}>
-                                  {submitters.map((s) => {
-                                    const isBlocked = blockedUsernames.includes(s.username.toLowerCase())
-                                    return (
-                                      <div key={s.id} className={`flex items-center gap-2 p-1.5 rounded-lg text-[10px] ${isBlocked ? 'bg-red-50 border border-red-200' : 'bg-[#F7F9F9] border border-[#EFF3F4]'}`}>
-                                        {s.profileImage ? (
-                                          <img src={s.profileImage} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
-                                        ) : (
-                                          <div className="w-6 h-6 rounded-full bg-[#EFF3F4] flex-shrink-0" />
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-1">
-                                            <span className="font-medium text-[#0F1419] truncate">@{s.username}</span>
-                                            {isBlocked && <Badge variant="destructive" className="text-[8px] px-1 py-0">BLOCKED</Badge>}
-                                          </div>
-                                          <span className="text-[#71767B]">{s.totalSubmissions} pesan · {s.posted} posted · {s.pending} pending</span>
-                                        </div>
-                                        {!isBlocked && (
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-[9px] h-5 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-shrink-0"
-                                            onClick={async () => {
-                                              try {
-                                                const res = await fetch('/api/admin/submitters/block', {
-                                                  method: 'POST',
-                                                  headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
-                                                  body: JSON.stringify({ username: s.username }),
-                                                })
-                                                if (res.ok) {
-                                                  setBlockedUsernames([...blockedUsernames, s.username.toLowerCase()])
-                                                  toast({ title: `@${s.username} diblokir` })
-                                                } else {
-                                                  const data = await res.json()
-                                                  toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
-                                                }
-                                              } catch { /* ignore */ }
-                                            }}
-                                          >
-                                            Block
-                                          </Button>
-                                        )}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-
-                            <Separator />
-
-                            {/* Blocklist */}
-                            {blockedUsernames.length > 0 && (
-                              <>
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2">
-                                    <Ban className="w-4 h-4 text-red-500" />
-                                    <span className="text-sm font-semibold text-[#0F1419]">Blocklist</span>
-                                    <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-                                      {blockedUsernames.length} diblokir
-                                    </Badge>
-                                  </div>
-                                  <div className="space-y-1">
-                                    {blockedUsernames.map((username) => (
-                                      <div key={username} className="flex items-center gap-2 p-1.5 bg-red-50 border border-red-200 rounded-lg text-[10px]">
-                                        <span className="font-medium text-[#0F1419]">@{username}</span>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-[9px] h-5 px-2 ml-auto text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                                          onClick={async () => {
-                                            try {
-                                              const res = await fetch('/api/admin/submitters/unblock', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
-                                                body: JSON.stringify({ username }),
-                                              })
-                                              if (res.ok) {
-                                                setBlockedUsernames(blockedUsernames.filter((u) => u !== username))
-                                                toast({ title: `@${username} dibebaskan` })
-                                              } else {
-                                                const data = await res.json()
-                                                toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
-                                              }
-                                            } catch { /* ignore */ }
-                                          }}
-                                        >
-                                          Unblock
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                <Separator />
-                              </>
-                            )}
 
                             {/* Save Filter Settings */}
                             <Button
