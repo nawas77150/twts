@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       geminiApiKeySet: boolean
       rateLimits: RateLimitSettings
       whitelistUsernames: string[]
+      blockedUsernames: string[]
     }
 
     try {
