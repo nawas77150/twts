@@ -42,7 +42,7 @@ model Submission {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])                          // filter by status, GROUP BY status (index-only scan)
-  @@index([status, "postMethod"])             // post method stats: WHERE posted GROUP BY postMethod (index-only scan)
+  @@index([status, postMethod])              // post method stats: WHERE posted GROUP BY postMethod (index-only scan)
   @@index([createdAt])                        // time-window queries
   @@index([submitterId, status])              // "count MY pending submissions"
   @@index([status, updatedAt])                // "last posted submission"
