@@ -19,6 +19,23 @@ interface UseStatsCallbacks {
   onPostMethodSetting?: (method: PostMethod) => void
 }
 
+// Shared response shape — both Stats (full) and Summary (lightweight) produce this
+interface StatsResponse {
+  cookieAuthStatus?: CookieAuthStatus | null
+  apiCredits?: KeyCredits[] | null
+  apiLoginStatus?: ApiLoginStatus | null
+  postMethodSetting?: string | null
+  filterSettings?: Stats['filterSettings'] | null
+  circuitBreaker?: { paused: boolean; failCount: number; pausedUntil: number | null; threshold: number } | null
+  pending?: number
+  postFailed?: number
+  rejected?: number
+  posted?: number
+  total?: number
+  submitters?: number
+  postMethodStats?: PostMethodStats | null
+}
+
 export function useStats({ adminToken, lightweight }: UseStatsParams, callbacks?: UseStatsCallbacks) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [cookieStatus, setCookieStatus] = useState<CookieAuthStatus | null>(null)
@@ -34,21 +51,7 @@ export function useStats({ adminToken, lightweight }: UseStatsParams, callbacks?
   })
 
   // Shared logic for processing summary/stats response fields
-  const processResponse = useCallback((data: {
-    cookieAuthStatus?: CookieAuthStatus
-    apiCredits?: KeyCredits[]
-    apiLoginStatus?: ApiLoginStatus
-    postMethodSetting?: string
-    filterSettings?: Stats['filterSettings']
-    circuitBreaker?: { paused: boolean; failCount: number; pausedUntil: number | null; threshold: number } | null
-    pending?: number
-    postFailed?: number
-    rejected?: number
-    posted?: number
-    total?: number
-    submitters?: number
-    postMethodStats?: PostMethodStats
-  }) => {
+  const processResponse = useCallback((data: StatsResponse) => {
     if (data.cookieAuthStatus) setCookieStatus(data.cookieAuthStatus)
     if (data.apiCredits) setApiCredits(data.apiCredits)
     if (data.apiLoginStatus) setApiLoginStatus(data.apiLoginStatus)
@@ -78,10 +81,10 @@ export function useStats({ adminToken, lightweight }: UseStatsParams, callbacks?
           posted: prev?.posted ?? 0,
           total: prev?.total ?? 0,
           submitters: prev?.submitters ?? 0,
-          cookieAuthStatus: data.cookieAuthStatus ?? prev?.cookieAuthStatus ?? { configured: false, source: null, lastUpdated: null, missing: [] },
-          postMethodStats: prev?.postMethodStats ?? { total: 0, direct: 0, retry: 0, fallback: 0, directRate: 0, retryRate: 0, fallbackRate: 0 },
-          apiCredits: data.apiCredits ?? [],
-          apiLoginStatus: data.apiLoginStatus ?? prev?.apiLoginStatus ?? { hasLoginCookie: false, lastLoginAt: null, hasCredentials: false, missingCredentials: [] },
+          cookieAuthStatus: data.cookieAuthStatus ?? prev?.cookieAuthStatus ?? null,
+          postMethodStats: prev?.postMethodStats ?? null,
+          apiCredits: data.apiCredits ?? prev?.apiCredits ?? [],
+          apiLoginStatus: data.apiLoginStatus ?? prev?.apiLoginStatus ?? null,
           postMethodSetting: (data.postMethodSetting ?? prev?.postMethodSetting ?? 'auto') as PostMethod,
           filterSettings: data.filterSettings ?? prev?.filterSettings ?? null,
           circuitBreaker: data.circuitBreaker ?? prev?.circuitBreaker ?? null,

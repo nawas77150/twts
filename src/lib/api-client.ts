@@ -144,7 +144,7 @@ class ApiClient {
     return this.request<Stats>('/api/admin/stats')
   }
 
-  async getSummary(): Promise<Pick<Stats, 'cookieAuthStatus' | 'apiCredits' | 'apiLoginStatus' | 'postMethodSetting' | 'filterSettings' | 'circuitBreaker'>> {
+  async getSummary(): Promise<{ cookieAuthStatus: Stats['cookieAuthStatus']; apiCredits: Stats['apiCredits']; apiLoginStatus: Stats['apiLoginStatus']; postMethodSetting: string; filterSettings: Stats['filterSettings']; circuitBreaker: Stats['circuitBreaker'] }> {
     return this.request('/api/admin/summary')
   }
 
