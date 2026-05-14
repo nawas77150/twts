@@ -29,7 +29,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
     }
 
-    if (submission.status !== 'pending') {
+    if (submission.status !== 'pending' && submission.status !== 'post_failed') {
       return NextResponse.json(
         { error: `Submission sudah ${submission.status}` },
         { status: 400 }
@@ -71,14 +71,14 @@ export async function PATCH(
         })
       } else {
         debug('[approve route] Post failed:', tweetResult.error, 'method:', tweetResult.method)
-        // Cookie + retry + fallback all failed — mark as approved but NOT posted
+        // Cookie + retry + fallback all failed — mark as post_failed with error details
+        const errorMsg = tweetResult.error || ''
         const updated = await db.submission.update({
           where: { id },
-          data: { status: 'approved' },
+          data: { status: 'post_failed', postError: errorMsg },
         })
 
         // Context-aware hint based on error type
-        const errorMsg = tweetResult.error || ''
         let hint = ''
         if (errorMsg.includes('code: 344') || errorMsg.includes('daily limit')) {
           hint = 'Batas harian tweet tercapai. Coba lagi besok.'

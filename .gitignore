@@ -48,6 +48,8 @@ prisma/migrations/
 # database (SQLite local dev)
 db/*.db
 db/*.db-journal
+prisma/*.db
+prisma/*.db-journal
 
 # logs
 *.log

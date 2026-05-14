@@ -24,9 +24,10 @@ model Submitter {
 model Submission {
   id          String    @id @default(cuid())
   message     String
-  status      String    @default("pending") // pending, approved, rejected, posted
+  status      String    @default("pending") // pending, post_failed, rejected, posted
   tweetId     String?   // X tweet ID after posting
   postMethod  String?   // "direct" | "retry" | "fallback" — which method posted this tweet
+  postError   String?   // Error message from last failed post attempt (cleared on success)
   category      String?   // optional category/tag
   filterReasons String?   // JSON array of filter reasons e.g. ["blocked_word:kontol","contains_mention"]
   submitterId   String

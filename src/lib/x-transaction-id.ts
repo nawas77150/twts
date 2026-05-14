@@ -1,12 +1,13 @@
 // ============================================================
-// X Client Transaction ID Generator
+// X Client Transaction ID Generator — Fallback (Live SVG Approach)
 //
-// Generates the x-client-transaction-id header value required
-// for authenticated API requests to X (formerly Twitter).
+// Generates the x-client-transaction-id header value using the
+// live SVG + cubic-bezier approach. This is now the FALLBACK
+// method — the primary method uses pre-computed pairs from
+// x-transaction-id-pair.ts (0 x.com fetches, includes WebRTC bytes).
 //
-// This is X's primary anti-bot mechanism since ~2024. Without it,
-// requests are flagged as automated and may receive code 344
-// (daily limit exceeded) even for normal usage.
+// This fallback is used when the pair-dict approach fails
+// (GitHub down, pair.json fetch error, etc.).
 //
 // Algorithm:
 // 1. Fetch x.com homepage → extract site verification key + ondemand JS URL
@@ -15,19 +16,23 @@
 // 4. Compute animation key (cubic bezier interpolation)
 // 5. Build transaction ID: SHA-256 hash + XOR encoding + base64
 //
+// Known limitations (vs pair-dict primary):
+// - Missing WebRTC SDP bytes (no RTCPeerConnection in Node.js)
+// - Math approximation of animation key (no DOM, no getComputedStyle)
+// - 3 HTTP fetches to x.com = bot fingerprint
+// - Fragile regex that breaks when X updates frontend
+//
 // Adapted from:
 // - Lqm1/x-client-transaction-id (TypeScript, browser-based)
 // - iSarabjitDhiman/XClientTransaction (Python)
 // - vladkens/twscrape (Python, xclid.py)
-//
-// Key difference from browser implementations: uses regex-based
-// HTML parsing instead of DOM APIs (no Document in Node.js).
 // ============================================================
 
 import * as crypto from 'crypto'
 
+// Chrome 148 on Linux — synced from fa0311/latest-user-agent
 const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
 
 // --- Shared HTML Cache ---
 // Both fetchLiveQueryId (twitter-post-cookie.ts) and getTransactionIdConfig

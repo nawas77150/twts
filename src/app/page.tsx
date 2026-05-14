@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   Sparkles,
   UserCheck,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -77,9 +78,10 @@ interface SubmitterInfo {
 interface Submission {
   id: string
   message: string
-  status: 'pending' | 'approved' | 'rejected' | 'posted'
+  status: 'pending' | 'post_failed' | 'rejected' | 'posted'
   tweetId: string | null
   postMethod: string | null // "direct" | "retry" | "fallback"
+  postError: string | null // Error message from last failed post attempt
   category: string | null
   filterReasons: string | null // JSON array of filter reasons
   submitterId: string
@@ -145,7 +147,7 @@ interface FilterSettings {
 
 interface Stats {
   pending: number
-  approved: number
+  postFailed: number
   rejected: number
   posted: number
   total: number
@@ -165,8 +167,8 @@ interface Stats {
 // Status config
 const statusConfig = {
   pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: Clock },
-  approved: { label: 'Disetujui', color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCheck },
-  rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-800 border-red-300', icon: Ban },
+  post_failed: { label: 'Gagal Posting', color: 'bg-red-100 text-red-800 border-red-300', icon: AlertCircle },
+  rejected: { label: 'Ditolak', color: 'bg-gray-100 text-gray-600 border-gray-300', icon: Ban },
   posted: { label: 'Diposting', color: 'bg-[#F7F9F9] text-[#3D4145] border-[#EFF3F4]', icon: CheckCircle },
 }
 
@@ -1302,7 +1304,7 @@ export default function HomePage() {
                         {[
                           { label: 'Total', value: stats.total, icon: BarChart3, color: 'bg-[#F7F9F9] text-[#3D4145]' },
                           { label: 'Menunggu', value: stats.pending, icon: Clock, color: stats.pending > 0 ? 'bg-yellow-50 text-yellow-700 ring-2 ring-yellow-300' : 'bg-yellow-50 text-yellow-700' },
-                          { label: 'Disetujui', value: stats.approved, icon: CheckCheck, color: 'bg-green-50 text-green-700' },
+                          { label: 'Gagal Posting', value: stats.postFailed, icon: AlertCircle, color: stats.postFailed > 0 ? 'bg-red-50 text-red-700 ring-2 ring-red-300' : 'bg-red-50 text-red-700' },
                           { label: 'Ditolak', value: stats.rejected, icon: Ban, color: 'bg-red-50 text-red-700' },
                           { label: 'Diposting', value: stats.posted, icon: CheckCircle, color: 'bg-[#F7F9F9] text-[#536471]' },
                           { label: 'Pengguna', value: stats.submitters, icon: Users, color: 'bg-purple-50 text-purple-700' },
@@ -1512,8 +1514,9 @@ export default function HomePage() {
                     {/* Filter Bar + Submission List */}
                     <div className="space-y-3">
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                        {['all', 'pending', 'approved', 'rejected', 'posted'].map((status) => {
-                          const statusCount = status === 'all' ? stats?.total : stats?.[status as keyof Stats] as number | undefined
+                        {['all', 'pending', 'post_failed', 'rejected', 'posted'].map((status) => {
+                          const statsKey = status === 'post_failed' ? 'postFailed' : status
+                          const statusCount = status === 'all' ? stats?.total : stats?.[statsKey as keyof Stats] as number | undefined
                           return (
                             <button
                               key={status}
@@ -1653,6 +1656,13 @@ export default function HomePage() {
                                               return null
                                             }
                                           })()}
+                                          {/* Post error */}
+                                          {sub.status === 'post_failed' && sub.postError && (
+                                            <div className="flex items-start gap-1.5 mt-1.5 p-1.5 rounded-md bg-red-50 border border-red-200">
+                                              <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+                                              <span className="text-[10px] text-red-700 leading-tight break-words">{sub.postError}</span>
+                                            </div>
+                                          )}
                                           <p className="text-[10px] text-[#71767B] mt-1">{formatDate(sub.createdAt)}</p>
                                           {sub.tweetId && (
                                             <a
@@ -1690,7 +1700,7 @@ export default function HomePage() {
                                               </Button>
                                             </>
                                           )}
-                                          {sub.status === 'approved' && (
+                                          {sub.status === 'post_failed' && (
                                             <Button
                                               size="sm"
                                               onClick={() => handlePostToX(sub.id)}
@@ -1698,7 +1708,7 @@ export default function HomePage() {
                                               className="h-7 px-2 text-xs bg-[#0F1419] hover:bg-[#272c30] text-white"
                                             >
                                               {actionLoading === `post-${sub.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <XLogo className="w-3 h-3 mr-1" />}
-                                              Post
+                                              Retry Post
                                             </Button>
                                           )}
                                           <Button

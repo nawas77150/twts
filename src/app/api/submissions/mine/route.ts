@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         tweetId: true,
         category: true,
         filterReasons: true,
+        postError: true,
         createdAt: true,
         updatedAt: true,
       },

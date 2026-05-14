@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { generateTransactionId, fetchXcomHtml, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
+import { generateTransactionIdFromPair, clearPairCache } from '@/lib/x-transaction-id-pair'
 import { postViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { decrypt, isEncrypted } from '@/lib/encrypt'
 import { debug } from '@/lib/debug'
@@ -15,8 +16,11 @@ import { debug } from '@/lib/debug'
 // 2. Parse auth_token and ct0 from the cookie string
 // 3. Resolve queryId: in-memory cache → DB → live fetch → DB fallback
 // 4. Read bearer token from DB (required, no default)
-// 5. POST to X GraphQL CreateTweet with Chrome-matching headers
-// 6. Parse response with comprehensive error checking
+// 5. Generate x-client-transaction-id:
+//    - Primary: pair-dict approach (0 x.com fetches, includes WebRTC bytes)
+//    - Fallback: live SVG + cubic-bezier approach (3 x.com fetches)
+// 6. POST to X GraphQL CreateTweet with Chrome-matching headers
+// 7. Parse response with comprehensive error checking
 //
 // Retry strategy (V6: delay right after failure, before next attempt):
 // - Attempt 0: Normal POST
@@ -38,9 +42,9 @@ import { debug } from '@/lib/debug'
 // for fetch and Prisma.
 //
 // Header accuracy verified against:
-// - X's live JS bundle (main.05927b2a.js)
-// - TwitterInternalAPIDocument (daily auto-updated Chrome captures)
-// - emusks reverse-engineering project (npm)
+// - fa0311/TwitterInternalAPIDocument (daily auto-updated Chrome captures)
+// - fa0311/latest-user-agent (auto-updated Chrome UA strings)
+// - fa0311/x-client-transaction-id-pair-dict (daily pre-computed pairs)
 // ============================================================
 
 // No hardcoded defaults for queryId or bearer token.
@@ -48,11 +52,12 @@ import { debug } from '@/lib/debug'
 // bearer token must be set via Admin → X Settings. Stale defaults cause
 // silent 404s that are hard to debug. Explicit configuration = clear errors.
 
+// Chrome 148 on Linux — synced from fa0311/latest-user-agent
 const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
 
-// Chrome Client Hints — matches the User-Agent above (Chrome 144 format)
-const SEC_CH_UA = '"Chromium";v="144", "Not;A=Brand";v="24", "Google Chrome";v="144"'
+// Chrome Client Hints — matches the User-Agent above (Chrome 148 format)
+const SEC_CH_UA = '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"'
 
 // --- Query ID Cache ---
 // In-memory cache avoids re-fetching X's homepage + JS bundle on every post.
@@ -314,6 +319,7 @@ export async function postTweetViaCookie(
     debug('[direct] Attempt', failedAttempt, 'failed — waiting', jitter, 'ms before retry')
     await sleep(jitter)
     clearXactCache() // Fresh transaction ID for each retry
+    clearPairCache() // Also clear pair-dict cache
   }
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -346,7 +352,7 @@ export async function postTweetViaCookie(
 
     // Make the request
     try {
-      const url = `https://twitter.com/i/api/graphql/${queryId}/CreateTweet`
+      const url = `https://x.com/i/api/graphql/${queryId}/CreateTweet`
 
       const variables = {
         tweet_text: text,
@@ -355,8 +361,8 @@ export async function postTweetViaCookie(
         semantic_annotation_ids: [],
       }
 
-      // Feature switches — synced from X's main.05927b2a.js on 2025-07-19
-      // + TwitterInternalAPIDocument (daily auto-updated Chrome captures).
+      // Feature switches — synced from fa0311/TwitterInternalAPIDocument
+      // develop branch (auto-updated daily). Last synced: 2025-07
       const features = {
         premium_content_api_read_enabled: false,
         communities_web_enable_tweet_community_results_fetch: true,
@@ -368,6 +374,7 @@ export async function postTweetViaCookie(
         responsive_web_grok_share_attachment_enabled: true,
         responsive_web_grok_annotations_enabled: true,
         responsive_web_edit_tweet_api_enabled: true,
+        rweb_conversational_replies_downvote_enabled: false,
         graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
         view_counts_everywhere_api_enabled: true,
         longform_notetweets_consumption_enabled: true,
@@ -376,6 +383,7 @@ export async function postTweetViaCookie(
         content_disclosure_ai_generated_indicator_enabled: true,
         responsive_web_grok_show_grok_translated_post: true,
         responsive_web_grok_analysis_button_from_backend: true,
+        responsive_web_enhance_cards_enabled: false,
         post_ctas_fetch_enabled: false,
         longform_notetweets_rich_text_read_enabled: true,
         longform_notetweets_inline_media_enabled: false,
@@ -393,19 +401,37 @@ export async function postTweetViaCookie(
         responsive_web_grok_image_annotation_enabled: true,
         responsive_web_grok_imagine_annotation_enabled: true,
         responsive_web_graphql_timeline_navigation_enabled: true,
-        responsive_web_enhance_cards_enabled: false,
+      }
+
+      // Field toggles — required by X's CreateTweet endpoint since 2025.
+      // Source: fa0311/TwitterInternalAPIDocument
+      const fieldToggles = {
+        withArticleRichContentState: true,
+        withArticlePlainText: true,
+        withArticleSummaryText: true,
+        withArticleVoiceOver: true,
+        withGrokAnalyze: true,
+        withDisallowedReplyControls: true,
+        withPayments: true,
+        withAuxiliaryUserLabels: true,
       }
 
       // Generate x-client-transaction-id (X's primary anti-bot header)
+      // Primary: pair-dict approach (0 x.com fetches, includes WebRTC SDP bytes)
+      // Fallback: live SVG + cubic-bezier (3 x.com fetches, missing WebRTC bytes)
       const apiPath = `/i/api/graphql/${queryId}/CreateTweet`
       let transactionId: string | null = null
-      try {
-        transactionId = await generateTransactionId('POST', apiPath)
-      } catch {
-        // Non-fatal: if transaction ID generation fails, continue without it
+      transactionId = await generateTransactionIdFromPair('POST', apiPath)
+      if (!transactionId) {
+        debug('[direct] Pair-dict failed, falling back to live SVG approach')
+        try {
+          transactionId = await generateTransactionId('POST', apiPath)
+        } catch {
+          // Non-fatal: if both methods fail, continue without transaction ID
+        }
       }
 
-      // Build headers — matches real Chrome browser request structure
+      // Build headers — matches Chrome 148 on Linux per fa0311 captures
       const headers: Record<string, string> = {
         Authorization: `Bearer ${bearerToken}`,
         Cookie: cookies.raw,
@@ -418,13 +444,14 @@ export async function postTweetViaCookie(
         Referer: 'https://x.com/',
         'sec-ch-ua': SEC_CH_UA,
         'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
+        'sec-ch-ua-platform': '"Linux"',
         origin: 'https://x.com',
         'sec-fetch-dest': 'empty',
         'sec-fetch-mode': 'cors',
         'sec-fetch-site': 'same-origin',
-        'sec-gpc': '1',
-        'priority': 'u=1, i',
+        'cache-control': 'no-cache',
+        pragma: 'no-cache',
+        priority: 'u=1, i',
         Accept: '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
       }
@@ -440,6 +467,7 @@ export async function postTweetViaCookie(
           variables,
           queryId,
           features,
+          fieldToggles,
         }),
       })
 
@@ -628,4 +656,5 @@ export function clearAllCaches(): void {
   cachedQueryId = null
   cachedQueryIdTime = 0
   clearXactCache()
+  clearPairCache()
 }

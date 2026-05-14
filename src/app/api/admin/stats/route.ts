@@ -13,10 +13,10 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
-  const [pending, approved, rejected, posted, total, submitters, cookieAuthStatus, postMethodStats, apiCredits, apiLoginStatus, postMethodSetting, filterSettingsData] =
+  const [pending, postFailed, rejected, posted, total, submitters, cookieAuthStatus, postMethodStats, apiCredits, apiLoginStatus, postMethodSetting, filterSettingsData] =
     await Promise.all([
       db.submission.count({ where: { status: 'pending' } }),
-      db.submission.count({ where: { status: 'approved' } }),
+      db.submission.count({ where: { status: 'post_failed' } }),
       db.submission.count({ where: { status: 'rejected' } }),
       db.submission.count({ where: { status: 'posted' } }),
       db.submission.count(),
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     pending,
-    approved,
+    postFailed,
     rejected,
     posted,
     total,

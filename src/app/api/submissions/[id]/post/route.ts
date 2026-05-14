@@ -32,6 +32,11 @@ export async function POST(
       return NextResponse.json({ error: 'Submission sudah ditolak' }, { status: 400 })
     }
 
+    // Only pending and post_failed statuses can be retried
+    if (submission.status !== 'pending' && submission.status !== 'post_failed') {
+      return NextResponse.json({ error: `Status tidak valid untuk retry: ${submission.status}` }, { status: 400 })
+    }
+
     // Post to X using cookie-based auth (with retry + fallback)
     debug('[post route] Posting submission:', id, 'message length:', submission.message.length)
     const tweetResult = await postTweetViaCookie(submission.message)
@@ -46,13 +51,14 @@ export async function POST(
     }
 
     debug('[post route] Post succeeded! tweetId:', tweetResult.tweetId, 'method:', tweetResult.method, 'retries:', tweetResult.retriesUsed)
-    // Update submission status with postMethod tracking
+    // Update submission status with postMethod tracking, clear postError on success
     const updated = await db.submission.update({
       where: { id },
       data: {
         status: 'posted',
         tweetId: tweetResult.tweetId || null,
         postMethod: tweetResult.method,
+        postError: null, // Clear error since post succeeded
       },
     })
 

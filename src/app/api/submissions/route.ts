@@ -281,12 +281,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Create as pending first, then attempt to post
     const submission = await db.submission.create({
       data: {
         message: trimmedMessage,
         category: category?.trim() || null,
         submitterId: submitter.id,
-        status: 'approved', // Mark as approved first
         filterReasons: null,
       },
     })
@@ -313,11 +313,12 @@ export async function POST(req: NextRequest) {
           postMethod: tweetResult.method,
         }, { status: 201 })
       } else {
-        // Post failed — change status to pending so admin can review and retry
-        debug('[submit] Auto-post failed, moving to pending:', tweetResult.error)
+        // Post failed — mark as post_failed so admin can see the error and retry
+        const errorMsg = tweetResult.error || 'Unknown error'
+        debug('[submit] Auto-post failed, marking as post_failed:', errorMsg)
         await db.submission.update({
           where: { id: submission.id },
-          data: { status: 'pending' },
+          data: { status: 'post_failed', postError: errorMsg },
         })
         return NextResponse.json({
           autoPosted: false,
@@ -326,11 +327,12 @@ export async function POST(req: NextRequest) {
         }, { status: 201 })
       }
     } catch (postError) {
-      // Post threw exception — change status to pending so admin can review and retry
-      debug('[submit] Auto-post exception, moving to pending:', postError)
+      // Post threw exception — mark as post_failed so admin can see the error and retry
+      const errorMsg = postError instanceof Error ? postError.message : String(postError)
+      debug('[submit] Auto-post exception, marking as post_failed:', errorMsg)
       await db.submission.update({
         where: { id: submission.id },
-        data: { status: 'pending' },
+        data: { status: 'post_failed', postError: errorMsg },
       })
       return NextResponse.json({
         autoPosted: false,
