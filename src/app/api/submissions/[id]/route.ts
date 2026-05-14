@@ -42,8 +42,8 @@ export async function PATCH(
     // If approving, auto-post to X via cookie auth (with retry + fallback)
     if (status === 'approved') {
       // Acquire distributed lock — only one post to X at a time
-      const locked = await acquirePostingLock()
-      if (!locked) {
+      const lockValue = await acquirePostingLock()
+      if (!lockValue) {
         debug('[approve route] Posting lock busy')
         return NextResponse.json(
           { error: 'Sedang ada posting lain yang berjalan. Coba lagi dalam beberapa detik.' },
@@ -127,7 +127,7 @@ export async function PATCH(
           })
         }
       } finally {
-        await releasePostingLock()
+        await releasePostingLock(lockValue)
       }
     }
 

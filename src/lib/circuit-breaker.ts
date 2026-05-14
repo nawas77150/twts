@@ -6,6 +6,10 @@ import { debug } from '@/lib/debug'
 // Manual admin posts are NOT blocked — admin can decide to retry.
 // Circuit breaker state is stored in the Setting table so it persists
 // across Vercel serverless invocations.
+//
+// Bug #9 fix: recordPostFailure now uses an atomic SQL increment
+// (CAST(CAST(value AS BIGINT) + 1 AS TEXT)) instead of read-modify-write,
+// eliminating the race condition where concurrent failures could lose counts.
 
 const FAIL_COUNT_KEY = 'circuit_breaker_fail_count'
 const PAUSED_UNTIL_KEY = 'circuit_breaker_paused_until'
@@ -101,39 +105,48 @@ export async function getCircuitBreakerStatus(rateLimits?: { circuitBreakerThres
 }
 
 /**
- * Record a successful post — resets the fail count.
+ * Record a successful post — resets the fail count atomically.
  * Called after ANY successful post to X (auto-post, manual, test).
  */
 export async function recordPostSuccess(): Promise<void> {
-  const currentStr = await getSettingValue(FAIL_COUNT_KEY)
-  const current = parseInt(currentStr || '0', 10) || 0
-
-  if (current > 0) {
-    debug('[circuit-breaker] Post succeeded, resetting fail count from', current, 'to 0')
-    await setSettingValue(FAIL_COUNT_KEY, '0')
-  }
+  // Atomically set fail count to 0 using UPSERT
+  await db.$executeRaw`
+    INSERT INTO "Setting" (id, key, value, "updatedAt")
+    VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '0', NOW())
+    ON CONFLICT (key) DO UPDATE
+    SET value = '0', "updatedAt" = NOW()
+  `
+  debug('[circuit-breaker] Post succeeded, resetting fail count to 0')
 }
 
 /**
- * Record a failed post — increments fail count, may trigger pause.
+ * Record a failed post — atomically increments fail count, may trigger pause.
  * Called after ANY failed post to X (auto-post, manual, test).
+ *
+ * Uses atomic SQL increment to prevent race conditions when multiple
+ * failures happen concurrently.
  */
 export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number }): Promise<void> {
   const config = getConfig(rateLimits)
 
-  const currentStr = await getSettingValue(FAIL_COUNT_KEY)
-  const current = parseInt(currentStr || '0', 10) || 0
-  const newCount = current + 1
+  // Atomically increment the fail count — no read-modify-write race
+  await db.$executeRaw`
+    INSERT INTO "Setting" (id, key, value, "updatedAt")
+    VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '1', NOW())
+    ON CONFLICT (key) DO UPDATE
+    SET value = CAST(CAST(value AS BIGINT) + 1 AS TEXT), "updatedAt" = NOW()
+  `
 
-  debug('[circuit-breaker] Post failed, fail count:', current, '→', newCount, '(threshold:', config.threshold, ')')
+  // Read the new count to check if threshold is reached
+  const newCountStr = await getSettingValue(FAIL_COUNT_KEY)
+  const newCount = parseInt(newCountStr || '1', 10) || 1
+
+  debug('[circuit-breaker] Post failed, fail count now:', newCount, '(threshold:', config.threshold, ')')
 
   if (newCount >= config.threshold) {
     const pausedUntil = Date.now() + config.cooldownMinutes * 60 * 1000
     debug('[circuit-breaker] Threshold reached! Pausing auto-post until', new Date(pausedUntil).toISOString())
-    await setSettingValue(FAIL_COUNT_KEY, String(newCount))
     await setSettingValue(PAUSED_UNTIL_KEY, String(pausedUntil))
-  } else {
-    await setSettingValue(FAIL_COUNT_KEY, String(newCount))
   }
 }
 

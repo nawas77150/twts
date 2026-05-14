@@ -64,7 +64,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useToast } from '@/hooks/use-toast'
-import { DEFAULT_BLOCKED_WORDS } from '@/lib/content-filter'
+import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 
 // Types
 interface SubmitterInfo {
@@ -150,6 +150,7 @@ interface FilterSettings {
   geminiApiKeySet: boolean
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
+  blockedUsernames: string[]
 }
 
 interface Stats {
@@ -247,12 +248,14 @@ function useSubmitterAuth() {
     }
   }
 
-  return { submitter, isChecking, authError, isBlocked, logout, checkAuth }
+  const setBlocked = (val: boolean) => setIsBlocked(val)
+
+  return { submitter, isChecking, authError, isBlocked, setBlocked, logout, checkAuth }
 }
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('submit')
-  const { submitter, isChecking, authError, isBlocked, logout: submitterLogout, checkAuth } = useSubmitterAuth()
+  const { submitter, isChecking, authError, isBlocked, setBlocked: setSubmitterBlocked, logout: submitterLogout, checkAuth } = useSubmitterAuth()
 
   // Admin auth state
   const [isAdmin, setIsAdmin] = useState(false)
@@ -283,6 +286,9 @@ export default function HomePage() {
 
   // Admin state
   const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [submissionsPage, setSubmissionsPage] = useState(1)
+  const [submissionsHasMore, setSubmissionsHasMore] = useState(false)
+  const [submissionsTotal, setSubmissionsTotal] = useState(0)
   const [stats, setStats] = useState<Stats | null>(null)
   const [filterStatus, setFilterStatus] = useState('pending')
   const [postSearch, setPostSearch] = useState('')
@@ -327,6 +333,7 @@ export default function HomePage() {
   // Filter & Auto-Approve state
   const [autoApprove, setAutoApprove] = useState(false)
   const [blockedWordsText, setBlockedWordsText] = useState('') // textarea value
+  const [nsfwWordsText, setNsfwWordsText] = useState('') // textarea value
   const [filterRules, setFilterRules] = useState<FilterRules>({
     blockedWords: true,
     jualan: true,
@@ -367,7 +374,30 @@ export default function HomePage() {
   const [penggunaSearch, setPenggunaSearch] = useState('')
 
   // Circuit breaker state (read-only, from server)
-  const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<{ paused: boolean; failCount: number; remainingMinutes: number; threshold: number } | null>(null)
+  const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<{ paused: boolean; failCount: number; pausedUntil: number | null; threshold: number } | null>(null)
+  // Live countdown computed from pausedUntil — updates every second
+  const [liveRemainingMinutes, setLiveRemainingMinutes] = useState(0)
+
+  // Compute live countdown from pausedUntil timestamp
+  useEffect(() => {
+    if (!circuitBreakerStatus?.paused || !circuitBreakerStatus.pausedUntil) {
+      setLiveRemainingMinutes(0)
+      return
+    }
+    const compute = () => {
+      const remaining = circuitBreakerStatus.pausedUntil! - Date.now()
+      if (remaining <= 0) {
+        setLiveRemainingMinutes(0)
+        // Auto-clear paused state when timer expires
+        setCircuitBreakerStatus((prev) => prev ? { ...prev, paused: false, pausedUntil: null } : null)
+        return
+      }
+      setLiveRemainingMinutes(Math.ceil(remaining / 60000))
+    }
+    compute() // initial calculation
+    const interval = setInterval(compute, 1000)
+    return () => clearInterval(interval)
+  }, [circuitBreakerStatus?.paused, circuitBreakerStatus?.pausedUntil])
 
   // Submitters & blocklist state
   const [submitters, setSubmitters] = useState<{ id: string; username: string; displayName: string | null; profileImage: string | null; totalSubmissions: number; posted: number; pending: number; rejected: number; postFailed: number }[]>([])
@@ -510,6 +540,7 @@ export default function HomePage() {
     setXTotpSecret('')
     setAutoApprove(false)
     setBlockedWordsText('')
+    setNsfwWordsText('')
     setFilterRules({
       blockedWords: true,
       jualan: true,
@@ -568,6 +599,10 @@ export default function HomePage() {
         setCategory('')
         fetchMyPosts()
       } else {
+        // If blocked (403), update isBlocked state so UI shows the blocked card
+        if (res.status === 403) {
+          setSubmitterBlocked(true)
+        }
         const errorDesc = data.message || data.error || 'Gagal mengirim pesan'
         toast({ title: data.error || 'Gagal', description: errorDesc, variant: 'destructive' })
       }
@@ -580,25 +615,36 @@ export default function HomePage() {
 
   // Fetch submissions (admin)
   // silent=true for auto-refresh — no loading spinner flicker, no error toast spam
-  const fetchSubmissions = useCallback(async (token?: string, silent = false) => {
+  const fetchSubmissions = useCallback(async (token?: string, silent = false, page?: number) => {
     const t = token || adminToken
     if (!t) return
+    const targetPage = page ?? submissionsPage
     if (!silent) setIsLoadingAdmin(true)
     try {
-      const statusParam = filterStatus !== 'all' ? `?status=${filterStatus}` : ''
-      const res = await fetch(`/api/submissions${statusParam}`, {
+      const params = new URLSearchParams()
+      if (filterStatus !== 'all') params.set('status', filterStatus)
+      params.set('page', String(targetPage))
+      params.set('limit', '50')
+      const res = await fetch(`/api/submissions?${params.toString()}`, {
         headers: { authorization: `Bearer ${t}` },
       })
       if (res.ok) {
         const data = await res.json()
-        setSubmissions(data.submissions)
+        if (targetPage === 1) {
+          setSubmissions(data.submissions)
+        } else {
+          setSubmissions(prev => [...prev, ...data.submissions])
+        }
+        setSubmissionsHasMore(data.pagination?.hasMore ?? false)
+        setSubmissionsTotal(data.pagination?.total ?? 0)
+        setSubmissionsPage(targetPage)
       }
     } catch {
       if (!silent) toast({ title: 'Error', description: 'Gagal memuat data', variant: 'destructive' })
     } finally {
       if (!silent) setIsLoadingAdmin(false)
     }
-  }, [adminToken, filterStatus, toast])
+  }, [adminToken, filterStatus, toast, submissionsPage])
 
   // Fetch stats (admin)
   const fetchStats = useCallback(async (token?: string) => {
@@ -620,6 +666,7 @@ export default function HomePage() {
         if (data.filterSettings) {
           setAutoApprove(data.filterSettings.autoApprove)
           setBlockedWordsText(data.filterSettings.blockedWords.join(', '))
+          setNsfwWordsText(data.filterSettings.nsfwWords.join(', '))
           setFilterRules(data.filterSettings.filterRules)
           setGeminiEnabled(data.filterSettings.geminiEnabled)
           setGeminiApiKeySet(data.filterSettings.geminiApiKeySet)
@@ -1475,7 +1522,9 @@ export default function HomePage() {
                                             const data = await res.json()
                                             toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
                                           }
-                                        } catch { /* ignore */ }
+                                        } catch {
+                                          toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
+                                        }
                                       }}
                                     >
                                       Unblock
@@ -1514,82 +1563,95 @@ export default function HomePage() {
                               <p className="text-xs text-[#71767B] text-center py-6">Klik refresh untuk memuat daftar pengguna</p>
                             ) : (
                               <div className="max-h-96 overflow-y-auto space-y-1 pr-1" style={{ scrollbarWidth: 'thin' }}>
-                                {submitters
-                                  .filter((s) => {
+                                {(() => {
+                                  const filtered = submitters.filter((s) => {
                                     if (!penggunaSearch) return true
                                     const q = penggunaSearch.toLowerCase()
                                     return s.username.toLowerCase().includes(q) || (s.displayName?.toLowerCase().includes(q) ?? false)
                                   })
-                                  .map((s) => {
-                                  const isBlocked = blockedUsernames.includes(s.username.toLowerCase())
-                                  return (
-                                    <div key={s.id} className={`flex items-center gap-2 p-2 rounded-lg text-xs ${isBlocked ? 'bg-red-50 border border-red-200' : 'bg-[#F7F9F9] border border-[#EFF3F4]'}`}>
-                                      {s.profileImage ? (
-                                        <img src={s.profileImage} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
-                                      ) : (
-                                        <div className="w-8 h-8 rounded-full bg-[#EFF3F4] flex items-center justify-center flex-shrink-0">
-                                          <User className="w-4 h-4 text-[#71767B]" />
-                                        </div>
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1">
-                                          <span className="font-medium text-[#0F1419] truncate">@{s.username}</span>
-                                          {isBlocked && <Badge variant="destructive" className="text-[8px] px-1 py-0">BLOCKED</Badge>}
-                                        </div>
-                                        <span className="text-[#71767B]">{s.totalSubmissions} pesan · {s.posted} posted · {s.pending} pending</span>
+                                  if (filtered.length === 0 && penggunaSearch) {
+                                    return (
+                                      <div className="text-center py-6">
+                                        <p className="text-xs text-[#536471]">Tidak ada hasil untuk &ldquo;{penggunaSearch}&rdquo;</p>
+                                        <Button variant="link" className="text-xs text-[#71767B] mt-1" onClick={() => setPenggunaSearch('')}>Hapus pencarian</Button>
                                       </div>
-                                      {!isBlocked ? (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-shrink-0"
-                                          onClick={async () => {
-                                            try {
-                                              const res = await fetch('/api/admin/submitters/block', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
-                                                body: JSON.stringify({ username: s.username }),
-                                              })
-                                              if (res.ok) {
-                                                setBlockedUsernames([...blockedUsernames, s.username.toLowerCase()])
-                                                toast({ title: `@${s.username} diblokir` })
-                                              } else {
-                                                const data = await res.json()
-                                                toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                    )
+                                  }
+                                  return filtered.map((s) => {
+                                    const isBlocked = blockedUsernames.includes(s.username.toLowerCase())
+                                    return (
+                                      <div key={s.id} className={`flex items-center gap-2 p-2 rounded-lg text-xs ${isBlocked ? 'bg-red-50 border border-red-200' : 'bg-[#F7F9F9] border border-[#EFF3F4]'}`}>
+                                        {s.profileImage ? (
+                                          <img src={s.profileImage} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-[#EFF3F4] flex items-center justify-center flex-shrink-0">
+                                            <User className="w-4 h-4 text-[#71767B]" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1">
+                                            <span className="font-medium text-[#0F1419] truncate">@{s.username}</span>
+                                            {isBlocked && <Badge variant="destructive" className="text-[8px] px-1 py-0">BLOCKED</Badge>}
+                                          </div>
+                                          <span className="text-[#71767B]">{s.totalSubmissions} pesan · {s.posted} posted · {s.pending} pending</span>
+                                        </div>
+                                        {!isBlocked ? (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 flex-shrink-0"
+                                            onClick={async () => {
+                                              try {
+                                                const res = await fetch('/api/admin/submitters/block', {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
+                                                  body: JSON.stringify({ username: s.username }),
+                                                })
+                                                if (res.ok) {
+                                                  setBlockedUsernames([...blockedUsernames, s.username.toLowerCase()])
+                                                  toast({ title: `@${s.username} diblokir` })
+                                                } else {
+                                                  const data = await res.json()
+                                                  toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                                }
+                                              } catch {
+                                                toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
                                               }
-                                            } catch { /* ignore */ }
-                                          }}
-                                        >
-                                          <Ban className="w-3 h-3 mr-1" /> Block
-                                        </Button>
-                                      ) : (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
-                                          onClick={async () => {
-                                            try {
-                                              const res = await fetch('/api/admin/submitters/unblock', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
-                                                body: JSON.stringify({ username: s.username }),
-                                              })
-                                              if (res.ok) {
-                                                setBlockedUsernames(blockedUsernames.filter((u) => u !== s.username.toLowerCase()))
-                                                toast({ title: `@${s.username} dibebaskan` })
-                                              } else {
-                                                const data = await res.json()
-                                                toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                            }}
+                                          >
+                                            <Ban className="w-3 h-3 mr-1" /> Block
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
+                                            onClick={async () => {
+                                              try {
+                                                const res = await fetch('/api/admin/submitters/unblock', {
+                                                  method: 'POST',
+                                                  headers: { 'Content-Type': 'application/json', authorization: `Bearer ${adminToken}` },
+                                                  body: JSON.stringify({ username: s.username }),
+                                                })
+                                                if (res.ok) {
+                                                  setBlockedUsernames(blockedUsernames.filter((u) => u !== s.username.toLowerCase()))
+                                                  toast({ title: `@${s.username} dibebaskan` })
+                                                } else {
+                                                  const data = await res.json()
+                                                  toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
+                                                }
+                                              } catch {
+                                                toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
                                               }
-                                            } catch { /* ignore */ }
-                                          }}
-                                        >
-                                          Unblock
-                                        </Button>
-                                      )}
-                                    </div>
-                                  )
-                                })}
+                                            }}
+                                          >
+                                            Unblock
+                                          </Button>
+                                        )}
+                                      </div>
+                                    )
+                                  })
+                                })()}
                               </div>
                             )}
                           </div>
@@ -1792,7 +1854,7 @@ export default function HomePage() {
                           return (
                             <button
                               key={status}
-                              onClick={() => setFilterStatus(status)}
+                              onClick={() => { setFilterStatus(status); setSubmissionsPage(1) }}
                               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
                                 filterStatus === status
                                   ? 'bg-[#0F1419] text-white'
@@ -1848,9 +1910,10 @@ export default function HomePage() {
                             </CardContent>
                           </Card>
                         ) : (
+                          <>
                           <AnimatePresence mode="popLayout">
-                            {submissions
-                              .filter((sub) => {
+                            {(() => {
+                              const filtered = submissions.filter((sub) => {
                                 if (!postSearch) return true
                                 const q = postSearch.toLowerCase()
                                 return (
@@ -1859,7 +1922,20 @@ export default function HomePage() {
                                   (sub.submitter.displayName?.toLowerCase().includes(q) ?? false)
                                 )
                               })
-                              .map((sub) => {
+                              if (filtered.length === 0 && postSearch) {
+                                return (
+                                  <Card className="py-8" key="no-results">
+                                    <CardContent className="text-center">
+                                      <div className="w-10 h-10 rounded-xl bg-[#F7F9F9] flex items-center justify-center mx-auto mb-2">
+                                        <Filter className="w-5 h-5 text-[#71767B]" />
+                                      </div>
+                                      <p className="text-sm text-[#536471]">Tidak ada hasil untuk &ldquo;{postSearch}&rdquo;</p>
+                                      <Button variant="link" className="text-xs text-[#71767B] mt-1" onClick={() => setPostSearch('')}>Hapus pencarian</Button>
+                                    </CardContent>
+                                  </Card>
+                                )
+                              }
+                              return filtered.map((sub) => {
                               const config = statusConfig[sub.status as keyof typeof statusConfig]
                               return (
                                 <motion.div key={sub.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
@@ -2025,8 +2101,22 @@ export default function HomePage() {
                                   </Card>
                                 </motion.div>
                               )
-                            })}
+                            })
+                            })()}
                           </AnimatePresence>
+                          {submissionsHasMore && (
+                            <div className="flex justify-center py-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => fetchSubmissions(undefined, false, submissionsPage + 1)}
+                              >
+                                Muat lebih banyak {'('}{submissions.length}/{submissionsTotal}{')'}
+                              </Button>
+                            </div>
+                          )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -2626,6 +2716,34 @@ export default function HomePage() {
 
                             <Separator />
 
+                            {/* NSFW Words */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-[#536471] flex items-center justify-between">
+                                <span>NSFW Words</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
+                                  onClick={() => {
+                                    setNsfwWordsText(DEFAULT_NSFW_WORDS.join(', '))
+                                  }}
+                                >
+                                  <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
+                                </Button>
+                              </label>
+                              <Textarea
+                                placeholder="bokep, telanjang, milf, ..."
+                                value={nsfwWordsText}
+                                onChange={(e) => setNsfwWordsText(e.target.value)}
+                                className="min-h-[80px] resize-y border-[#EFF3F4] text-xs"
+                              />
+                              <p className="text-[10px] text-[#71767B]">
+                                Comma-separated. Used when "Block NSFW/explicit content" rule is ON.
+                              </p>
+                            </div>
+
+                            <Separator />
+
                             {/* Filter Rules */}
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-[#536471]">Filter Rules</label>
@@ -2886,7 +3004,7 @@ export default function HomePage() {
                                   <span className="text-[10px] font-medium text-[#536471]">Circuit Breaker</span>
                                   {circuitBreakerStatus?.paused && (
                                     <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-                                      PAUSED — {circuitBreakerStatus.remainingMinutes}m tersisa
+                                      PAUSED — {liveRemainingMinutes}m tersisa
                                     </Badge>
                                   )}
                                   {!circuitBreakerStatus?.paused && circuitBreakerStatus && circuitBreakerStatus.failCount > 0 && (
@@ -2905,7 +3023,7 @@ export default function HomePage() {
                                             method: 'POST',
                                             headers: { authorization: `Bearer ${adminToken}` },
                                           })
-                                          setCircuitBreakerStatus({ ...circuitBreakerStatus, paused: false, failCount: 0, remainingMinutes: 0 })
+                                          setCircuitBreakerStatus({ ...circuitBreakerStatus, paused: false, failCount: 0, pausedUntil: null })
                                           toast({ title: 'Circuit breaker direset' })
                                         } catch { /* ignore */ }
                                       }}
@@ -2993,6 +3111,11 @@ export default function HomePage() {
                                     .map(w => w.trim().toLowerCase())
                                     .filter(w => w.length > 0)
 
+                                  const nsfwWords = nsfwWordsText
+                                    .split(/[,\n]+/)
+                                    .map(w => w.trim().toLowerCase())
+                                    .filter(w => w.length > 0)
+
                                   const whitelist = whitelistText
                                     .split(/[,\n]+/)
                                     .map(u => u.trim().toLowerCase())
@@ -3007,11 +3130,11 @@ export default function HomePage() {
                                     body: JSON.stringify({
                                       autoApprove,
                                       blockedWords: words,
+                                      nsfwWords,
                                       filterRules,
                                       geminiEnabled,
                                       rateLimits,
                                       whitelistUsernames: whitelist,
-                                      blockedUsernames,
                                     }),
                                   })
                                   const data = await res.json()

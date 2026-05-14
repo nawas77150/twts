@@ -13,27 +13,44 @@ import { NextRequest, NextResponse } from 'next/server'
 // Vercel serverless function timeout — auto-post + Gemini can take up to 15s with retries
 export const maxDuration = 30
 
-// GET /api/submissions - List all submissions (admin only, includes submitter info)
+// GET /api/submissions - List submissions (admin only, includes submitter info)
+// Supports pagination via ?page=1&limit=50 (defaults: page=1, limit=50)
 export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50))
 
   const where = status && status !== 'all' ? { status } : {}
 
-  const submissions = await db.submission.findMany({
-    where,
-    include: {
-      submitter: {
-        select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+  const [submissions, total] = await Promise.all([
+    db.submission.findMany({
+      where,
+      include: {
+        submitter: {
+          select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+        },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: (page - 1) * limit,
+    }),
+    db.submission.count({ where }),
+  ])
 
-  return NextResponse.json({ submissions })
+  return NextResponse.json({
+    submissions,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasMore: page * limit < total,
+    },
+  })
 }
 
 // POST /api/submissions - Create new submission (requires Twitter login)
@@ -420,8 +437,8 @@ export async function POST(req: NextRequest) {
     })
 
     // Acquire distributed lock — only one post to X at a time
-    const locked = await acquirePostingLock()
-    if (!locked) {
+    const lockValue = await acquirePostingLock()
+    if (!lockValue) {
       debug('[submit] Posting lock busy, queuing submission')
       return NextResponse.json({
         submission,
@@ -491,7 +508,7 @@ export async function POST(req: NextRequest) {
         error: 'Pesanmu sudah masuk antrean dan akan diposting oleh admin setelahnya.',
       }, { status: 201 })
     } finally {
-      await releasePostingLock()
+      await releasePostingLock(lockValue)
     }
   } catch {
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })

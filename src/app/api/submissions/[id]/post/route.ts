@@ -41,8 +41,8 @@ export async function POST(
     }
 
     // Acquire distributed lock — only one post to X at a time
-    const locked = await acquirePostingLock()
-    if (!locked) {
+    const lockValue = await acquirePostingLock()
+    if (!lockValue) {
       debug('[post route] Posting lock busy')
       return NextResponse.json(
         { error: 'Sedang ada posting lain yang berjalan. Coba lagi dalam beberapa detik.' },
@@ -93,7 +93,7 @@ export async function POST(
         retriesUsed: tweetResult.retriesUsed,
       })
     } finally {
-      await releasePostingLock()
+      await releasePostingLock(lockValue)
     }
   } catch (error) {
     console.error('Post to X error:', error)

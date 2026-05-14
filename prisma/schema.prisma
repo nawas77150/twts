@@ -34,6 +34,12 @@ model Submission {
   submitter   Submitter @relation(fields: [submitterId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([submitterId])                // per-user rate limit queries
+  @@index([status])                     // filter by status
+  @@index([createdAt])                  // time-window queries
+  @@index([submitterId, status])        // "count MY pending submissions"
+  @@index([status, updatedAt])          // "last posted submission"
 }
 
 model Setting {

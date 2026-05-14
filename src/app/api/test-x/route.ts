@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
     // use default text
   }
 
-  const locked = await acquirePostingLock()
-  if (!locked) {
+  const lockValue = await acquirePostingLock()
+  if (!lockValue) {
     debug('[test-x] Posting lock busy')
     return NextResponse.json(
       { success: false, error: 'Sedang ada posting lain yang berjalan. Coba lagi dalam beberapa detik.' },
@@ -79,6 +79,6 @@ export async function POST(req: NextRequest) {
       tweetUrl: result.tweetId ? `https://x.com/i/status/${result.tweetId}` : null,
     })
   } finally {
-    await releasePostingLock()
+    await releasePostingLock(lockValue)
   }
 }
