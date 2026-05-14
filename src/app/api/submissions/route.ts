@@ -422,7 +422,8 @@ export async function POST(req: NextRequest) {
           submission,
           autoPosted: false,
           queued: true,
-          error: 'Pesanmu sudah masuk antrean dan akan diposting oleh admin setelahnya.',
+          postCapped: true,
+          error: `Batas post harian kamu tercapai (${userPostCount}/${filterSettings.rateLimits.userPostDailyCap}). Pesan masuk antrean dan akan diposting oleh admin setelahnya.`,
         }, { status: 201 })
       }
     }

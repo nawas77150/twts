@@ -36,6 +36,8 @@ export default function HomePage() {
       const data = await apiClient.submitMessage({ message, category: category || undefined })
       if (data.autoPosted) {
         toast({ title: 'Terkirim & diposting!', description: 'Pesanmu langsung diposting ke X.' })
+      } else if (data.postCapped) {
+        toast({ title: 'Batas post harian tercapai', description: data.error })
       } else if (data.queued) {
         toast({ title: 'Masuk antrean', description: data.error || 'Pesanmu sudah masuk antrean dan akan diposting oleh admin setelahnya.' })
       } else if (data.filtered) {

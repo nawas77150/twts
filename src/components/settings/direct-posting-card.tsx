@@ -235,13 +235,25 @@ export function DirectPostingCard({
                   onChange={(e) => setQueryId(e.target.value)}
                   className="border-[#EFF3F4]"
                 />
-                <Button
-                  onClick={() => saveSetting('x_query_id', queryId, () => setQueryId(''))}
-                  disabled={!!isSavingSetting || !queryId.trim()}
-                  className="bg-[#0F1419] hover:bg-[#272c30]"
-                >
-                  {isSavingSetting === 'x_query_id' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    onClick={() => saveSetting('x_query_id', queryId, () => setQueryId(''))}
+                    disabled={!!isSavingSetting || !queryId.trim()}
+                    className="bg-[#0F1419] hover:bg-[#272c30]"
+                  >
+                    {isSavingSetting === 'x_query_id' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => saveSetting('x_query_id', '', () => setQueryId(''))}
+                    disabled={!!isSavingSetting}
+                    className="border-[#EFF3F4] text-[#536471]"
+                    title="Clear saved Query ID"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
               <button
                 onClick={() => setShowQueryIdGuide(!showQueryIdGuide)}

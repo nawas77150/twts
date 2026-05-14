@@ -102,6 +102,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'key and value are required' }, { status: 400 })
   }
 
+  // If value is empty, delete the setting instead of storing an empty string
+  if (!value.trim()) {
+    await db.setting.deleteMany({ where: { key } })
+    return NextResponse.json({ deleted: true, key })
+  }
+
   // Validate known keys only
   if (!VALID_KEYS.includes(key)) {
     return NextResponse.json(

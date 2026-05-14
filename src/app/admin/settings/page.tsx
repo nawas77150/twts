@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Shield, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,9 +28,16 @@ export default function AdminSettingsPage() {
   const circuitBreaker = useCircuitBreaker({ adminToken })
   const stats = useStats({ adminToken })
 
+  // Track whether initial settings load has happened
+  // to prevent overwriting local state (toggles, text inputs) on every render
+  const hasLoadedRef = useRef(false)
+
   // Sync stats → filter settings, circuit breaker, posting method
+  // Only runs on initial load (when stats first arrive) and when token changes
   useEffect(() => {
     if (!stats.stats) return
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
     const s = stats.stats
     if (s.filterSettings) {
       filterSettings.loadFromFilterSettings(s.filterSettings)
@@ -38,15 +45,22 @@ export default function AdminSettingsPage() {
     if (s.postMethodSetting) {
       posting.setPostMethodSetting(s.postMethodSetting)
     }
-    // Circuit breaker from stats response (now included in /api/admin/stats)
     if (s.circuitBreaker) {
       circuitBreaker.setStatus(s.circuitBreaker)
     }
-  }, [stats.stats, filterSettings, circuitBreaker, posting])
+  }, [stats.stats]) // intentionally only depend on stats.stats
+
+  // Always sync circuit breaker status (read-only display, safe to update)
+  useEffect(() => {
+    if (!stats.stats?.circuitBreaker) return
+    if (!hasLoadedRef.current) return // skip during initial load (handled above)
+    circuitBreaker.setStatus(stats.stats.circuitBreaker)
+  }, [stats.stats?.circuitBreaker])
 
   // Auto-load settings from stats on mount & when token changes
   useEffect(() => {
     if (adminToken) {
+      hasLoadedRef.current = false // reset so sync effect can run again
       stats.fetchStats()
     }
   }, [adminToken, stats.fetchStats])

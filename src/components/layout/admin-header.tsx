@@ -29,7 +29,7 @@ export function AdminHeader({ adminToken, onLogout, pendingCount = 0 }: AdminHea
             <XLogo className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-[#0F1419] leading-tight">Autobase Admin</h1>
+            <h1 className="text-lg font-bold text-[#0F1419] leading-tight">Autobase</h1>
             <p className="text-xs text-[#536471]">Dashboard</p>
           </div>
         </div>

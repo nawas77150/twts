@@ -4,7 +4,6 @@ import { Loader2, LogOut, ChevronDown, AlertTriangle, RotateCcw } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,15 +99,6 @@ export function PublicHeader({ submitter, isChecking, isAnonUser, onLogin, onLog
               <XLogo className="w-4 h-4 mr-2" /> Login X
             </Button>
           )}
-
-          <Separator orientation="vertical" className="h-5 hidden sm:block" />
-
-          <a
-            href="/admin"
-            className="text-xs text-[#71767B] hover:text-[#536471] transition-colors flex items-center gap-1"
-          >
-            Admin &rarr;
-          </a>
         </div>
       </div>
     </header>
