@@ -134,7 +134,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
     INSERT INTO "Setting" (id, key, value, "updatedAt")
     VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '1', NOW())
     ON CONFLICT (key) DO UPDATE
-    SET value = CAST(CAST(value AS BIGINT) + 1 AS TEXT), "updatedAt" = NOW()
+    SET value = (value::INTEGER + 1)::TEXT, "updatedAt" = NOW()
   `
 
   // Read the new count to check if threshold is reached

@@ -71,6 +71,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Pesan wajib diisi' }, { status: 400 })
     }
 
+    // Validate category length to prevent abuse
+    if (category && typeof category === 'string' && category.trim().length > 50) {
+      return NextResponse.json({ error: 'Kategori maksimal 50 karakter' }, { status: 400 })
+    }
+
     const trimmedMessage = message.trim()
 
     if (trimmedMessage.length === 0) {

@@ -7,7 +7,13 @@ const AUTH_TAG_LENGTH = 16;
 function getKey(): Buffer | null {
   const hexKey = process.env.ENCRYPTION_KEY;
   if (!hexKey) return null;
-  return Buffer.from(hexKey, "hex");
+  const key = Buffer.from(hexKey, "hex");
+  if (key.length !== 32) {
+    throw new Error(
+      `ENCRYPTION_KEY must be 64 hex characters (32 bytes for AES-256), got ${hexKey.length} hex chars (${key.length} bytes). Generate one with: openssl rand -hex 32`
+    );
+  }
+  return key;
 }
 
 /**

@@ -48,7 +48,7 @@ export async function acquirePostingLock(): Promise<string | null> {
     ON CONFLICT (key) DO UPDATE
     SET value = ${String(now)}, "updatedAt" = NOW()
     WHERE "Setting".value = '0'
-       OR CAST("Setting".value AS BIGINT) < ${cutoff}
+       OR "Setting".value::BIGINT < ${cutoff}
   `
 
   const acquired = affected > 0

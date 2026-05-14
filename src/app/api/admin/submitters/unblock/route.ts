@@ -3,10 +3,6 @@ import { verifyAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/submitters/unblock — Unblock a user
-//
-// Bug #10 fix: Uses atomic PostgreSQL jsonb array element removal
-// instead of read-modify-write, preventing race conditions when two
-// admins unblock different users at the same time.
 export async function POST(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
@@ -19,29 +15,27 @@ export async function POST(req: NextRequest) {
 
     const normalizedUsername = username.toLowerCase().trim()
 
-    // Atomically remove the username from the blocked_usernames JSON array.
-    // Uses jsonb_agg to rebuild the array without the target element.
-    // The WHERE clause ensures we only update if the user is actually in the list.
-    //
-    // This is a single SQL statement — no read-modify-write race.
-    const affected = await db.$executeRaw`
-      UPDATE "Setting"
-      SET value = (
-        COALESCE(
-          (SELECT jsonb_agg(elem)::text
-           FROM jsonb_array_elements(value::jsonb) AS elem
-           WHERE elem::text != ${JSON.stringify(normalizedUsername)}),
-          '[]'
-        )
-      ),
-      "updatedAt" = NOW()
-      WHERE key = 'blocked_usernames'
-        AND value::jsonb ? ${normalizedUsername}
-    `
-
-    if (affected === 0) {
+    // Read current blocked list, remove username, write back
+    const existing = await db.setting.findUnique({ where: { key: 'blocked_usernames' } })
+    if (!existing?.value) {
       return NextResponse.json({ error: 'User tidak ditemukan di blocklist' }, { status: 400 })
     }
+
+    let blocked: string[] = []
+    try {
+      blocked = JSON.parse(existing.value)
+    } catch { /* empty */ }
+
+    if (!blocked.includes(normalizedUsername)) {
+      return NextResponse.json({ error: 'User tidak ditemukan di blocklist' }, { status: 400 })
+    }
+
+    blocked = blocked.filter(u => u !== normalizedUsername)
+    await db.setting.upsert({
+      where: { key: 'blocked_usernames' },
+      update: { value: JSON.stringify(blocked) },
+      create: { key: 'blocked_usernames', value: JSON.stringify(blocked) },
+    })
 
     return NextResponse.json({ success: true, unblocked: normalizedUsername })
   } catch {

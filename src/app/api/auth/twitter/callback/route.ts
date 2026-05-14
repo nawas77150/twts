@@ -9,6 +9,14 @@ import {
   getOAuth2Credentials,
 } from '@/lib/twitter-auth'
 
+// Helper: redirect to error page and clear OAuth temp cookies
+function authErrorRedirect(baseUrl: string, path: string = '/?auth=error'): NextResponse {
+  const response = NextResponse.redirect(new URL(path, baseUrl))
+  response.cookies.set('twitter_oauth_state', '', { maxAge: 0, path: '/' })
+  response.cookies.set('twitter_oauth_verifier', '', { maxAge: 0, path: '/' })
+  return response
+}
+
 // GET /api/auth/twitter/callback - Handle Twitter OAuth 2.0 callback
 // Returns an intermediate HTML page that sets the session cookie via fetch,
 // then redirects to the home page. This is more reliable on Vercel than
@@ -25,33 +33,33 @@ export async function GET(req: NextRequest) {
   // User denied access
   if (error) {
     console.warn('OAuth denied:', error, errorDescription)
-    return NextResponse.redirect(new URL('/?auth=denied', baseUrl))
+    return authErrorRedirect(baseUrl, '/?auth=denied')
   }
 
   if (!code || !state) {
     console.error('OAuth callback missing code or state')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 
   // Verify state matches (CSRF protection) - use NextRequest cookies API
   const storedState = req.cookies.get('twitter_oauth_state')?.value
   if (state !== storedState) {
     console.error('OAuth state mismatch - possible CSRF attack')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 
   // Get code verifier from cookie - use NextRequest cookies API
   const codeVerifier = req.cookies.get('twitter_oauth_verifier')?.value
   if (!codeVerifier) {
     console.error('Missing OAuth code verifier cookie - may have expired')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 
   // Get OAuth2 credentials (supports both OAUTH2_* and TWITTER_* env var names)
   const creds = getOAuth2Credentials()
   if (!creds) {
     console.error('Missing OAuth2 credentials. Set OAUTH2_CLIENT_ID + OAUTH2_CLIENT_SECRET (or TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET) in Vercel env vars.')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 
   const redirectUri = `${baseUrl}/api/auth/twitter/callback`
@@ -67,7 +75,7 @@ export async function GET(req: NextRequest) {
 
   if (!tokenData?.access_token) {
     console.error('Failed to exchange code for token - check server logs for details')
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 
   // Fetch Twitter user info
@@ -164,6 +172,6 @@ export async function GET(req: NextRequest) {
     return response
   } catch (error) {
     console.error('Error creating submitter:', error)
-    return NextResponse.redirect(new URL('/?auth=error', baseUrl))
+    return authErrorRedirect(baseUrl)
   }
 }

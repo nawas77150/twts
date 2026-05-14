@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Stats, CookieAuthStatus, PostMethodStats, KeyCredits, ApiLoginStatus, PostMethod } from '@/types'
 import { apiClient } from '@/lib/api-client'
 
@@ -24,6 +24,12 @@ export function useStats({ adminToken }: UseStatsParams, callbacks?: UseStatsCal
   const [apiLoginStatus, setApiLoginStatus] = useState<ApiLoginStatus | null>(null)
   const [postMethodSetting, setPostMethodSetting] = useState<PostMethod>('auto')
 
+  // Use ref for callbacks to avoid unstable dependency causing excessive re-fetches
+  const callbacksRef = useRef(callbacks)
+  useEffect(() => {
+    callbacksRef.current = callbacks
+  })
+
   const fetchStats = useCallback(async () => {
     if (!adminToken) return
     try {
@@ -35,22 +41,22 @@ export function useStats({ adminToken }: UseStatsParams, callbacks?: UseStatsCal
       if (data.apiLoginStatus) setApiLoginStatus(data.apiLoginStatus)
       if (data.postMethodSetting) {
         setPostMethodSetting(data.postMethodSetting)
-        callbacks?.onPostMethodSetting?.(data.postMethodSetting)
+        callbacksRef.current?.onPostMethodSetting?.(data.postMethodSetting)
       }
       // Notify parent hooks of filter settings from stats response
       if (data.filterSettings) {
-        callbacks?.onFilterSettings?.(data.filterSettings)
+        callbacksRef.current?.onFilterSettings?.(data.filterSettings)
       }
       // Circuit breaker from filter settings
       if (data.filterSettings) {
         const cb = (data.filterSettings as Stats['filterSettings'] & { circuitBreaker?: { paused: boolean; failCount: number; pausedUntil: number | null; threshold: number } }).circuitBreaker
-        if (cb) callbacks?.onCircuitBreaker?.(cb)
-        if (data.filterSettings.blockedUsernames) callbacks?.onBlockedUsernames?.(data.filterSettings.blockedUsernames)
+        if (cb) callbacksRef.current?.onCircuitBreaker?.(cb)
+        if (data.filterSettings.blockedUsernames) callbacksRef.current?.onBlockedUsernames?.(data.filterSettings.blockedUsernames)
       }
     } catch {
       // silently fail
     }
-  }, [adminToken, callbacks])
+  }, [adminToken])
 
   const refetch = useCallback(async () => {
     return fetchStats()

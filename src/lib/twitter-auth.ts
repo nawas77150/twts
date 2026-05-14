@@ -129,13 +129,19 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
       },
     })
 
+    // Read body ONCE as text to avoid "body already consumed" TypeError
+    const body = await res.text()
+
     if (res.ok) {
-      const data = await res.json()
-      if (data?.data) return data.data
+      try {
+        const data = JSON.parse(body)
+        if (data?.data) return data.data
+      } catch {
+        // JSON parse error — fall through to error logging
+      }
     }
 
-    const errorText = await res.text()
-    console.error('Fetch user failed:', res.status, errorText)
+    console.error('Fetch user failed:', res.status, body.slice(0, 200))
     return null
   } catch (error) {
     console.error('Fetch user error:', error)
@@ -144,6 +150,8 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
 }
 
 // Create or update a submitter from Twitter user data
+// Uses upsert to avoid TOCTOU race when two concurrent OAuth callbacks
+// for the same user both find null from findUnique and both attempt create.
 export async function upsertSubmitterFromTwitter(twitterUser: {
   id: string
   name: string
@@ -152,31 +160,45 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
 }, tokens?: { accessToken?: string; refreshToken?: string }) {
   const { id: twitterId, name: displayName, username, profile_image_url } = twitterUser
 
-  // Try to find existing submitter by twitterId
-  let existing = await db.submitter.findUnique({ where: { twitterId } })
-
   // For anon users (profile fetch failed), also try to find by access token.
   // This prevents orphaned duplicate records when the same user re-logs in
   // and /2/users/me fails again — they get a deterministic anon ID, but
   // if their access token changed, we still want to find their existing record.
-  if (!existing && twitterId.startsWith('anon_') && tokens?.accessToken) {
-    existing = await db.submitter.findFirst({
+  if (twitterId.startsWith('anon_') && tokens?.accessToken) {
+    const existingByToken = await db.submitter.findFirst({
       where: { oauth2AccessToken: tokens.accessToken },
     })
-    if (existing) {
-      // Update the twitterId to the new deterministic anon ID so future lookups work
-      existing = await db.submitter.update({
-        where: { id: existing.id },
-        data: { twitterId },
+    if (existingByToken) {
+      // Update the existing record (including twitterId) in one atomic step
+      return db.submitter.update({
+        where: { id: existingByToken.id },
+        data: {
+          twitterId,
+          username,
+          displayName: displayName || null,
+          profileImage: profile_image_url || null,
+          ...(tokens.accessToken && { oauth2AccessToken: tokens.accessToken }),
+          ...(tokens.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
+        },
       })
     }
   }
 
-  if (existing) {
-    // Update existing
-    return db.submitter.update({
+  // Use upsert to avoid race condition: two concurrent callbacks for the same
+  // twitterId both find null, both try create → second gets unique constraint violation.
+  // upsert makes this atomic.
+  try {
+    return await db.submitter.upsert({
       where: { twitterId },
-      data: {
+      update: {
+        username,
+        displayName: displayName || null,
+        profileImage: profile_image_url || null,
+        ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
+        ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
+      },
+      create: {
+        twitterId,
         username,
         displayName: displayName || null,
         profileImage: profile_image_url || null,
@@ -184,22 +206,33 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
         ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
       },
     })
+  } catch (error: unknown) {
+    // Handle rare case: username unique constraint violation on create
+    // (another user has the same username). Retry with a suffixed username.
+    const isUniqueError = error instanceof Error && error.message.includes('Unique constraint')
+    if (isUniqueError) {
+      const suffixedUsername = `${username}_${Date.now()}`
+      return db.submitter.upsert({
+        where: { twitterId },
+        update: {
+          username,
+          displayName: displayName || null,
+          profileImage: profile_image_url || null,
+          ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
+          ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
+        },
+        create: {
+          twitterId,
+          username: suffixedUsername,
+          displayName: displayName || null,
+          profileImage: profile_image_url || null,
+          ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
+          ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
+        },
+      })
+    }
+    throw error
   }
-
-  // Check if username is taken
-  const usernameTaken = await db.submitter.findUnique({ where: { username } })
-  const finalUsername = usernameTaken ? `${username}_${Date.now()}` : username
-
-  return db.submitter.create({
-    data: {
-      twitterId,
-      username: finalUsername,
-      displayName: displayName || null,
-      profileImage: profile_image_url || null,
-      ...(tokens?.accessToken && { oauth2AccessToken: tokens.accessToken }),
-      ...(tokens?.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
-    },
-  })
 }
 
 // === Session Cookie ===

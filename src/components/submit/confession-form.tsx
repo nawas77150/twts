@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface ConfessionFormProps {
   submitterUsername: string
   submitterImage: string | null
-  onSubmit: (message: string, category: string) => Promise<void>
+  onSubmit: (message: string, category: string) => Promise<boolean>
   isSubmitting: boolean
 }
 
@@ -24,9 +24,11 @@ export function ConfessionForm({
   const [category, setCategory] = useState('')
 
   const handleSubmit = async () => {
-    await onSubmit(message, category)
-    setMessage('')
-    setCategory('')
+    const success = await onSubmit(message, category)
+    if (success) {
+      setMessage('')
+      setCategory('')
+    }
   }
 
   return (

@@ -27,9 +27,9 @@ export default function HomePage() {
   const handleLogin = () => { window.location.href = '/api/auth/twitter' }
   const handleLogout = () => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }
 
-  const handleSubmit = async (message: string, category: string) => {
-    if (!message.trim()) { toast({ title: 'Error', description: 'Pesan tidak boleh kosong', variant: 'destructive' }); return }
-    if (message.trim().length > 280) { toast({ title: 'Error', description: 'Pesan maksimal 280 karakter', variant: 'destructive' }); return }
+  const handleSubmit = async (message: string, category: string): Promise<boolean> => {
+    if (!message.trim()) { toast({ title: 'Error', description: 'Pesan tidak boleh kosong', variant: 'destructive' }); return false }
+    if (message.trim().length > 280) { toast({ title: 'Error', description: 'Pesan maksimal 280 karakter', variant: 'destructive' }); return false }
 
     setIsSubmitting(true)
     try {
@@ -46,11 +46,13 @@ export default function HomePage() {
         toast({ title: 'Berhasil dikirim!', description: 'Pesanmu sedang menunggu moderasi admin.' })
       }
       refetchMyPosts()
+      return true
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status
       if (status === 403) setBlocked(true)
       const message = (err as { message?: string })?.message || 'Gagal mengirim pesan'
       toast({ title: 'Gagal', description: message, variant: 'destructive' })
+      return false
     } finally {
       setIsSubmitting(false)
     }

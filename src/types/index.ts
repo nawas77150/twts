@@ -181,13 +181,13 @@ export interface SaveSettingRequest {
 
 export interface SaveFilterSettingsRequest {
   autoApprove?: boolean
-  blockedWords?: string
-  nsfwWords?: string
+  blockedWords?: string[]
+  nsfwWords?: string[]
   filterRules?: FilterRules
   geminiEnabled?: boolean
   geminiApiKey?: string
   rateLimits?: RateLimitSettings
-  whitelistUsernames?: string
+  whitelistUsernames?: string[]
 }
 
 // --- Auth Response ---

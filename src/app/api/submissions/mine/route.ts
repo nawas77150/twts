@@ -31,20 +31,23 @@ export async function GET(req: NextRequest) {
       take: limit,
     })
 
-    // Stats for this user
-    const totalCount = submissions.length
-    const pendingCount = submissions.filter(s => s.status === 'pending').length
-    const postedCount = submissions.filter(s => s.status === 'posted').length
-    const rejectedCount = submissions.filter(s => s.status === 'rejected').length
+    // Accurate stats from separate GROUP BY (not from the limited submissions array)
+    const statusCounts = await db.submission.groupBy({
+      by: ['status'],
+      where: { submitterId: submitter.id },
+      _count: { status: true },
+    })
+    const stats: Record<string, number> = { total: 0, pending: 0, posted: 0, rejected: 0 }
+    for (const row of statusCounts) {
+      stats.total += row._count.status
+      if (row.status === 'pending') stats.pending = row._count.status
+      else if (row.status === 'posted') stats.posted = row._count.status
+      else if (row.status === 'rejected') stats.rejected = row._count.status
+    }
 
     return NextResponse.json({
       submissions,
-      stats: {
-        total: totalCount,
-        pending: pendingCount,
-        posted: postedCount,
-        rejected: rejectedCount,
-      },
+      stats,
     })
   } catch {
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })

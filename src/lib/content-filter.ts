@@ -24,8 +24,8 @@ export const DEFAULT_BLOCKED_WORDS: string[] = [
   'bungul', 'kimak', 'henceut', 'kacuk', 'borjong', 'klitoris',
   'kelentit', 'ngulum',
   // Leet-speak variants
-  'ngntd', 'ngntt', 'kmk', 'mmk', 'jmbt', 'ppk', 'anjg', 'anjg',
-  'bgsat', 'bgst', 'ktl', 'mmk', 'ktrll', 'bgn',
+  'ngntd', 'ngntt', 'kmk', 'mmk', 'jmbt', 'ppk', 'anjg',
+  'bgsat', 'bgst', 'ktl', 'ktrll', 'bgn',
   // English profanity
   'fuck', 'fucking', 'shit', 'asshole', 'bitch', 'dick', 'pussy',
   'penis', 'vagina', 'damn', 'blowjob',
@@ -185,7 +185,7 @@ function checkJualan(message: string): string[] {
   // Match WTS/WTB/WTT/LF as standalone tags (at word boundary or start of message)
   const patterns = [
     /\b(WTS|WTB|WTT)\b/,
-    /\bLF\b(?=\s)/,  // LF followed by space (to avoid matching "self" etc.)
+    /\b(LF)\b(?=\s)/,  // LF followed by space (to avoid matching "self" etc.)
   ]
   for (const pattern of patterns) {
     if (pattern.test(normalized)) {
@@ -285,12 +285,13 @@ export interface DuplicateCheckResult {
 export async function checkDuplicate24h(
   message: string,
   submitterId: string,
-  db: { submission: { findFirst: (args: { where: { message: string; createdAt: { gte: Date }; NOT?: { submitterId: string } } }) => Promise<{ id: string } | null> } },
+  db: { submission: { findFirst: (args: { where: { message: string; submitterId: string; createdAt: { gte: Date } } }) => Promise<{ id: string } | null> } },
 ): Promise<DuplicateCheckResult> {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const existing = await db.submission.findFirst({
     where: {
       message,
+      submitterId,
       createdAt: { gte: twentyFourHoursAgo },
     },
   })

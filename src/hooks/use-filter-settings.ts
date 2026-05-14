@@ -88,12 +88,12 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
 
       const data = await apiClient.saveFilterSettings({
         autoApprove,
-        blockedWords: words.join(','),
-        nsfwWords: nsfwWords.join(','),
+        blockedWords: words,
+        nsfwWords: nsfwWords,
         filterRules,
         geminiEnabled,
         rateLimits,
-        whitelistUsernames: whitelist.join(','),
+        whitelistUsernames: whitelist,
       })
       if (!data.error) {
         toast({

@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
-  const settings = await db.setting.findMany()
+  try {
+    const settings = await db.setting.findMany()
 
   // Mask all values — decrypt first, then mask for display
   const masked = settings.map((s) => {
@@ -88,6 +89,10 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ settings: masked })
+  } catch (error) {
+    console.error('Settings GET error:', error)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }
 
 // POST /api/admin/settings — Upsert a setting (encrypt + auto-login)
@@ -95,6 +100,7 @@ export async function POST(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
+  try {
   const body = await req.json()
   const { key, value } = body
 
@@ -240,6 +246,10 @@ export async function POST(req: NextRequest) {
     setting: { key: setting.key, updatedAt: setting.updatedAt },
     autoLogin: autoLoginResult,
   })
+  } catch (error) {
+    console.error('Settings POST error:', error)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }
 
 // DELETE /api/admin/settings — Delete a setting
@@ -247,6 +257,7 @@ export async function DELETE(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
+  try {
   const { searchParams } = new URL(req.url)
   const key = searchParams.get('key')
 
@@ -262,5 +273,16 @@ export async function DELETE(req: NextRequest) {
   }
 
   await db.setting.deleteMany({ where: { key } })
+
+  // If deleting a login credential, also clear the cached login cookie
+  // so the fallback module doesn't use stale auth
+  if (LOGIN_TRIGGER_KEYS.includes(key)) {
+    await db.setting.deleteMany({ where: { key: 'twitterapi_login_cookie' } })
+  }
+
   return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Settings DELETE error:', error)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }

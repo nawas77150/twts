@@ -2,6 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ⚠️ PRODUCTION: PostgreSQL — do NOT change to sqlite.
+// Raw SQL in posting-lock.ts and circuit-breaker.ts uses PostgreSQL syntax
+// (NOW(), ::INTEGER, ::BIGINT, ::TEXT). Changing provider will break them.
 datasource db {
   provider  = "postgresql"
   url       = env("POSTGRES_DATABASE_URL")
@@ -19,6 +22,9 @@ model Submitter {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   submissions       Submission[]
+
+  @@index([createdAt])            // admin list ordering
+  @@index([oauth2AccessToken])    // anon OAuth lookup
 }
 
 model Submission {
@@ -35,11 +41,12 @@ model Submission {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@index([submitterId])                // per-user rate limit queries
   @@index([status])                     // filter by status
   @@index([createdAt])                  // time-window queries
   @@index([submitterId, status])        // "count MY pending submissions"
   @@index([status, updatedAt])          // "last posted submission"
+  @@index([submitterId, createdAt])     // per-user cooldown, daily cap, user list
+  @@index([submitterId, status, updatedAt])  // per-user post daily cap
 }
 
 model Setting {

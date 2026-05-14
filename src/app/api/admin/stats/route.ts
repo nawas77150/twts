@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
   if (!auth.authorized) return auth.response
 
+  try {
   const [pending, postFailed, rejected, posted, total, submitters, cookieAuthStatus, postMethodStats, apiCredits, apiLoginStatus, postMethodSetting, filterSettingsData] =
     await Promise.all([
       db.submission.count({ where: { status: 'pending' } }),
@@ -48,6 +49,10 @@ export async function GET(req: NextRequest) {
     filterSettings: filterSettingsData,
     circuitBreaker,
   })
+  } catch (error) {
+    console.error('Stats GET error:', error)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }
 
 /**
@@ -63,17 +68,30 @@ async function getPostMethodStats(): Promise<{
   retryRate: number
   fallbackRate: number
 }> {
-  // Get all posted submissions with their postMethod
-  const postedSubmissions = await db.submission.findMany({
-    where: { status: 'posted' },
-    select: { postMethod: true },
-  })
+  // Single GROUP BY instead of loading all posted rows into JS
+  const rows = await db.$queryRaw<
+    { postMethod: string | null; count: bigint }[]
+  >`
+    SELECT "postMethod", COUNT(*) as count
+    FROM "Submission"
+    WHERE status = 'posted'
+    GROUP BY "postMethod"
+  `
 
-  const total = postedSubmissions.length
-  const direct = postedSubmissions.filter((s) => s.postMethod === 'direct').length
-  const retry = postedSubmissions.filter((s) => s.postMethod === 'retry').length
-  const fallback = postedSubmissions.filter((s) => s.postMethod === 'fallback').length
-  const unknown = total - direct - retry - fallback // Posts before postMethod was added
+  let direct = 0
+  let retry = 0
+  let fallback = 0
+  let unknown = 0
+
+  for (const row of rows) {
+    const count = Number(row.count)
+    if (row.postMethod === 'direct') direct = count
+    else if (row.postMethod === 'retry') retry = count
+    else if (row.postMethod === 'fallback') fallback = count
+    else unknown += count // Legacy posts (no postMethod) count as direct
+  }
+
+  const total = direct + retry + fallback + unknown
 
   return {
     total,
