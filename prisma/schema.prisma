@@ -31,7 +31,7 @@ model Submitter {
 model Submission {
   id          String    @id @default(cuid())
   message     String
-  normalizedMessage String  // Normalized fingerprint for duplicate detection (strips zero-width chars, normalizes Unicode)
+  normalizedMessage String @default("") // Normalized fingerprint for duplicate detection (strips zero-width chars, normalizes Unicode)
   status      String    @default("pending") // pending, posting, post_failed, rejected, posted
   tweetId     String?   // X tweet ID after posting
   postMethod  String?   // "direct" | "retry" | "fallback" — which method posted this tweet
