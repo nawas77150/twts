@@ -46,9 +46,9 @@ export async function acquirePostingLock(): Promise<string | null> {
     INSERT INTO "Setting" (id, key, value, "updatedAt")
     VALUES (${LOCK_KEY}, ${LOCK_KEY}, ${String(now)}, NOW())
     ON CONFLICT (key) DO UPDATE
-    SET value = ${String(now)}, "updatedAt" = NOW()
-    WHERE "Setting".value = '0'
-       OR "Setting".value::BIGINT < ${cutoff}
+    SET "value" = ${String(now)}, "updatedAt" = NOW()
+    WHERE "Setting"."value" = '0'
+       OR ("Setting"."value")::BIGINT < ${cutoff}
   `
 
   const acquired = affected > 0
@@ -69,9 +69,9 @@ export async function acquirePostingLock(): Promise<string | null> {
 export async function releasePostingLock(lockValue: string): Promise<boolean> {
   const affected = await db.$executeRaw`
     UPDATE "Setting"
-    SET value = '0', "updatedAt" = NOW()
-    WHERE key = ${LOCK_KEY}
-      AND value = ${lockValue}
+    SET "value" = '0', "updatedAt" = NOW()
+    WHERE "key" = ${LOCK_KEY}
+      AND "value" = ${lockValue}
   `
 
   const released = affected > 0

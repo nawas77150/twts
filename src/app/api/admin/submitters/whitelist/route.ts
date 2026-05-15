@@ -29,10 +29,10 @@ export async function POST(req: NextRequest) {
         NOW()
       )
       ON CONFLICT (key) DO UPDATE
-      SET value = (
-        CASE WHEN "Setting".value::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
-        THEN "Setting".value
-        ELSE ("Setting".value::jsonb || ${JSON.stringify(normalizedUsername)}::jsonb)::text
+      SET "value" = (
+        CASE WHEN "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
+        THEN "Setting"."value"
+        ELSE ("Setting"."value"::jsonb || ${JSON.stringify(normalizedUsername)}::jsonb)::text
         END
       ),
       "updatedAt" = NOW()
@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
     // Also remove from blocked list if present (whitelist takes priority)
     await db.$executeRaw`
       UPDATE "Setting"
-      SET value = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting".value::jsonb) AS elem WHERE elem != ${normalizedUsername}),
+      SET "value" = COALESCE(
+        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
         '[]'::jsonb
       )::text,
       "updatedAt" = NOW()
-      WHERE key = 'blocked_usernames'
-      AND "Setting".value::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
+      WHERE "key" = 'blocked_usernames'
+      AND "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
     `
 
     return NextResponse.json({ success: true, whitelisted: normalizedUsername })
@@ -89,12 +89,12 @@ export async function DELETE(req: NextRequest) {
     // Atomic removal from whitelist_usernames JSON array using PostgreSQL jsonb.
     await db.$executeRaw`
       UPDATE "Setting"
-      SET value = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting".value::jsonb) AS elem WHERE elem != ${normalizedUsername}),
+      SET "value" = COALESCE(
+        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
         '[]'::jsonb
       )::text,
       "updatedAt" = NOW()
-      WHERE key = 'whitelist_usernames'
+      WHERE "key" = 'whitelist_usernames'
     `
 
     return NextResponse.json({ success: true, removed: normalizedUsername })

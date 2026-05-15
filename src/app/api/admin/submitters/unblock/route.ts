@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
     // becomes empty (which we convert back to an empty array).
     await db.$executeRaw`
       UPDATE "Setting"
-      SET value = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting".value::jsonb) AS elem WHERE elem != ${normalizedUsername}),
+      SET "value" = COALESCE(
+        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
         '[]'::jsonb
       )::text,
       "updatedAt" = NOW()
-      WHERE key = 'blocked_usernames'
+      WHERE "key" = 'blocked_usernames'
     `
 
     return NextResponse.json({ success: true, unblocked: normalizedUsername })

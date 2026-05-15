@@ -114,7 +114,7 @@ export async function recordPostSuccess(): Promise<void> {
     INSERT INTO "Setting" (id, key, value, "updatedAt")
     VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '0', NOW())
     ON CONFLICT (key) DO UPDATE
-    SET value = '0', "updatedAt" = NOW()
+    SET "value" = '0', "updatedAt" = NOW()
   `
   debug('[circuit-breaker] Post succeeded, resetting fail count to 0')
 
@@ -140,7 +140,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
     INSERT INTO "Setting" (id, key, value, "updatedAt")
     VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '1', NOW())
     ON CONFLICT (key) DO UPDATE
-    SET value = (value::INTEGER + 1)::TEXT, "updatedAt" = NOW()
+    SET "value" = (("Setting"."value")::INTEGER + 1)::TEXT, "updatedAt" = NOW()
   `
 
   // Read the new count to check if threshold is reached

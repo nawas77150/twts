@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
         NOW()
       )
       ON CONFLICT (key) DO UPDATE
-      SET value = (
-        CASE WHEN "Setting".value::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
-        THEN "Setting".value
-        ELSE ("Setting".value::jsonb || ${JSON.stringify(normalizedUsername)}::jsonb)::text
+      SET "value" = (
+        CASE WHEN "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
+        THEN "Setting"."value"
+        ELSE ("Setting"."value"::jsonb || ${JSON.stringify(normalizedUsername)}::jsonb)::text
         END
       ),
       "updatedAt" = NOW()
@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
     // (jsonb_agg returns NULL when no rows remain after filtering)
     await db.$executeRaw`
       UPDATE "Setting"
-      SET value = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting".value::jsonb) AS elem WHERE elem != ${normalizedUsername}),
+      SET "value" = COALESCE(
+        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
         '[]'::jsonb
       )::text,
       "updatedAt" = NOW()
-      WHERE key = 'whitelist_usernames'
-      AND "Setting".value::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
+      WHERE "key" = 'whitelist_usernames'
+      AND "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
     `
 
     return NextResponse.json({ success: true, blocked: normalizedUsername })
