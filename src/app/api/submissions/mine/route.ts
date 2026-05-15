@@ -14,6 +14,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Silakan login dengan akun X terlebih dahulu' }, { status: 401 })
     }
 
+    // Anon users (profile fetch failed) cannot access submissions
+    if (submitter.username?.startsWith('anon_')) {
+      return NextResponse.json({
+        error: 'Profil X belum dimuat',
+        message: 'Coba login ulang.',
+      }, { status: 403 })
+    }
+
     const { searchParams } = new URL(req.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100)
 

@@ -73,6 +73,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Silakan login dengan akun X terlebih dahulu' }, { status: 401 })
     }
 
+    // Anon users (profile fetch failed) cannot submit — they need to re-login
+    if (submitter.username?.startsWith('anon_')) {
+      return NextResponse.json({
+        error: 'Profil X belum dimuat',
+        message: 'Coba login ulang untuk mengirim pesan.',
+      }, { status: 403 })
+    }
+
     const body = await req.json()
     const { message, category } = body
 

@@ -160,30 +160,6 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
 }, tokens?: { accessToken?: string; refreshToken?: string }) {
   const { id: twitterId, name: displayName, username, profile_image_url } = twitterUser
 
-  // For anon users (profile fetch failed), also try to find by access token.
-  // This prevents orphaned duplicate records when the same user re-logs in
-  // and /2/users/me fails again — they get a deterministic anon ID, but
-  // if their access token changed, we still want to find their existing record.
-  if (twitterId.startsWith('anon_') && tokens?.accessToken) {
-    const existingByToken = await db.submitter.findFirst({
-      where: { oauth2AccessToken: tokens.accessToken },
-    })
-    if (existingByToken) {
-      // Update the existing record (including twitterId) in one atomic step
-      return db.submitter.update({
-        where: { id: existingByToken.id },
-        data: {
-          twitterId,
-          username,
-          displayName: displayName || null,
-          profileImage: profile_image_url || null,
-          ...(tokens.accessToken && { oauth2AccessToken: tokens.accessToken }),
-          ...(tokens.refreshToken && { oauth2RefreshToken: tokens.refreshToken }),
-        },
-      })
-    }
-  }
-
   // Use upsert to avoid race condition: two concurrent callbacks for the same
   // twitterId both find null, both try create → second gets unique constraint violation.
   // upsert makes this atomic.

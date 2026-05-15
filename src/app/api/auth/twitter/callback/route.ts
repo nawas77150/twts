@@ -1,4 +1,3 @@
-import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   exchangeCodeForToken,
@@ -83,24 +82,23 @@ export async function GET(req: NextRequest) {
   let twitterUser = await fetchTwitterUser(tokenData.access_token)
 
   // Fallback: if /2/users/me fails (e.g. old token without tweet.read scope),
-  // create an anonymous profile so the user can still use the app
-  // They'll see a warning in the UI suggesting to re-login
+  // create an anonymous profile so the user sees a clear "re-login" prompt.
   //
-  // IMPORTANT: Use a DETERMINISTIC anon ID derived from the access token hash.
-  // This prevents orphaned duplicate records when the same user re-logs in
-  // and /2/users/me fails again — they get the same anon ID, so
-  // upsertSubmitterFromTwitter finds and updates the existing record.
+  // IMPORTANT: Use a FIXED anon identity instead of hashing the access token.
+  // The access token rotates on every login, so hashing it would create a
+  // different ID each time → orphaned duplicate records (NEW-13).
+  // With a fixed identity, upsert finds the existing record on re-login.
+  // This is safe because anon users are blocked from posting at the API level.
   if (!twitterUser) {
     console.warn(
-      'Failed to fetch Twitter user profile — creating anon fallback. ' +
+      'Failed to fetch Twitter user profile — using anon fallback. ' +
       'This usually means the OAuth token is missing the tweet.read scope. ' +
       'The user should log out and re-login to get a token with the correct scope.'
     )
-    const tokenHash = crypto.createHash('sha256').update(tokenData.access_token).digest('hex').slice(0, 16)
     twitterUser = {
-      id: 'anon_' + tokenHash,
+      id: 'anon_fallback',
       name: 'Anonymous User',
-      username: 'anon_' + tokenHash.slice(0, 8),
+      username: 'anon_fallback',
     }
   }
 

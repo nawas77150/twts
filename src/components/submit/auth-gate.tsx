@@ -92,7 +92,7 @@ export function AuthGate({
           <h3 className="text-lg font-semibold text-[#0F1419]">Profil X Gagal Dimuat</h3>
           <p className="text-sm text-[#536471]">
             Login berhasil tapi profil X kamu tidak bisa dimuat. <br />
-            <span className="text-[#71767B] text-xs">Kamu tetap bisa mengirim pesan, atau coba login ulang.</span>
+            <span className="text-[#71767B] text-xs">Coba login ulang untuk mengirim pesan.</span>
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button onClick={onLogout} variant="outline" className="border-[#EFF3F4]">
