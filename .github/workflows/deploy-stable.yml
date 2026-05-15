@@ -1,14 +1,22 @@
 name: Deploy Stable
 
 on:
-  release:
-    types: [published] # Triggers when release-please publishes a release
+  repository_dispatch:
+    types: [deploy-stable] # Triggered by release-please after a release is created
+  workflow_dispatch: # Manual trigger for first deploy or emergencies
+    inputs:
+      tag:
+        description: 'Tag to deploy (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
   deploy-stable:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
 
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
