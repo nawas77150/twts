@@ -278,6 +278,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
 
   // Round-robin through API keys
   const startIndex = await getRotationIndex()
+  let lastApiError = '' // Capture the actual error for diagnostics
 
   for (let i = 0; i < apiKeys.length; i++) {
     const keyIndex = (startIndex + i) % apiKeys.length
@@ -325,6 +326,8 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
 
       // Note: API error response has {error: integer, message: string} — prioritize message over error number
       const errorMsg = data?.message || data?.msg || data?.detail || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data)
+      lastApiError = `HTTP ${response.status}: ${errorMsg}`
+      debug('[twitterapi] create_tweet_v2 failed:', lastApiError)
 
       // login_cookies expired/invalid → auto re-login and retry ONCE
       if (
@@ -405,9 +408,10 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
         continue
       }
 
-      // Other error — try next key
+      // Other error — try next key (but keep lastApiError for diagnostics)
       continue
     } catch (error) {
+      lastApiError = `Network error: ${error instanceof Error ? error.message : String(error)}`
       // Network error — try next key
       continue
     }
@@ -415,7 +419,9 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
 
   return {
     success: false,
-    error: `API fallback: semua ${apiKeys.length} key gagal atau habis credits. Tambahkan key baru di Admin → API Settings.`,
+    error: lastApiError
+      ? `API fallback gagal (${apiKeys.length} key): ${lastApiError}`
+      : `API fallback: semua ${apiKeys.length} key gagal atau habis credits. Tambahkan key baru di Admin → API Settings.`,
     method: 'fallback',
   }
 }
