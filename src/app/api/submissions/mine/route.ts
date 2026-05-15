@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
 
     // --- Limits data ---
-    let limitsData = null
+    let limitsData: Record<string, unknown> | null = null
     try {
       const filterSettings = await getFilterSettings()
       const effectiveLimits = resolveEffectiveLimits(submitter.customLimits, filterSettings.rateLimits)
