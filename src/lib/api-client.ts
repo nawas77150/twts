@@ -224,6 +224,15 @@ class ApiClient {
       body: JSON.stringify({ username }),
     })
   }
+
+  async getLimitHits(): Promise<{
+    summary: { limitType: string; label: string; totalHits: number; uniqueUsers: number }[]
+    topUsers: { username: string; hits: number }[]
+    totalHits: number
+    windowHours: number
+  }> {
+    return this.request('/api/admin/limit-hits')
+  }
 }
 
 export const apiClient = new ApiClient()

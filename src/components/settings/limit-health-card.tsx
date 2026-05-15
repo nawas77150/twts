@@ -15,7 +15,7 @@ interface LimitHitSummary {
   uniqueUsers: number
 }
 
-interface LimitHitsResponse {
+interface LimitHitsData {
   summary: LimitHitSummary[]
   topUsers: { username: string; hits: number }[]
   totalHits: number
@@ -32,13 +32,13 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
 
 export function LimitHealthCard() {
   const [open, setOpen] = useState(true)
-  const [data, setData] = useState<LimitHitsResponse | null>(null)
+  const [data, setData] = useState<LimitHitsData | null>(null)
   const [loading, setLoading] = useState(false)
 
   const fetchHits = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiClient.request<LimitHitsResponse>('/api/admin/limit-hits')
+      const res = await apiClient.getLimitHits()
       setData(res)
     } catch {
       // Silently fail — admin can retry
