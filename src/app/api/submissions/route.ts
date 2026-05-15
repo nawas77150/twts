@@ -351,24 +351,15 @@ export async function POST(req: NextRequest) {
     // --- AUTO-APPROVE ON + ALL FILTERS PASSED: Auto-post to X ---
     debug('[submit] All filters passed, auto-posting submission', geminiChecked ? '(Gemini verified)' : '')
 
-    // Check circuit breaker: if X is returning errors, pause auto-post
+    // Check circuit breaker: if X is returning errors, reject the submission
+    // outright so rate limits are not consumed. User can retry when it recovers.
     const circuitBreakerPaused = await isCircuitBreakerPaused(filterSettings.rateLimits)
     if (circuitBreakerPaused) {
-      debug('[submit] Circuit breaker active, queuing instead of auto-posting')
-      const submission = await db.submission.create({
-        data: {
-          message: trimmedMessage,
-          category: category?.trim() || null,
-          submitterId: submitter.id,
-          filterReasons: null,
-        },
-      })
+      debug('[submit] Circuit breaker active, rejecting submission')
       return NextResponse.json({
-        submission,
-        autoPosted: false,
-        queued: true,
-        error: 'Pesanmu sudah masuk antrean dan akan diposting oleh admin setelahnya.',
-      }, { status: 201 })
+        error: 'Sistem sedang sibuk',
+        message: 'Auto-post sedang dijeda karena gangguan pada X. Coba lagi dalam beberapa menit.',
+      }, { status: 400 })
     }
 
     // Check auto-post cooldown: has this account posted a tweet recently?
