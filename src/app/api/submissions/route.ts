@@ -218,6 +218,7 @@ export async function POST(req: NextRequest) {
 
       // Check per-user pending cap (24h window)
       if (effectivePendingCap > 0) {
+        const twentyFourHoursAgo = new Date(Date.now() - MS_24H)
         const pendingCount = await db.submission.count({
           where: {
             submitterId: submitter.id,
