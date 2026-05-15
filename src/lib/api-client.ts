@@ -229,7 +229,7 @@ class ApiClient {
     summary: { limitType: string; label: string; totalHits: number; uniqueUsers: number }[]
     topUsers: { username: string; hits: number }[]
     totalHits: number
-    windowHours: number
+    windowLabel: string
   }> {
     return this.request('/api/admin/limit-hits')
   }
