@@ -19,7 +19,7 @@ export default function HomePage() {
   const { toast } = useToast()
 
   const isAnonUser = submitter?.username?.startsWith('anon_') ?? false
-  const { myPosts, limits, isLoading: myPostsLoading, refetch: refetchMyPosts } = useMyPosts({
+  const { myPosts, limits, isLoading: myPostsLoading, error: myPostsError, refetch: refetchMyPosts } = useMyPosts({
     submitter,
     isAnonUser,
   })
@@ -100,6 +100,7 @@ export default function HomePage() {
             <MyPosts
               posts={myPosts}
               isLoading={myPostsLoading}
+              error={myPostsError}
               onRefresh={refetchMyPosts}
             />
           )}

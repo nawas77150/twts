@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence } from 'framer-motion'
-import { Loader2, MessageSquare, Filter } from 'lucide-react'
+import { Loader2, MessageSquare, Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { SubmissionCard } from '@/components/dashboard/submission-card'
@@ -36,17 +36,6 @@ export function SubmissionList({
   onDelete,
   onPageChange,
 }: SubmissionListProps) {
-  // Client-side search filter
-  const filtered = submissions.filter((sub) => {
-    if (!search) return true
-    const q = search.toLowerCase()
-    return (
-      sub.message.toLowerCase().includes(q) ||
-      sub.submitter.username.toLowerCase().includes(q) ||
-      (sub.submitter.displayName?.toLowerCase().includes(q) ?? false)
-    )
-  })
-
   if (isLoading) {
     return (
       <Card className="py-12">
@@ -57,7 +46,8 @@ export function SubmissionList({
     )
   }
 
-  if (submissions.length === 0) {
+  // No results at all (no search active)
+  if (submissions.length === 0 && !search) {
     return (
       <Card className="py-12">
         <CardContent className="text-center">
@@ -73,12 +63,13 @@ export function SubmissionList({
     )
   }
 
-  if (filtered.length === 0 && search) {
+  // Search returned no results
+  if (submissions.length === 0 && search) {
     return (
       <Card className="py-8">
         <CardContent className="text-center">
           <div className="w-10 h-10 rounded-xl bg-[#F7F9F9] flex items-center justify-center mx-auto mb-2">
-            <Filter className="w-5 h-5 text-[#71767B]" />
+            <Search className="w-5 h-5 text-[#71767B]" />
           </div>
           <p className="text-sm text-[#536471]">
             Tidak ada hasil untuk &ldquo;{search}&rdquo;
@@ -99,7 +90,7 @@ export function SubmissionList({
     <>
       <div className="space-y-3 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
         <AnimatePresence mode="popLayout">
-          {filtered.map((sub) => (
+          {submissions.map((sub) => (
             <SubmissionCard
               key={sub.id}
               submission={sub}

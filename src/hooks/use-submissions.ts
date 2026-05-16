@@ -23,9 +23,11 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Use ref for page to avoid infinite loop from useCallback + useEffect dep chain
+  // Use refs for page and search to avoid infinite loop from useCallback + useEffect dep chain
   const pageRef = useRef(page)
   pageRef.current = page
+  const searchRef = useRef(search)
+  searchRef.current = search
 
   // Request ID counter to discard stale responses when filter changes
   const requestIdRef = useRef(0)
@@ -39,6 +41,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
   const fetchSubmissions = useCallback(async (silent = false, targetPage?: number) => {
     if (!adminToken) return
     const p = targetPage ?? pageRef.current
+    const q = searchRef.current
     if (!silent) {
       setIsLoading(true)
       outstandingLoadingRef.current = true
@@ -52,6 +55,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
         status: (filterStatus === 'all' ? 'all' : filterStatus) as SubmissionStatus | 'all',
         page: p,
         limit: 50,
+        search: q || undefined,
       })
 
       // Discard stale response if a newer request was made
@@ -87,9 +91,26 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     }
   }, [isAdmin, filterStatus, fetchSubmissions])
 
+  // Debounced search: trigger server-side search after 300ms of inactivity
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAdmin && adminToken) {
+        pageRef.current = 1
+        fetchSubmissions()
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, isAdmin, adminToken, fetchSubmissions])
+
   // Reset page when filter changes
   const setFilter = (status: string) => {
     setFilterStatus(status)
+    setPage(1)
+  }
+
+  // Wrapper for setSearch (also resets page)
+  const updateSearch = (value: string) => {
+    setSearch(value)
     setPage(1)
   }
 
@@ -185,7 +206,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     retryPost,
     loadMore,
     setFilter,
-    setSearch,
+    setSearch: updateSearch,
     fetchSubmissions,
   }
 }

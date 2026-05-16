@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Submission, SubmitterInfo, SubmissionLimitsData } from '@/types'
 import { apiClient } from '@/lib/api-client'
+import { useToast } from '@/hooks/use-toast'
 
 interface UseMyPostsParams {
   submitter: SubmitterInfo | null
@@ -13,10 +14,13 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
   const [myPosts, setMyPosts] = useState<Submission[]>([])
   const [limits, setLimits] = useState<SubmissionLimitsData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const fetchMyPosts = useCallback(async () => {
     if (!submitter) return
     setIsLoading(true)
+    setError(null)
     try {
       const data = await apiClient.getMyPosts()
       setMyPosts(data.submissions)
@@ -25,11 +29,13 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
         setLimits(data.limits)
       }
     } catch {
-      // silently fail
+      const msg = 'Gagal memuat pesan. Coba lagi.'
+      setError(msg)
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
-  }, [submitter])
+  }, [submitter, toast])
 
   // Fetch my posts when user logs in
   useEffect(() => {
@@ -38,6 +44,7 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
     } else {
       setMyPosts([])
       setLimits(null)
+      setError(null)
     }
   }, [submitter, isAnonUser, fetchMyPosts])
 
@@ -49,6 +56,7 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
     myPosts,
     limits,
     isLoading,
+    error,
     fetchMyPosts,
     refetch,
   }

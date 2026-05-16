@@ -1,6 +1,6 @@
 'use client'
 
-import { User, RefreshCw, MessageSquare, ExternalLink } from 'lucide-react'
+import { User, RefreshCw, MessageSquare, ExternalLink, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -10,10 +10,11 @@ import { formatDate, type Submission } from '@/types'
 interface MyPostsProps {
   posts: Submission[]
   isLoading: boolean
+  error?: string | null
   onRefresh: () => void
 }
 
-export function MyPosts({ posts, isLoading, onRefresh }: MyPostsProps) {
+export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
   if (posts.length === 0 && !isLoading) {
     return (
       <Card className="max-w-lg mx-auto mt-6 shadow-lg border-[#EFF3F4]">
@@ -26,10 +27,20 @@ export function MyPosts({ posts, isLoading, onRefresh }: MyPostsProps) {
           <CardDescription>Pesan yang sudah kamu kirim dan statusnya</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6">
-            <MessageSquare className="w-8 h-8 text-[#EFF3F4] mx-auto mb-2" />
-            <p className="text-sm text-[#71767B]">Belum ada pesan yang dikirim</p>
-          </div>
+          {error ? (
+            <div className="text-center py-6">
+              <AlertCircle className="w-8 h-8 text-red-300 mx-auto mb-2" />
+              <p className="text-sm text-red-500">{error}</p>
+              <Button variant="link" className="text-xs text-[#71767B] mt-1" onClick={onRefresh}>
+                Coba lagi
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <MessageSquare className="w-8 h-8 text-[#EFF3F4] mx-auto mb-2" />
+              <p className="text-sm text-[#71767B]">Belum ada pesan yang dikirim</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     )

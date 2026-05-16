@@ -62,7 +62,7 @@ export function SubmissionFilters({
       })}
       <div className="relative ml-2 shrink-0">
         <Input
-          placeholder="Cari di halaman ini..."
+          placeholder="Cari pesan atau username..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-7 h-7 text-xs w-32 sm:w-44 border-[#EFF3F4]"

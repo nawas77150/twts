@@ -59,6 +59,17 @@ export default function AdminSettingsPage() {
     circuitBreaker.setStatus(stats.stats.circuitBreaker)
   }, [stats.stats?.circuitBreaker])
 
+  // Sync blocklist/whitelist after mutations (display-only, safe to overwrite)
+  // Unlike text inputs/toggles, these lists are never edited in-place —
+  // they change atomically via API calls that trigger stats.refetch().
+  useEffect(() => {
+    if (!stats.stats?.filterSettings) return
+    if (!hasLoadedRef.current) return // skip during initial load (handled above)
+    const { blockedUsernames, whitelistUsernames } = stats.stats.filterSettings
+    if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
+    if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
+  }, [stats.stats?.filterSettings?.blockedUsernames, stats.stats?.filterSettings?.whitelistUsernames])
+
   // Auto-load settings from stats on mount & when token changes
   useEffect(() => {
     if (adminToken) {
@@ -68,11 +79,11 @@ export default function AdminSettingsPage() {
   }, [adminToken, stats.fetchStats])
 
   // Wrapper actions that also refresh stats after save
-  const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void) => {
+  const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
     await posting.saveSetting(key, value, () => {
       onSuccess?.()
       stats.refetch()
-    })
+    }, onFailure)
   }, [posting, stats])
 
   const postingClearCache = useCallback(async () => {

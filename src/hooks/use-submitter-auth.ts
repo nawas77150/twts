@@ -41,7 +41,8 @@ export function useSubmitterAuth() {
   }, [checkAuth])
 
   // Re-check auth after OAuth callback with retry (server may need time
-  // to set the session cookie, especially on cold starts)
+  // to set the session cookie, especially on cold starts).
+  // Toast is shown ONLY after auth is confirmed — not prematurely.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const authResult = params.get('auth')
@@ -50,24 +51,28 @@ export function useSubmitterAuth() {
       const maxAttempts = 4
       const tryAuth = async () => {
         const ok = await checkAuth()
-        if (!ok && attempts < maxAttempts) {
+        if (ok) {
+          toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
+          window.history.replaceState({}, '', '/')
+        } else if (attempts < maxAttempts) {
           attempts++
           setTimeout(tryAuth, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
+        } else {
+          // All retries exhausted — auth could not be confirmed
+          toast({ title: 'Login gagal', description: 'Gagal memverifikasi sesi. Coba login ulang.', variant: 'destructive' })
+          window.history.replaceState({}, '', '/')
         }
       }
       const timer = setTimeout(tryAuth, 300)
       return () => clearTimeout(timer)
     }
-  }, [checkAuth])
+  }, [checkAuth, toast])
 
-  // Handle auth callback params (toast messages + URL cleanup)
+  // Handle non-success auth callback params (denied / error)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const authResult = params.get('auth')
-    if (authResult === 'success') {
-      toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
-      window.history.replaceState({}, '', '/')
-    } else if (authResult === 'denied') {
+    if (authResult === 'denied') {
       toast({ title: 'Login dibatalkan', description: 'Kamu menolak akses ke akun X.', variant: 'destructive' })
       window.history.replaceState({}, '', '/')
     } else if (authResult === 'error') {
