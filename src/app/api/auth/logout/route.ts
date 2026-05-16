@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
+import { SESSION_COOKIE_NAME } from '@/lib/twitter-auth'
 
 // POST /api/auth/logout - Clear session cookie and any stale OAuth cookies
 export async function POST() {
   const response = NextResponse.json({ success: true })
 
   // Clear the main session cookie
-  response.cookies.set('menfess_session', '', {
+  response.cookies.set(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

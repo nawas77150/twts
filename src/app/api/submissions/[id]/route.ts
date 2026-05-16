@@ -211,6 +211,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
     }
 
+    // Prevent deleting a submission that is currently being posted to X
+    // (would orphan the tweet — it posts but we lose the record)
+    if (submission.status === 'posting') {
+      return NextResponse.json({ error: 'Tidak bisa menghapus pesan yang sedang diposting' }, { status: 409 })
+    }
+
     await db.submission.delete({ where: { id } })
 
     return NextResponse.json({ success: true })

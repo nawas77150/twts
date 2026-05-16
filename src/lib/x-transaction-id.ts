@@ -203,7 +203,8 @@ function floatToHex(x: number): string {
   }
 
   result.push('.')
-  while (fraction > 0) {
+  let maxIter = 20 // Guard against IEEE 754 floating-point infinite loop
+  while (fraction > 0 && maxIter-- > 0) {
     fraction *= 16
     const integer = Math.floor(fraction)
     fraction -= integer

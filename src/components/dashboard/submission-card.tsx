@@ -124,10 +124,10 @@ export function SubmissionCard({
                   <Button
                     size="sm"
                     onClick={() => onApprove(sub.id)}
-                    disabled={actionLoading === sub.id}
+                    disabled={!!actionLoading}
                     className="h-7 px-2 text-xs bg-green-500 hover:bg-green-600 text-white"
                   >
-                    {actionLoading === sub.id ? (
+                    {!!actionLoading ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -138,7 +138,7 @@ export function SubmissionCard({
                     size="sm"
                     variant="destructive"
                     onClick={() => onReject(sub.id)}
-                    disabled={actionLoading === sub.id}
+                    disabled={!!actionLoading}
                     className="h-7 px-2 text-xs"
                   >
                     Tolak
@@ -149,10 +149,10 @@ export function SubmissionCard({
                 <Button
                   size="sm"
                   onClick={() => onRetryPost(sub.id)}
-                  disabled={actionLoading === `post-${sub.id}`}
+                  disabled={!!actionLoading}
                   className="h-7 px-2 text-xs bg-[#0F1419] hover:bg-[#272c30] text-white"
                 >
-                  {actionLoading === `post-${sub.id}` ? (
+                  {!!actionLoading ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <XLogo className="w-3 h-3 mr-1" />
@@ -164,10 +164,10 @@ export function SubmissionCard({
                 size="sm"
                 variant="ghost"
                 onClick={() => onDelete(sub.id)}
-                disabled={actionLoading === `del-${sub.id}`}
+                disabled={!!actionLoading}
                 className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
               >
-                {actionLoading === `del-${sub.id}` ? (
+                {!!actionLoading ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 ) : (
                   <span className="text-xs">&times;</span>

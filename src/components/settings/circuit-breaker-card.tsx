@@ -105,7 +105,7 @@ export function CircuitBreakerCard({
                   value={rateLimits.circuitBreakerThreshold}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10)
-                    setRateLimits(prev => ({ ...prev, circuitBreakerThreshold: isNaN(val) ? 1 : val }))
+                    setRateLimits(prev => ({ ...prev, circuitBreakerThreshold: Math.min(20, Math.max(1, isNaN(val) ? 1 : val)) }))
                   }}
                   className="text-xs h-8"
                 />
@@ -120,7 +120,7 @@ export function CircuitBreakerCard({
                   value={rateLimits.circuitBreakerCooldownMinutes}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10)
-                    setRateLimits(prev => ({ ...prev, circuitBreakerCooldownMinutes: isNaN(val) ? 1 : val }))
+                    setRateLimits(prev => ({ ...prev, circuitBreakerCooldownMinutes: Math.min(1440, Math.max(1, isNaN(val) ? 1 : val)) }))
                   }}
                   className="text-xs h-8"
                 />
@@ -135,7 +135,7 @@ export function CircuitBreakerCard({
                   value={rateLimits.circuitBreakerFailureWindowMinutes}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10)
-                    setRateLimits(prev => ({ ...prev, circuitBreakerFailureWindowMinutes: isNaN(val) ? 1 : val }))
+                    setRateLimits(prev => ({ ...prev, circuitBreakerFailureWindowMinutes: Math.min(1440, Math.max(1, isNaN(val) ? 1 : val)) }))
                   }}
                   className="text-xs h-8"
                 />

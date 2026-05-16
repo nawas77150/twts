@@ -357,7 +357,7 @@ export async function POST(req: NextRequest) {
     // Save rate limit settings (not encrypted, simple integers)
     if (rateLimits) {
       if (typeof rateLimits.submissionCooldown === 'number') {
-        const val = Math.max(0, rateLimits.submissionCooldown).toString()
+        const val = Math.min(60, Math.max(0, rateLimits.submissionCooldown)).toString()
         await db.setting.upsert({
           where: { key: 'submission_cooldown' },
           update: { value: val },
@@ -366,7 +366,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'submission_cooldown', updated: true })
       }
       if (typeof rateLimits.submissionDailyCap === 'number') {
-        const val = Math.max(0, rateLimits.submissionDailyCap).toString()
+        const val = Math.min(100, Math.max(0, rateLimits.submissionDailyCap)).toString()
         await db.setting.upsert({
           where: { key: 'submission_daily_cap' },
           update: { value: val },
@@ -375,7 +375,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'submission_daily_cap', updated: true })
       }
       if (typeof rateLimits.autoPostCooldown === 'number') {
-        const val = Math.max(0, rateLimits.autoPostCooldown).toString()
+        const val = Math.min(120, Math.max(0, rateLimits.autoPostCooldown)).toString()
         await db.setting.upsert({
           where: { key: 'auto_post_cooldown' },
           update: { value: val },
@@ -384,7 +384,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'auto_post_cooldown', updated: true })
       }
       if (typeof rateLimits.autoPostWindowCap === 'number') {
-        const val = Math.max(0, rateLimits.autoPostWindowCap).toString()
+        const val = Math.min(500, Math.max(0, rateLimits.autoPostWindowCap)).toString()
         await db.setting.upsert({
           where: { key: 'auto_post_window_cap' },
           update: { value: val },
@@ -393,7 +393,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'auto_post_window_cap', updated: true })
       }
       if (typeof rateLimits.autoPostWindowMinutes === 'number') {
-        const val = Math.max(1, rateLimits.autoPostWindowMinutes).toString()
+        const val = Math.min(1440, Math.max(1, rateLimits.autoPostWindowMinutes)).toString()
         await db.setting.upsert({
           where: { key: 'auto_post_window_minutes' },
           update: { value: val },
@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'auto_post_window_minutes', updated: true })
       }
       if (typeof rateLimits.userPostDailyCap === 'number') {
-        const val = Math.max(0, rateLimits.userPostDailyCap).toString()
+        const val = Math.min(100, Math.max(0, rateLimits.userPostDailyCap)).toString()
         await db.setting.upsert({
           where: { key: 'user_post_daily_cap' },
           update: { value: val },
@@ -411,7 +411,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'user_post_daily_cap', updated: true })
       }
       if (typeof rateLimits.userPendingCap === 'number') {
-        const val = Math.max(1, rateLimits.userPendingCap).toString()
+        const val = Math.min(50, Math.max(1, rateLimits.userPendingCap)).toString()
         await db.setting.upsert({
           where: { key: 'user_pending_cap' },
           update: { value: val },
@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'user_pending_cap', updated: true })
       }
       if (typeof rateLimits.globalSubmissionDailyCap === 'number') {
-        const val = Math.max(0, rateLimits.globalSubmissionDailyCap).toString()
+        const val = Math.min(10000, Math.max(0, rateLimits.globalSubmissionDailyCap)).toString()
         await db.setting.upsert({
           where: { key: 'global_submission_daily_cap' },
           update: { value: val },
@@ -429,7 +429,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'global_submission_daily_cap', updated: true })
       }
       if (typeof rateLimits.circuitBreakerThreshold === 'number') {
-        const val = Math.max(1, rateLimits.circuitBreakerThreshold).toString()
+        const val = Math.min(20, Math.max(1, rateLimits.circuitBreakerThreshold)).toString()
         await db.setting.upsert({
           where: { key: 'circuit_breaker_threshold' },
           update: { value: val },
@@ -438,7 +438,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'circuit_breaker_threshold', updated: true })
       }
       if (typeof rateLimits.circuitBreakerCooldownMinutes === 'number') {
-        const val = Math.max(1, rateLimits.circuitBreakerCooldownMinutes).toString()
+        const val = Math.min(1440, Math.max(1, rateLimits.circuitBreakerCooldownMinutes)).toString()
         await db.setting.upsert({
           where: { key: 'circuit_breaker_cooldown_minutes' },
           update: { value: val },
@@ -447,7 +447,7 @@ export async function POST(req: NextRequest) {
         results.push({ key: 'circuit_breaker_cooldown_minutes', updated: true })
       }
       if (typeof rateLimits.circuitBreakerFailureWindowMinutes === 'number') {
-        const val = Math.max(1, rateLimits.circuitBreakerFailureWindowMinutes).toString()
+        const val = Math.min(1440, Math.max(1, rateLimits.circuitBreakerFailureWindowMinutes)).toString()
         await db.setting.upsert({
           where: { key: 'circuit_breaker_failure_window_minutes' },
           update: { value: val },

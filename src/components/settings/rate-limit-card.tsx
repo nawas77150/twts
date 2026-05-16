@@ -134,7 +134,8 @@ export function RateLimitCard({
                         value={rateLimits[field.key]}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10)
-                          setRateLimits(prev => ({ ...prev, [field.key]: isNaN(val) ? field.min : val }))
+                          const clamped = Math.min(field.max, Math.max(field.min, isNaN(val) ? field.min : val))
+                          setRateLimits(prev => ({ ...prev, [field.key]: clamped }))
                         }}
                         className="text-xs h-8 bg-white"
                       />
