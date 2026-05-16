@@ -74,7 +74,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (adminToken) {
       hasLoadedRef.current = false // reset so sync effect can run again
-      stats.fetchStats()
+      void stats.fetchStats()
     }
   }, [adminToken, stats.fetchStats])
 

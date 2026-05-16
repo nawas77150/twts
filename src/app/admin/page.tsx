@@ -73,22 +73,22 @@ export default function AdminDashboardPage() {
   // Auto-refresh stats every 15s
   useEffect(() => {
     if (isAdmin) {
-      fetchStats()
+      void fetchStats()
       const interval = setInterval(() => {
-        fetchStats()
+        void fetchStats()
       }, 15000)
       return () => clearInterval(interval)
     }
   }, [isAdmin, fetchStats])
 
   const handleRefresh = useCallback(() => {
-    fetchSubmissions()
-    fetchStats()
+    void fetchSubmissions()
+    void fetchStats()
   }, [fetchSubmissions, fetchStats])
 
   const handlePageChange = useCallback(
     (p: number) => {
-      fetchSubmissions(false, p)
+      void fetchSubmissions(false, p)
     },
     [fetchSubmissions]
   )
@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
           stats={stats}
           onPenggunaClick={() => {
             setUsersDialogOpen(true)
-            fetchSubmitters()
+            void fetchSubmitters()
           }}
         />
       )}

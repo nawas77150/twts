@@ -145,7 +145,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
-      fetchSubmissions()
+      void fetchSubmissions()
       onStatsRefresh?.()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menolak'
@@ -160,7 +160,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
-      fetchSubmissions()
+      void fetchSubmissions()
       onStatsRefresh?.()
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus', variant: 'destructive' })
@@ -174,7 +174,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       const data = await apiClient.retryPost(id)
       toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
-      fetchSubmissions()
+      void fetchSubmissions()
       onStatsRefresh?.()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal posting ke X'
