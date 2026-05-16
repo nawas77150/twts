@@ -124,14 +124,50 @@ export interface FilterResult {
 }
 
 // --- Text Normalization ---
-// Removes zero-width chars, normalizes Unicode, strips diacritical tricks
+// Removes zero-width chars, normalizes Unicode, strips diacritical tricks,
+// and transliterates confusable homoglyphs (Cyrillic/Greek → Latin).
+
+// Common cross-script homoglyphs that NFKC doesn't catch.
+// These are visually identical but have different codepoints.
+const HOMOGLYPH_MAP: Record<string, string> = {
+  // Cyrillic → Latin
+  '\u0430': 'a', // а → a
+  '\u0435': 'e', // е → e
+  '\u043E': 'o', // о → o
+  '\u0440': 'p', // р → p
+  '\u0441': 'c', // с → c
+  '\u0443': 'y', // у → y
+  '\u0445': 'x', // х → x
+  '\u0456': 'i', // і → i
+  '\u04BB': 'h', // һ → h
+  '\u0458': 'j', // ј → j
+  '\u0455': 's', // ѕ → s
+  // Greek → Latin
+  '\u03BF': 'o', // ο → o
+  '\u03B9': 'i', // ι → i
+  '\u03B1': 'a', // α → a
+  '\u03B5': 'e', // ε → e
+  '\u03BA': 'k', // κ → k
+  '\u03BD': 'v', // ν → v
+  '\u03C1': 'p', // ρ → p
+  '\u03C4': 't', // τ → t
+  '\u03C7': 'x', // χ → x
+}
 
 export function normalizeText(text: string): string {
   return text
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')     // Zero-width chars
-    .replace(/[\u00AD\u200B-\u200F\u2028-\u202F]/g, '') // More invisible chars
-    .normalize('NFKC')                            // Normalize Unicode (e.g. Ａ → A)
-    .replace(/[^\w\s@]/g, ' ')                    // Keep word chars, spaces, @
+    // 1. Strip ALL invisible/control characters
+    .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202F\u180E\u2060-\u2069\u034F\uFE00-\uFE0F]/g, '')
+    // 2. Decompose → separate base chars from combining marks
+    .normalize('NFD')
+    // 3. Strip combining marks (Zalgo, strikethroughs, diacritics)
+    .replace(/[\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/g, '')
+    // 4. NFKC normalize (fullwidth → ASCII, etc.)
+    .normalize('NFKC')
+    // 5. Replace homoglyphs (Cyrillic/Greek → Latin)
+    .replace(/[^\x00-\x7F]/g, (ch) => HOMOGLYPH_MAP[ch] || ch)
+    // 6. Strip remaining non-word chars (keep word chars, spaces, @)
+    .replace(/[^\w\s@]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
