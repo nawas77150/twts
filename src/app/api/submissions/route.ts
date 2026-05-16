@@ -229,12 +229,14 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Check per-user pending cap (total pending, not daily — daily cap already handles per-day limits)
+      // Check per-user pending cap (daily — resets 00:00 WIB)
       if (effectivePendingCap > 0) {
+        const startOfToday = getStartOfTodayWIB()
         const pendingCount = await db.submission.count({
           where: {
             submitterId: submitter.id,
             status: 'pending',
+            createdAt: { gte: startOfToday },
           },
         })
         if (pendingCount >= effectivePendingCap) {
@@ -242,7 +244,7 @@ export async function POST(req: NextRequest) {
           logLimitHit(submitter.username, 'pending_cap')
           return NextResponse.json({
             error: 'Terlalu banyak pesan menunggu',
-            message: `Kamu sudah mengirim ${pendingCount} pesan yang belum diproses. Tunggu sampai diproses admin sebelum mengirim lagi.`,
+            message: `Kamu sudah mengirim ${pendingCount} pesan menunggu hari ini (maksimal ${effectivePendingCap}). Coba lagi besok.`,
           }, { status: 400 })
         }
       }

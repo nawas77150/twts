@@ -26,18 +26,18 @@ export function StatsGrid({ stats, onPenggunaClick }: StatsGridProps) {
         return (
           <Card
             key={stat.label}
-            className={`border-0 shadow-sm ${isPengguna ? 'cursor-pointer hover:ring-2 hover:ring-purple-200 hover:shadow-md transition-all' : ''}`}
+            className={`border-0 shadow-sm py-3 md:py-6 ${isPengguna ? 'cursor-pointer hover:ring-2 hover:ring-purple-200 hover:shadow-md transition-all' : ''}`}
             onClick={isPengguna ? onPenggunaClick : undefined}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <div className={`w-7 h-7 rounded-lg ${stat.color} flex items-center justify-center`}>
-                  <stat.icon className="w-3.5 h-3.5" />
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
+                <div className={`w-6 h-6 md:w-7 md:h-7 rounded-lg ${stat.color} flex items-center justify-center`}>
+                  <stat.icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
                 </div>
                 <span className="text-xs text-[#536471] hidden sm:inline">{stat.label}</span>
               </div>
-              <p className="text-2xl font-bold text-[#0F1419]">{stat.value}</p>
-              <span className="text-xs text-[#71767B] sm:hidden">{stat.label}</span>
+              <p className="text-lg md:text-2xl font-bold text-[#0F1419]">{stat.value}</p>
+              <span className="text-[10px] md:text-xs text-[#71767B] sm:hidden">{stat.label}</span>
             </CardContent>
           </Card>
         )

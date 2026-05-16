@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
           where: {
             submitterId: submitter.id,
             status: 'pending',
+            createdAt: { gte: startOfToday },
           },
         }),
         // Daily posts — uses createdAt with calendar day WIB boundary for consistency
