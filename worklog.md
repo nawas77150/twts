@@ -214,3 +214,22 @@ Stage Summary:
 - All 3 fixes are trivial, zero-risk, additive-only changes
 - Lint passes clean, dev server compiles successfully
 - Bugs L1, L2, L4, L5, L8, L9 were verified as not real / not worth fixing
+---
+Task ID: H3-fix
+Agent: main
+Task: Fix H3 — Stuck "posting" status auto-recovery
+
+Work Log:
+- Created src/lib/stale-posting.ts with POSTING_STALE_MS (2 min) and checkStalePosting() utility
+- Modified PATCH (approve) handler in [id]/route.ts: stale posting auto-recovers to post_failed, then falls through to approve flow
+- Modified POST (retry) handler in [id]/post/route.ts: same stale check pattern
+- Modified DELETE handler in [id]/route.ts: stale posting auto-recovers, then falls through to delete
+- All 3 handlers now show improved error message when posting is active but not yet stale
+- Lint passes clean, dev server compiles successfully
+
+Stage Summary:
+- Stuck "posting" submissions auto-recover after 2 minutes (4x function timeout, 2x lock timeout)
+- After auto-recovery, the admin action (approve/retry/delete) proceeds naturally
+- Ghost tweet risk is warned in the postError field
+- No recordPostFailure() called on recovery (would incorrectly penalize circuit breaker)
+- No new endpoints, no cron jobs, no UI changes needed

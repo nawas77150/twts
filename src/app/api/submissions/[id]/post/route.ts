@@ -5,6 +5,7 @@ import { debug } from '@/lib/debug'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
+import { checkStalePosting } from '@/lib/stale-posting'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
@@ -26,7 +27,7 @@ export async function POST(
   try {
     const { id } = await params
 
-    const submission = await db.submission.findUnique({ where: { id } })
+    let submission = await db.submission.findUnique({ where: { id } })
     if (!submission) {
       return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
     }
@@ -36,7 +37,20 @@ export async function POST(
     }
 
     if (submission.status === 'posting') {
-      return NextResponse.json({ error: 'Submission sedang diproses (posting ke X)' }, { status: 409 })
+      const stale = await checkStalePosting(submission)
+      if (!stale.isStale) {
+        return NextResponse.json(
+          { error: 'Submission sedang diproses (posting ke X). Coba lagi dalam beberapa menit.' },
+          { status: 409 }
+        )
+      }
+      // Stale posting auto-recovered — re-fetch with updated status and fall through.
+      // The submission is now post_failed, so the pending/post_failed check will pass.
+      const refreshed = await db.submission.findUnique({ where: { id } })
+      if (!refreshed) {
+        return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
+      }
+      submission = refreshed
     }
 
     if (submission.status === 'rejected') {

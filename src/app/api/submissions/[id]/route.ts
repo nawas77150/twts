@@ -5,6 +5,7 @@ import { debug } from '@/lib/debug'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
+import { checkStalePosting } from '@/lib/stale-posting'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
@@ -31,7 +32,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Status tidak valid' }, { status: 400 })
     }
 
-    const submission = await db.submission.findUnique({ where: { id } })
+    let submission = await db.submission.findUnique({ where: { id } })
     if (!submission) {
       return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
     }
@@ -44,10 +45,20 @@ export async function PATCH(
     }
 
     if (submission.status === 'posting') {
-      return NextResponse.json(
-        { error: 'Submission sedang diproses (posting ke X)' },
-        { status: 409 }
-      )
+      const stale = await checkStalePosting(submission)
+      if (!stale.isStale) {
+        return NextResponse.json(
+          { error: 'Submission sedang diproses (posting ke X). Coba lagi dalam beberapa menit.' },
+          { status: 409 }
+        )
+      }
+      // Stale posting auto-recovered — re-fetch with updated status and fall through.
+      // The submission is now post_failed, so the pending/post_failed check will pass.
+      const refreshed = await db.submission.findUnique({ where: { id } })
+      if (!refreshed) {
+        return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
+      }
+      submission = refreshed
     }
 
     if (submission.status === 'rejected') {
@@ -223,8 +234,16 @@ export async function DELETE(
 
     // Prevent deleting a submission that is currently being posted to X
     // (would orphan the tweet — it posts but we lose the record)
+    // However, if the posting is stale (>2 min), auto-recover so the admin can delete.
     if (submission.status === 'posting') {
-      return NextResponse.json({ error: 'Tidak bisa menghapus pesan yang sedang diposting' }, { status: 409 })
+      const stale = await checkStalePosting(submission)
+      if (!stale.isStale) {
+        return NextResponse.json({ error: 'Tidak bisa menghapus pesan yang sedang diposting. Coba lagi dalam beberapa menit.' }, { status: 409 })
+      }
+      // Stale posting auto-recovered — fall through to delete below.
+      // WARNING: The tweet may have been posted to X before the crash.
+      // Deleting the DB record means we lose track of it — but the admin
+      // is explicitly choosing to delete, so this is acceptable.
     }
 
     await db.submission.delete({ where: { id } })
