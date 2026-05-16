@@ -11,7 +11,6 @@ import type {
   FilterSettings,
   SubmitterWithStats,
   SubmitMessageRequest,
-  SaveSettingRequest,
   SaveFilterSettingsRequest,
   SubmissionStatus,
   SubmissionLimitsData,

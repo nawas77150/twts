@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
-import { getFilterSettings, DEFAULT_RATE_LIMITS } from '@/app/api/admin/filter-settings/route'
+import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
 import { resolveEffectiveLimits, hasCustomLimits } from '@/lib/limit-resolver'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'

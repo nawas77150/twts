@@ -37,6 +37,7 @@ export function SubmissionFilters({
             : stats?.[statsKey as keyof Stats] as number | undefined
         return (
           <button
+            type="button"
             key={status}
             onClick={() => setFilter(status)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 ${

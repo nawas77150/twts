@@ -124,6 +124,7 @@ export function DirectPostingCard({
                 </Button>
               </div>
               <button
+                type="button"
                 onClick={() => setShowCookieGuide(!showCookieGuide)}
                 className="text-xs text-[#536471] hover:underline flex items-center gap-1"
               >

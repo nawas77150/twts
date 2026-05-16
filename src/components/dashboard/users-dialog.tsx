@@ -138,6 +138,7 @@ export function UsersDialog({
           <Filter className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
           {search && (
             <button
+              type="button"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419]"
               onClick={() => setSearch('')}
             >

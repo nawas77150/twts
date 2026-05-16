@@ -50,14 +50,14 @@ export default function AdminSettingsPage() {
     if (s.circuitBreaker) {
       circuitBreaker.setStatus(s.circuitBreaker)
     }
-  }, [stats.stats]) // intentionally only depend on stats.stats
+  }, [stats.stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting]) // deps include all used functions
 
   // Always sync circuit breaker status (read-only display, safe to update)
   useEffect(() => {
     if (!stats.stats?.circuitBreaker) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
     circuitBreaker.setStatus(stats.stats.circuitBreaker)
-  }, [stats.stats?.circuitBreaker])
+  }, [stats.stats?.circuitBreaker, circuitBreaker.setStatus])
 
   // Sync blocklist/whitelist after mutations (display-only, safe to overwrite)
   // Unlike text inputs/toggles, these lists are never edited in-place —

@@ -130,7 +130,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
       } else {
         toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
       }
-      fetchSubmissions()
+      void fetchSubmissions()
       onStatsRefresh?.()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menyetujui'

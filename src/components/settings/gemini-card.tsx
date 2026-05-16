@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   Sparkles,
   Eye,
@@ -84,6 +83,7 @@ export function GeminiCard({
                 )}
               </label>
               <button
+                type="button"
                 onClick={() => setGeminiEnabled(!geminiEnabled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${geminiEnabled ? 'bg-green-500' : 'bg-[#EFF3F4]'}`}
               >

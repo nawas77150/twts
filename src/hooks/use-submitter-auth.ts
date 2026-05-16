@@ -56,14 +56,14 @@ export function useSubmitterAuth() {
           window.history.replaceState({}, '', '/')
         } else if (attempts < maxAttempts) {
           attempts++
-          setTimeout(tryAuth, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
+          setTimeout(() => { void tryAuth() }, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
         } else {
           // All retries exhausted — auth could not be confirmed
           toast({ title: 'Login gagal', description: 'Gagal memverifikasi sesi. Coba login ulang.', variant: 'destructive' })
           window.history.replaceState({}, '', '/')
         }
       }
-      const timer = setTimeout(tryAuth, 300)
+      const timer = setTimeout(() => { void tryAuth() }, 300)
       return () => clearTimeout(timer)
     }
   }, [checkAuth, toast])
