@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
 import { verifyAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
+import { decodeHtmlEntities } from '@/lib/content-filter'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
@@ -89,7 +90,7 @@ export async function POST(
     // Post to X using cookie-based auth (with retry + fallback)
     try {
       debug('[post route] Posting submission:', id, 'message length:', submission.message.length)
-      const tweetResult = await postTweetViaCookie(submission.message)
+      const tweetResult = await postTweetViaCookie(decodeHtmlEntities(submission.message))
 
       if (!tweetResult.success) {
         debug('[post route] Post failed:', tweetResult.error, 'method:', tweetResult.method)

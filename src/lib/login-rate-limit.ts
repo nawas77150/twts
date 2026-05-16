@@ -88,9 +88,14 @@ export function checkLoginRateLimit(ip: string): { allowed: true } | { allowed: 
     return { allowed: true }
   }
 
-  // If the window has passed but lockout hasn't, check if they're still over limit
+  // If the window has passed but lockout hasn't, check if they hit the limit
   if (elapsed > WINDOW_MS) {
-    // Window expired — reset the counter but keep tracking
+    if (record.count >= MAX_ATTEMPTS) {
+      // Still locked out — window expired but lockout period hasn't
+      const retryAfterMs = record.firstAttemptAt + LOCKOUT_MS - now
+      return { allowed: false, retryAfterSec: Math.ceil(retryAfterMs / 1000) }
+    }
+    // Under the limit and window expired — reset for a new window
     store.delete(ip)
     return { allowed: true }
   }

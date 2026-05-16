@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
 import { verifyAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
+import { decodeHtmlEntities } from '@/lib/content-filter'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getFilterSettings } from '@/app/api/admin/filter-settings/route'
@@ -103,7 +104,7 @@ export async function PATCH(
 
       try {
         debug('[approve route] Approving submission:', id, 'message length:', submission.message.length)
-        const tweetResult = await postTweetViaCookie(submission.message)
+        const tweetResult = await postTweetViaCookie(decodeHtmlEntities(submission.message))
 
         if (tweetResult.success) {
           debug('[approve route] Post succeeded! tweetId:', tweetResult.tweetId, 'method:', tweetResult.method)

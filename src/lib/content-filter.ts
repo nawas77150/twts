@@ -155,32 +155,41 @@ const HOMOGLYPH_MAP: Record<string, string> = {
 }
 
 /**
- * Strip HTML tags and encode dangerous characters from user input.
- * Defense-in-depth: even though React auto-escapes JSX text nodes,
- * this ensures stored data is clean if any rendering path ever uses
- * dangerouslySetInnerHTML or if content leaks into non-HTML contexts
- * (e.g. email templates, meta tags, plain-text logs).
+ * Strip HTML tags and null bytes from user input.
+ * Does NOT HTML-encode special characters — the stored text must be:
+ *   - Plain text for X API (tweets are not HTML)
+ *   - Rendered via React JSX ({message}) which auto-escapes for display
  *
  * Handles:
  * - HTML tags: <script>, <img onerror=...>, <a href=javascript:...>, etc.
  * - Event handlers in "hrefless" tags: <b onclick=...>
- * - HTML entities that decode to tags: &lt;script&gt;
  * - Null bytes that can truncate strings in some parsers
  */
-export function sanitizeHtml(input: string): string {
+export function sanitizeInput(input: string): string {
   return input
     // Null bytes — can truncate strings in some C-derived parsers
     .replace(/\0/g, '')
     // HTML tags — strip anything between < and >
     // This catches <script>, <img onerror=...>, <svg/onload=...>, etc.
     .replace(/<[^>]*>/g, '')
-    // Re-encode angle brackets and quotes that could form new tags
-    // if the stripped result is later placed into an HTML attribute or template
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
+}
+
+/**
+ * Decode HTML entities back to their literal characters.
+ * Needed for backward compatibility with existing DB records that were
+ * stored by the old sanitizeHtml() which HTML-encoded &, <, >, ", '.
+ * Those entities render literally in X tweets (plain text, not HTML).
+ *
+ * Safe to call on already-decoded text — decodes only known entities.
+ */
+export function decodeHtmlEntities(input: string): string {
+  return input
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
 }
 
 export function normalizeText(text: string): string {
