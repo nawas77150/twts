@@ -50,8 +50,8 @@ export default function HomePage() {
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status
       if (status === 403) setBlocked(true)
-      const message = (err as { message?: string })?.message || 'Gagal mengirim pesan'
-      toast({ title: 'Gagal', description: message, variant: 'destructive' })
+      const errMsg = (err as { message?: string })?.message || 'Gagal mengirim pesan'
+      toast({ title: 'Gagal', description: errMsg, variant: 'destructive' })
       return false
     } finally {
       setIsSubmitting(false)

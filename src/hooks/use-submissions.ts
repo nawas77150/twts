@@ -130,11 +130,11 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
       } else {
         toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
       }
-      void fetchSubmissions()
+      void fetchSubmissions(true) // silent — don't nuke the list with spinner
       onStatsRefresh?.()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Gagal menyetujui'
-      toast({ title: 'Gagal', description: message, variant: 'destructive' })
+      const errMsg = err instanceof Error ? err.message : 'Gagal menyetujui'
+      toast({ title: 'Gagal', description: errMsg, variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
@@ -145,11 +145,11 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
-      void fetchSubmissions()
+      void fetchSubmissions(true) // silent — don't nuke the list with spinner
       onStatsRefresh?.()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Gagal menolak'
-      toast({ title: 'Gagal', description: message, variant: 'destructive' })
+      const errMsg = err instanceof Error ? err.message : 'Gagal menolak'
+      toast({ title: 'Gagal', description: errMsg, variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
@@ -160,7 +160,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
-      void fetchSubmissions()
+      void fetchSubmissions(true) // silent — don't nuke the list with spinner
       onStatsRefresh?.()
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus', variant: 'destructive' })
@@ -174,11 +174,11 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     try {
       const data = await apiClient.retryPost(id)
       toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
-      void fetchSubmissions()
+      void fetchSubmissions(true) // silent — don't nuke the list with spinner
       onStatsRefresh?.()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Gagal posting ke X'
-      toast({ title: 'Gagal posting', description: message, variant: 'destructive' })
+      const errMsg = err instanceof Error ? err.message : 'Gagal posting ke X'
+      toast({ title: 'Gagal posting', description: errMsg, variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
