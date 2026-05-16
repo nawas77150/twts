@@ -36,7 +36,7 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
       if (!data.error) {
         setBlockedUsernames((prev) => [...prev, username.toLowerCase()])
         toast({ title: `@${username} diblokir` })
-        fetchSubmitters()
+        void fetchSubmitters()
       } else {
         toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
       }
@@ -52,7 +52,7 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
       if (!data.error) {
         setBlockedUsernames((prev) => prev.filter((u) => u !== username.toLowerCase()))
         toast({ title: `@${username} dibebaskan` })
-        fetchSubmitters()
+        void fetchSubmitters()
       } else {
         toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
       }
@@ -67,7 +67,7 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
       const data = await apiClient.setCustomLimits(username, customLimits)
       if (data.success) {
         toast({ title: `Limit @${username} diperbarui` })
-        fetchSubmitters()
+        void fetchSubmitters()
         return true
       } else {
         toast({ title: 'Gagal', description: data.error || 'Gagal mengatur limit', variant: 'destructive' })

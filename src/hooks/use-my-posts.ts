@@ -40,7 +40,7 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
   // Fetch my posts when user logs in
   useEffect(() => {
     if (submitter && !isAnonUser) {
-      fetchMyPosts()
+      void fetchMyPosts()
     } else {
       setMyPosts([])
       setLimits(null)

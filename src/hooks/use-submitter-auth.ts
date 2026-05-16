@@ -37,7 +37,7 @@ export function useSubmitterAuth() {
       await checkAuth()
       setIsChecking(false)
     }
-    initialCheck()
+    void initialCheck()
   }, [checkAuth])
 
   // Re-check auth after OAuth callback with retry (server may need time

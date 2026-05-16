@@ -48,7 +48,7 @@ export function LimitHealthCard() {
   }, [])
 
   useEffect(() => {
-    fetchHits()
+    void fetchHits()
   }, [fetchHits])
 
   const hasHits = data && data.totalHits > 0

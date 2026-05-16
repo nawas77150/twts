@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
         await db.oAuthFlow.delete({ where: { id: flowId } })
 
         // Opportunistic cleanup of expired flows
-        cleanupExpiredFlows() // fire-and-forget — don't await
+        void cleanupExpiredFlows() // fire-and-forget — don't await
 
         console.log('[oauth] State resolved from DB (flowId:', flowId, ')')
       }

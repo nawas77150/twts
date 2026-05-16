@@ -85,8 +85,8 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
   // Auto-refresh every 15s when admin is active
   useEffect(() => {
     if (isAdmin) {
-      fetchSubmissions() // initial load — shows spinner
-      const interval = setInterval(() => { fetchSubmissions(true) }, 15000)
+      void fetchSubmissions() // initial load — shows spinner
+      const interval = setInterval(() => { void fetchSubmissions(true) }, 15000)
       return () => clearInterval(interval)
     }
   }, [isAdmin, filterStatus, fetchSubmissions])
@@ -96,7 +96,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     const timer = setTimeout(() => {
       if (isAdmin && adminToken) {
         pageRef.current = 1
-        fetchSubmissions()
+        void fetchSubmissions()
       }
     }, 300)
     return () => clearTimeout(timer)
@@ -186,7 +186,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
 
   const loadMore = useCallback(() => {
     if (hasMore && page < totalPages) {
-      fetchSubmissions(false, page + 1)
+      void fetchSubmissions(false, page + 1)
     }
   }, [hasMore, page, totalPages, fetchSubmissions])
 

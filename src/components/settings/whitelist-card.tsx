@@ -96,7 +96,7 @@ export function WhitelistCard({
               <Input
                 value={addInput}
                 onChange={(e) => setAddInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
                 placeholder="username"
                 className="text-xs h-8 font-mono border-[#EFF3F4]"
                 disabled={isAdding}

@@ -35,8 +35,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         // silently fail
       }
     }
-    fetchPending()
-    const interval = setInterval(fetchPending, 30000)
+    void fetchPending()
+    const interval = setInterval(() => { void fetchPending() }, 30000)
     return () => clearInterval(interval)
   }, [isAdmin, adminToken])
 
