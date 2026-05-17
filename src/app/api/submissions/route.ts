@@ -8,7 +8,7 @@ import { runContentFilter, checkDuplicate24h, normalizeText, sanitizeInput, deco
 import { runGeminiFilter } from '@/lib/gemini-filter'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { isCircuitBreakerPaused, recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
-import { getFilterSettings, getGeminiApiKey, DEFAULT_RATE_LIMITS, type RateLimitSettings } from '@/lib/filter-settings'
+import { getFilterSettings, getGeminiApiKey, getGeminiModel, DEFAULT_RATE_LIMITS, type RateLimitSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
@@ -315,7 +315,8 @@ export async function POST(req: NextRequest) {
         const geminiApiKey = await getGeminiApiKey()
         if (geminiApiKey) {
           debug('[submit] Running Gemini AI filter')
-          const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey)
+          const geminiModel = await getGeminiModel()
+          const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey, geminiModel)
           geminiChecked = geminiResult.checked
 
           if (!geminiResult.passed) {

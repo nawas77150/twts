@@ -10,7 +10,7 @@ import {
 // Settings keys for the filter feature
 export const FILTER_SETTING_KEYS = [
   'auto_approve', 'blocked_words', 'filter_rules', 'nsfw_words',
-  'gemini_enabled', 'gemini_api_key',
+  'gemini_enabled', 'gemini_api_key', 'gemini_model',
   'submission_cooldown', 'submission_daily_cap', 'auto_post_cooldown',
   'auto_post_window_cap', 'auto_post_window_minutes',
   'user_post_daily_cap', 'user_pending_cap',
@@ -60,6 +60,8 @@ export interface RateLimitSettings {
   circuitBreakerFailureWindowMinutes: number  // max gap between failures (streak breaker)
 }
 
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite'
+
 export async function getFilterSettings(): Promise<{
   autoApprove: boolean
   blockedWords: string[]
@@ -67,6 +69,7 @@ export async function getFilterSettings(): Promise<{
   filterRules: FilterRules
   geminiEnabled: boolean
   geminiApiKeySet: boolean  // Only whether a key exists (never expose the key)
+  geminiModel: string
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]  // Twitter usernames bypassing rate limits
   blockedUsernames: string[]    // Twitter usernames blocked from submitting
@@ -129,6 +132,7 @@ export async function getFilterSettings(): Promise<{
   const geminiEnabled = getRaw('gemini_enabled') === 'true'
   const geminiApiKey = getRaw('gemini_api_key')
   const geminiApiKeySet = !!geminiApiKey && geminiApiKey.trim().length > 0
+  const geminiModel = getRaw('gemini_model')?.trim() || DEFAULT_GEMINI_MODEL
 
   // Rate limit settings — using parseIntSafe to correctly handle 0 values
   // (parseInt("0") || default would treat 0 as falsy and revert to default)
@@ -183,6 +187,7 @@ export async function getFilterSettings(): Promise<{
     filterRules,
     geminiEnabled,
     geminiApiKeySet,
+    geminiModel,
     rateLimits: { submissionCooldown, submissionDailyCap, autoPostCooldown, autoPostWindowCap, autoPostWindowMinutes, userPostDailyCap, userPendingCap, globalSubmissionDailyCap, circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes },
     whitelistUsernames,
     blockedUsernames,
@@ -198,4 +203,15 @@ export async function getGeminiApiKey(): Promise<string | null> {
   if (!setting) return null
   const decrypted = decryptSetting(setting.value)
   return decrypted?.trim() || null
+}
+
+/**
+ * Get the configured Gemini model name (for server-side use only).
+ * Falls back to DEFAULT_GEMINI_MODEL if not configured.
+ */
+export async function getGeminiModel(): Promise<string> {
+  const setting = await db.setting.findUnique({ where: { key: 'gemini_model' } })
+  if (!setting) return DEFAULT_GEMINI_MODEL
+  const decrypted = decryptSetting(setting.value)
+  return decrypted?.trim() || DEFAULT_GEMINI_MODEL
 }

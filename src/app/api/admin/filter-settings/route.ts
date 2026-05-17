@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     filterRules: settings.filterRules,
     geminiEnabled: settings.geminiEnabled,
     geminiApiKeySet: settings.geminiApiKeySet,
+    geminiModel: settings.geminiModel,
     rateLimits: settings.rateLimits,
     whitelistUsernames: settings.whitelistUsernames,
     blockedUsernames: settings.blockedUsernames,
@@ -46,13 +47,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { autoApprove, blockedWords, nsfwWords, filterRules, geminiEnabled, geminiApiKey, rateLimits } = body as {
+    const { autoApprove, blockedWords, nsfwWords, filterRules, geminiEnabled, geminiApiKey, geminiModel, rateLimits } = body as {
       autoApprove?: boolean
       blockedWords?: string[]
       nsfwWords?: string[]
       filterRules?: Partial<FilterRules>
       geminiEnabled?: boolean
       geminiApiKey?: string
+      geminiModel?: string
       rateLimits?: { submissionCooldown?: number; submissionDailyCap?: number; autoPostCooldown?: number; autoPostWindowCap?: number; autoPostWindowMinutes?: number; userPostDailyCap?: number; userPendingCap?: number; globalSubmissionDailyCap?: number; circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }
     }
 
@@ -143,6 +145,16 @@ export async function POST(req: NextRequest) {
         await db.setting.deleteMany({ where: { key: 'gemini_api_key' } })
       }
       results.push({ key: 'gemini_api_key', updated: true })
+    }
+
+    // Save gemini_model (not encrypted, not sensitive)
+    if (typeof geminiModel === 'string' && geminiModel.trim()) {
+      await db.setting.upsert({
+        where: { key: 'gemini_model' },
+        update: { value: geminiModel.trim() },
+        create: { key: 'gemini_model', value: geminiModel.trim() },
+      })
+      results.push({ key: 'gemini_model', updated: true })
     }
 
     // Save rate limit settings (not encrypted, simple integers)

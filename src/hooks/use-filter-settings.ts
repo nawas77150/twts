@@ -22,6 +22,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
   const [geminiEnabled, setGeminiEnabled] = useState(false)
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
   const [geminiApiKeySet, setGeminiApiKeySet] = useState(false)
+  const [geminiModel, setGeminiModel] = useState('')
   const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [rateLimits, setRateLimits] = useState<RateLimitSettings>({ ...DEFAULT_RATE_LIMITS })
   const [whitelistUsernames, setWhitelistUsernames] = useState<string[]>([])
@@ -36,6 +37,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     setFilterRules(settings.filterRules)
     setGeminiEnabled(settings.geminiEnabled)
     setGeminiApiKeySet(settings.geminiApiKeySet)
+    setGeminiModel(settings.geminiModel || '')
     if (settings.rateLimits) setRateLimits(settings.rateLimits)
     if (settings.whitelistUsernames) setWhitelistUsernames(settings.whitelistUsernames)
     if (settings.blockedUsernames) setBlockedUsernames(settings.blockedUsernames)
@@ -91,6 +93,22 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     }
   }, [adminToken, onStatsRefresh, toast])
 
+  const saveGeminiModel = useCallback(async (model: string) => {
+    if (!adminToken) return
+    try {
+      const data = await apiClient.saveFilterSettings({ geminiModel: model.trim() })
+      if (!data.error) {
+        setGeminiModel(model.trim())
+        toast({ title: 'Gemini model saved!', description: `Using ${model.trim()}` })
+        onStatsRefresh?.()
+      } else {
+        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save model', variant: 'destructive' })
+    }
+  }, [adminToken, onStatsRefresh, toast])
+
   const saveFilterSettings = useCallback(async () => {
     if (!adminToken) return
     setIsSaving(true)
@@ -142,6 +160,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     setGeminiEnabled(false)
     setGeminiApiKeyInput('')
     setGeminiApiKeySet(false)
+    setGeminiModel('')
     setRateLimits({ ...DEFAULT_RATE_LIMITS })
     setWhitelistUsernames([])
     setBlockedUsernames([])
@@ -157,6 +176,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     geminiSaving,
     geminiApiKeyInput,
     geminiApiKeySet,
+    geminiModel,
     showGeminiKey,
     rateLimits,
     whitelistUsernames,
@@ -171,10 +191,12 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     setGeminiEnabled: setGeminiEnabledState,
     setGeminiApiKeyInput,
     setShowGeminiKey,
+    setGeminiModel,
     setRateLimits,
     setWhitelistUsernames,
     setBlockedUsernames,
     saveGeminiKey,
+    saveGeminiModel,
     saveFilterSettings,
     loadFromFilterSettings,
     resetState,

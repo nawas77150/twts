@@ -106,6 +106,7 @@ export interface FilterSettings {
   filterRules: FilterRules
   geminiEnabled: boolean
   geminiApiKeySet: boolean
+  geminiModel: string
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
   blockedUsernames: string[]
@@ -227,6 +228,7 @@ export interface SaveFilterSettingsRequest {
   filterRules?: FilterRules
   geminiEnabled?: boolean
   geminiApiKey?: string
+  geminiModel?: string
   rateLimits?: RateLimitSettings
   // whitelistUsernames and blockedUsernames are NOT included here.
   // They are managed exclusively through atomic API routes:

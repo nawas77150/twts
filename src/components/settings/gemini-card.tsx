@@ -37,6 +37,9 @@ interface GeminiCardProps {
   showGeminiKey: boolean
   setShowGeminiKey: (v: boolean) => void
   saveGeminiKey: (key: string) => void
+  geminiModel: string
+  setGeminiModel: (v: string) => void
+  saveGeminiModel: (model: string) => void
 }
 
 export function GeminiCard({
@@ -49,6 +52,9 @@ export function GeminiCard({
   showGeminiKey,
   setShowGeminiKey,
   saveGeminiKey,
+  geminiModel,
+  setGeminiModel,
+  saveGeminiModel,
 }: GeminiCardProps) {
   const [open, setOpen] = useState(true)
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
@@ -162,6 +168,34 @@ export function GeminiCard({
                   <ShieldCheck className="w-3 h-3" /> API key is configured
                 </p>
               )}
+            </div>
+
+            <Separator />
+
+            {/* Model Input */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-[#536471]">Gemini Model</label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="gemini-3.1-flash-lite"
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="border-[#EFF3F4] text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-[#EFF3F4] h-8 shrink-0"
+                  disabled={!geminiModel.trim()}
+                  onClick={() => saveGeminiModel(geminiModel)}
+                >
+                  Save
+                </Button>
+              </div>
+              <p className="text-[10px] text-[#71767B]">
+                Common models: gemini-3.1-flash-lite, gemini-2.0-flash, gemini-1.5-flash
+              </p>
             </div>
 
             <Separator />

@@ -260,6 +260,9 @@ export default function AdminSettingsPage() {
               showGeminiKey={filterSettings.showGeminiKey}
               setShowGeminiKey={filterSettings.setShowGeminiKey}
               saveGeminiKey={filterSaveGeminiKey}
+              geminiModel={filterSettings.geminiModel}
+              setGeminiModel={filterSettings.setGeminiModel}
+              saveGeminiModel={filterSettings.saveGeminiModel}
             />
           </motion.div>
         </TabsContent>

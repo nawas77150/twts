@@ -8,9 +8,8 @@
 // ============================================================
 
 import { debug } from './debug'
+import { DEFAULT_GEMINI_MODEL } from './filter-settings'
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 const TIMEOUT_MS = 8000 // 8 second timeout — don't block submissions too long
 
 // --- Types ---
@@ -59,6 +58,7 @@ Important: When in doubt, flag for manual review. It's better to have an admin d
 export async function runGeminiFilter(
   message: string,
   apiKey: string,
+  model: string = DEFAULT_GEMINI_MODEL,
 ): Promise<GeminiFilterResult> {
   if (!apiKey || !apiKey.trim()) {
     // No API key configured — skip Gemini filter entirely
@@ -71,7 +71,8 @@ export async function runGeminiFilter(
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-    const response = await fetch(GEMINI_API_URL, {
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
