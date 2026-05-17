@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { generateTransactionId, fetchXcomHtml, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
 import { generateTransactionIdFromPair, clearPairCache } from '@/lib/x-transaction-id-pair'
 import { postViaCookieApi, postViaTwitterApi, isV2LoginEnabled } from '@/lib/twitter-api-fallback'
-import { decrypt, isEncrypted } from '@/lib/encrypt'
+import { decryptSetting } from '@/lib/encrypt'
 import { debug } from '@/lib/debug'
 
 // ============================================================
@@ -135,12 +135,7 @@ async function getSettings(): Promise<Record<string, string>> {
   const map: Record<string, string> = {}
   for (const s of settings) {
     if (s.value) {
-      // Decrypt if encrypted, use as-is if plaintext (migration support)
-      try {
-        map[s.key] = isEncrypted(s.value) ? decrypt(s.value) : s.value
-      } catch {
-        map[s.key] = s.value // Fallback to raw value if decryption fails
-      }
+      map[s.key] = decryptSetting(s.value)
     }
   }
   return map

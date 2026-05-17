@@ -195,6 +195,24 @@ export async function PATCH(
             postMethod: tweetResult.method,
           })
         }
+      } catch (postError) {
+        // postTweetViaCookie threw — mark as post_failed
+        const errorMsg = postError instanceof Error ? postError.message : String(postError)
+        debug('[approve route] Post exception, marking as post_failed:', errorMsg)
+        await db.submission.updateMany({
+          where: { id, status: 'posting' },
+          data: { status: 'post_failed', postError: errorMsg },
+        })
+        const updated = await db.submission.findUnique({ where: { id } })
+        try {
+          const settings = await getFilterSettings()
+          await recordPostFailure(settings.rateLimits)
+        } catch { /* best effort */ }
+        return NextResponse.json({
+          submission: updated,
+          autoPosted: false,
+          error: `Gagal posting ke X: ${errorMsg}`,
+        }, { status: 502 })
       } finally {
         await releasePostingLock(lockValue!)
         lockValue = null // Mark as released so outer catch doesn't double-release

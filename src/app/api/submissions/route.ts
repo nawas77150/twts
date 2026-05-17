@@ -583,6 +583,7 @@ export async function POST(req: NextRequest) {
             status: 'posted',
             tweetId: tweetResult.tweetId || null,
             postMethod: tweetResult.method,
+            postError: null,
           },
         })
 
@@ -619,7 +620,7 @@ export async function POST(req: NextRequest) {
         const failedSubmission = await db.submission.findUnique({ where: { id: submission.id } })
 
         // Record failure for circuit breaker
-        await recordPostFailure(filterSettings.rateLimits)
+        try { await recordPostFailure(filterSettings.rateLimits) } catch { /* best effort */ }
 
         return NextResponse.json({
           submission: failedSubmission,
@@ -640,7 +641,7 @@ export async function POST(req: NextRequest) {
       const failedSubmission = await db.submission.findUnique({ where: { id: submission.id } })
 
       // Record failure for circuit breaker
-      await recordPostFailure(filterSettings.rateLimits)
+      try { await recordPostFailure(filterSettings.rateLimits) } catch { /* best effort */ }
 
       return NextResponse.json({
         submission: failedSubmission,

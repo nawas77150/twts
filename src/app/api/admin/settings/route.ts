@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { parseXCookies } from '@/lib/twitter-post-cookie'
-import { encrypt, decrypt, isEncrypted } from '@/lib/encrypt'
+import { encrypt, decryptSetting } from '@/lib/encrypt'
 import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { verifyAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
@@ -31,18 +31,6 @@ const LOGIN_TRIGGER_KEYS = [
 // Keys that contain sensitive data — always encrypt and never reveal in GET
 const SENSITIVE_KEYS = ['x_password', 'x_totp_secret', 'twitterapi_login_cookie']
 
-/**
- * Decrypt a value for display/masking purposes.
- * If decryption fails, return a placeholder.
- */
-function decryptForDisplay(value: string): string {
-  try {
-    return isEncrypted(value) ? decrypt(value) : value
-  } catch {
-    return '[encrypted]'
-  }
-}
-
 // GET /api/admin/settings — Return all settings (values masked)
 export async function GET(req: NextRequest) {
   const auth = verifyAdmin(req.headers.get('authorization'))
@@ -56,7 +44,7 @@ export async function GET(req: NextRequest) {
     let displayValue = ''
     if (s.value) {
       // Decrypt for masking logic
-      const decrypted = decryptForDisplay(s.value)
+      const decrypted = decryptSetting(s.value, '[encrypted]')
 
       if (s.key === 'twitterapi_keys') {
         // Show key count and first 8 chars of each key

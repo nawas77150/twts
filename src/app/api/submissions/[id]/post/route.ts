@@ -147,6 +147,22 @@ export async function POST(
         postMethod: tweetResult.method,
         retriesUsed: tweetResult.retriesUsed,
       })
+    } catch (postError) {
+      // postTweetViaCookie threw — mark as post_failed
+      const errorMsg = postError instanceof Error ? postError.message : String(postError)
+      debug('[post route] Post exception, marking as post_failed:', errorMsg)
+      await db.submission.updateMany({
+        where: { id, status: 'posting' },
+        data: { status: 'post_failed', postError: errorMsg },
+      })
+      try {
+        const settings = await getFilterSettings()
+        await recordPostFailure(settings.rateLimits)
+      } catch { /* best effort */ }
+      return NextResponse.json(
+        { error: `Gagal posting ke X: ${errorMsg}` },
+        { status: 502 }
+      )
     } finally {
       await releasePostingLock(lockValue!)
       lockValue = null // Mark as released so outer catch doesn't double-release

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { encrypt, decrypt, isEncrypted } from '@/lib/encrypt'
+import { encrypt, decryptSetting } from '@/lib/encrypt'
 import { debug } from '@/lib/debug'
 
 // ============================================================
@@ -67,18 +67,26 @@ interface LoginResult {
   error?: string
 }
 
-/**
- * Decrypt a setting value if encrypted, return as-is if plaintext.
- * Handles migration from unencrypted to encrypted values.
- */
-function decryptValue(value: string): string {
-  if (!value) return value
+/** Parse twitterapi_keys JSON into a validated string array. */
+function parseApiKeys(rawJson: string | undefined): string[] {
   try {
-    return isEncrypted(value) ? decrypt(value) : value
-  } catch {
-    // If decryption fails, return as-is (might be plaintext from before encryption)
-    return value
+    const parsed = JSON.parse(rawJson || '[]')
+    if (Array.isArray(parsed)) return parsed.filter((k: unknown) => typeof k === 'string' && k.trim())
+  } catch { /* invalid JSON */ }
+  return []
+}
+
+/** Extract the best error message from a twitterapi.io API response. */
+function extractApiError(data: unknown): string {
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    return (typeof d.message === 'string' ? d.message : null)
+      || (typeof d.msg === 'string' ? d.msg : null)
+      || (typeof d.detail === 'string' ? d.detail : null)
+      || (typeof d.error === 'string' ? d.error : null)
+      || JSON.stringify(data)
   }
+  return String(data)
 }
 
 /**
@@ -101,7 +109,7 @@ async function getApiSettings(): Promise<Record<string, string>> {
   })
   const map: Record<string, string> = {}
   for (const s of settings) {
-    if (s.value) map[s.key] = decryptValue(s.value)
+    if (s.value) map[s.key] = decryptSetting(s.value)
   }
   return map
 }
@@ -214,13 +222,7 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
   }
 
   // Get first API key
-  let apiKeys: string[] = []
-  try {
-    const parsed = JSON.parse(settings.twitterapi_keys || '[]')
-    if (Array.isArray(parsed)) apiKeys = parsed.filter((k: unknown) => typeof k === 'string' && k.trim())
-  } catch {
-    // invalid JSON
-  }
+  const apiKeys = parseApiKeys(settings.twitterapi_keys)
 
   if (apiKeys.length === 0) {
     return {
@@ -267,8 +269,7 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
       }
     }
 
-    // Note: API error response has {error: integer, message: string} — prioritize message over error number
-    const errorMsg = data?.message || data?.msg || data?.detail || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data)
+    const errorMsg = extractApiError(data)
     return {
       success: false,
       error: `user_login_v2 failed: ${errorMsg}`,
@@ -328,13 +329,7 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
   }
 
   // 3. Parse API keys
-  let apiKeys: string[] = []
-  try {
-    const parsed = JSON.parse(settings.twitterapi_keys || '[]')
-    if (Array.isArray(parsed)) apiKeys = parsed.filter((k: unknown) => typeof k === 'string' && k.trim())
-  } catch {
-    // invalid JSON
-  }
+  const apiKeys = parseApiKeys(settings.twitterapi_keys)
 
   if (apiKeys.length === 0) {
     return {
@@ -390,7 +385,7 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
       }
 
       // Error handling
-      const errorMsg = data?.message || data?.msg || data?.detail || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data)
+      const errorMsg = extractApiError(data)
       debug('[cookie-api] create_tweet_v2 failed:', errorMsg)
 
       // login_cookies invalid — don't retry other keys (same cookies)
@@ -472,13 +467,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
   const settings = await getApiSettings()
 
   // Parse API keys
-  let apiKeys: string[] = []
-  try {
-    const parsed = JSON.parse(settings.twitterapi_keys || '[]')
-    if (Array.isArray(parsed)) apiKeys = parsed.filter((k: unknown) => typeof k === 'string' && k.trim())
-  } catch {
-    // invalid JSON
-  }
+  const apiKeys = parseApiKeys(settings.twitterapi_keys)
 
   if (apiKeys.length === 0) {
     return {
@@ -553,8 +542,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
         }
       }
 
-      // Note: API error response has {error: integer, message: string} — prioritize message over error number
-      const errorMsg = data?.message || data?.msg || data?.detail || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data)
+      const errorMsg = extractApiError(data)
       lastApiError = `HTTP ${response.status}: ${errorMsg}`
       debug('[twitterapi] create_tweet_v2 failed:', lastApiError)
 
@@ -605,8 +593,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
           }
 
           // Retry also failed — stop, don't try other keys (same login_cookie issue)
-          // Note: API error response has {error: integer, message: string} — prioritize message over error number
-          const retryError = retryData?.message || retryData?.detail || (typeof retryData?.error === 'string' ? retryData.error : null) || JSON.stringify(retryData)
+          const retryError = extractApiError(retryData)
           return {
             success: false,
             error: `API fallback failed after re-login: ${retryError}`,
@@ -704,13 +691,7 @@ export async function getKeyCredits(apiKey: string): Promise<KeyCredits> {
 export async function getAllKeyCredits(): Promise<KeyCredits[]> {
   const settings = await getApiSettings()
 
-  let keys: string[] = []
-  try {
-    const parsed = JSON.parse(settings.twitterapi_keys || '[]')
-    if (Array.isArray(parsed)) keys = parsed.filter((k: unknown) => typeof k === 'string' && k.trim())
-  } catch {
-    // invalid JSON
-  }
+  const keys = parseApiKeys(settings.twitterapi_keys)
 
   if (keys.length === 0) return []
 
@@ -807,13 +788,8 @@ export async function getApiLoginStatus(): Promise<{
   // Cookie API readiness (Layer 2)
   const hasCookieString = !!settings.x_cookie_string
   const hasProxy = !!settings.twitterapi_proxy
-  let hasApiKeys = false
-  try {
-    const parsed = JSON.parse(settings.twitterapi_keys || '[]')
-    if (Array.isArray(parsed)) hasApiKeys = parsed.length > 0
-  } catch {
-    // invalid JSON
-  }
+  const apiKeys = parseApiKeys(settings.twitterapi_keys)
+  const hasApiKeys = apiKeys.length > 0
   const cookieApiReady = hasCookieString && hasProxy && hasApiKeys
   const cookieApiMissing: string[] = []
   if (!hasCookieString) cookieApiMissing.push('x_cookie_string')

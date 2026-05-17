@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { decrypt, isEncrypted, encrypt } from '@/lib/encrypt'
+import { encrypt, decryptSetting } from '@/lib/encrypt'
 import { verifyAdmin } from '@/lib/admin-auth'
 import {
   DEFAULT_BLOCKED_WORDS,
@@ -21,18 +21,6 @@ const FILTER_SETTING_KEYS = [
   'circuit_breaker_threshold', 'circuit_breaker_cooldown_minutes', 'circuit_breaker_failure_window_minutes',
   'whitelist_usernames', 'blocked_usernames',
 ]
-
-/**
- * Decrypt a value for display/masking purposes.
- */
-function decryptValue(value: string): string {
-  try {
-    return isEncrypted(value) ? decrypt(value) : value
-  } catch (e) {
-    console.error('[filter-settings] Decryption failed:', e)
-    return value
-  }
-}
 
 /**
  * Safely parse an integer from a setting value, returning the fallback
@@ -96,7 +84,7 @@ export async function getFilterSettings(): Promise<{
   const getRaw = (key: string): string | null => {
     const s = settings.find((s) => s.key === key)
     if (!s) return null
-    return decryptValue(s.value)
+    return decryptSetting(s.value)
   }
 
   // Auto-approve: default false
@@ -214,7 +202,7 @@ export async function getFilterSettings(): Promise<{
 export async function getGeminiApiKey(): Promise<string | null> {
   const setting = await db.setting.findUnique({ where: { key: 'gemini_api_key' } })
   if (!setting) return null
-  const decrypted = decryptValue(setting.value)
+  const decrypted = decryptSetting(setting.value)
   return decrypted?.trim() || null
 }
 

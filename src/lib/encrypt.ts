@@ -106,3 +106,17 @@ export function isEncrypted(value: string): boolean {
   if (parts.length !== 3) return false;
   return parts.every((segment) => segment.length > 0 && BASE64_REGEX.test(segment));
 }
+
+/**
+ * Decrypt a setting value if encrypted, return as-is if plaintext.
+ * Handles migration from unencrypted to encrypted values.
+ * On decryption failure, returns the fallback (defaults to raw value).
+ */
+export function decryptSetting(value: string, fallback?: string): string {
+  if (!value) return fallback ?? value
+  try {
+    return isEncrypted(value) ? decrypt(value) : value
+  } catch {
+    return fallback ?? value
+  }
+}
