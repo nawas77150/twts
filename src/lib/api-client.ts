@@ -71,7 +71,7 @@ class ApiClient {
 
   // --- Submissions ---
 
-  async submitMessage(data: SubmitMessageRequest): Promise<Submission & { autoPosted?: boolean; queued?: boolean; postFailed?: boolean; postCapped?: boolean; filtered?: boolean; message?: string; error?: string }> {
+  async submitMessage(data: SubmitMessageRequest): Promise<Submission & { autoPosted?: boolean; queued?: boolean; postFailed?: boolean; postCapped?: boolean; censored?: boolean; censoredReason?: 'ai' | 'filter' | 'both'; message?: string; error?: string }> {
     return this.request('/api/submissions', {
       method: 'POST',
       body: JSON.stringify(data),
