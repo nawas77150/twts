@@ -218,7 +218,7 @@ export function GeminiCard({
               <p className="text-[10px] font-medium text-[#536471]">How it works:</p>
               <ul className="text-[10px] text-[#71767B] space-y-0.5 list-disc list-inside">
                 <li>Runs <strong>after</strong> rule-based filter passes (saves API calls)</li>
-                <li>If Gemini is down or errors → submission goes to pending (admin reviews)</li>
+                <li>If Gemini is down or errors → AI check is skipped (submission proceeds without AI verification)</li>
                 <li>Only blocks genuinely harmful content (hate speech, threats, doxxing)</li>
                 <li>Does NOT block typical alter content (venting, profanity, drama)</li>
               </ul>

@@ -69,7 +69,7 @@ export async function PATCH(
       )
     }
 
-    if (submission.status !== 'pending' && submission.status !== 'post_failed') {
+    if (submission.status !== 'pending' && submission.status !== 'post_failed' && submission.status !== 'censored') {
       return NextResponse.json(
         { error: `Status tidak valid: ${submission.status}` },
         { status: 400 }
@@ -90,7 +90,7 @@ export async function PATCH(
 
       // Mark as "posting" before calling X API — prevents double-post race condition
       const marked = await db.submission.updateMany({
-        where: { id, status: { in: ['pending', 'post_failed'] } },
+        where: { id, status: { in: ['pending', 'post_failed', 'censored'] } },
         data: { status: 'posting' },
       })
       if (marked.count === 0) {
@@ -222,7 +222,7 @@ export async function PATCH(
     // Reject — conditional update prevents overwriting if status changed
     // between our fetch and this write (e.g. another admin approved it).
     const rejectResult = await db.submission.updateMany({
-      where: { id, status: { in: ['pending', 'post_failed'] } },
+      where: { id, status: { in: ['pending', 'post_failed', 'censored'] } },
       data: { status: 'rejected' },
     })
     if (rejectResult.count === 0) {

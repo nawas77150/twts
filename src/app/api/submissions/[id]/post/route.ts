@@ -58,8 +58,8 @@ export async function POST(
       return NextResponse.json({ error: 'Submission sudah ditolak' }, { status: 400 })
     }
 
-    // Only pending and post_failed statuses can be retried
-    if (submission.status !== 'pending' && submission.status !== 'post_failed') {
+    // Only pending, censored, and post_failed statuses can be retried
+    if (submission.status !== 'pending' && submission.status !== 'post_failed' && submission.status !== 'censored') {
       return NextResponse.json({ error: `Status tidak valid untuk retry: ${submission.status}` }, { status: 400 })
     }
 
@@ -75,7 +75,7 @@ export async function POST(
 
     // Mark as "posting" before calling X API — prevents double-post race condition
     const marked = await db.submission.updateMany({
-      where: { id, status: { in: ['pending', 'post_failed'] } },
+      where: { id, status: { in: ['pending', 'post_failed', 'censored'] } },
       data: { status: 'posting' },
     })
     if (marked.count === 0) {

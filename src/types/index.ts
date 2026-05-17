@@ -4,7 +4,7 @@
 
 // --- Status ---
 
-export type SubmissionStatus = 'pending' | 'posting' | 'post_failed' | 'rejected' | 'posted'
+export type SubmissionStatus = 'pending' | 'censored' | 'posting' | 'post_failed' | 'rejected' | 'posted'
 
 export type PostMethod = 'direct' | 'api' | 'auto'
 
@@ -115,6 +115,7 @@ export interface FilterSettings {
 
 export interface Stats {
   pending: number
+  censored: number
   posting: number
   postFailed: number
   rejected: number
@@ -151,6 +152,7 @@ export interface SubmitterWithStats {
   totalSubmissions: number
   posted: number
   pending: number
+  censored: number
   rejected: number
   postFailed: number
 }
@@ -269,10 +271,11 @@ export { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
 
 export const STATUS_CONFIG = {
   pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  posting: { label: 'Sedang Posting', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  post_failed: { label: 'Gagal Posting', color: 'bg-red-100 text-red-800 border-red-300' },
+  censored: { label: 'Disensor', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+  posting: { label: 'Posting', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+  post_failed: { label: 'Gagal', color: 'bg-red-100 text-red-800 border-red-300' },
   rejected: { label: 'Ditolak', color: 'bg-gray-100 text-gray-600 border-gray-300' },
-  posted: { label: 'Diposting', color: 'bg-[#F7F9F9] text-[#3D4145] border-[#EFF3F4]' },
+  posted: { label: 'Diposting', color: 'bg-green-100 text-green-800 border-green-300' },
 } as const
 
 // --- Filter Reason Label Helper ---
@@ -296,6 +299,7 @@ export function getFilterReasonLabel(reason: string): string {
     return `NSFW: "${masked}"`
   }
 
+  if (reason === 'ai:skipped_error') return 'AI: Skipped (error)'
   if (reason.startsWith('ai:')) return `AI: ${reason.replace('ai:', '')}`
 
   // Jualan

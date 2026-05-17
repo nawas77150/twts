@@ -42,8 +42,13 @@ export default function HomePage() {
         toast({ title: 'Gagal auto-post', description: data.error || 'Gagal auto-post. Pesanmu masuk antrean untuk review admin.' })
       } else if (data.queued) {
         toast({ title: 'Masuk antrean', description: data.error || 'Pesanmu sudah masuk antrean dan akan diposting oleh admin setelahnya.' })
-      } else if (data.filtered) {
-        toast({ title: 'Menunggu review', description: 'Pesanmu sedang menunggu review admin.' })
+      } else if (data.censored) {
+        const censoredMessages: Record<string, string> = {
+          ai: 'Pesanmu ditandai mengandung kata yang dilarang oleh AI.',
+          filter: 'Pesanmu ditandai mengandung kata yang dilarang oleh pengaturan filter.',
+          both: 'Pesanmu ditandai mengandung kata yang dilarang oleh pengaturan filter & AI.',
+        }
+        toast({ title: 'Disensor', description: censoredMessages[data.censoredReason] || censoredMessages.filter })
       } else {
         toast({ title: 'Berhasil dikirim!', description: 'Pesanmu sedang menunggu moderasi admin.' })
       }

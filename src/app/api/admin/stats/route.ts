@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     pending: counts['pending'] || 0,
+    censored: counts['censored'] || 0,
     posting: counts['posting'] || 0,
     postFailed: counts['post_failed'] || 0,
     rejected: counts['rejected'] || 0,

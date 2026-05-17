@@ -78,6 +78,7 @@ export function useStats({ adminToken, lightweight }: UseStatsParams, callbacks?
         // Build a partial Stats object so existing consumers still work
         setStats((prev) => ({
           pending: prev?.pending ?? 0,
+          censored: prev?.censored ?? 0,
           posting: prev?.posting ?? 0,
           postFailed: prev?.postFailed ?? 0,
           rejected: prev?.rejected ?? 0,

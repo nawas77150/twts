@@ -123,7 +123,7 @@ export function SubmissionCard({
 
             {/* Action buttons */}
             <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
-              {sub.status === 'pending' && (
+              {(sub.status === 'pending' || sub.status === 'censored') && (
                 <>
                   <Button
                     size="sm"

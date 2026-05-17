@@ -25,7 +25,7 @@ export function SubmissionFilters({
   isLoading,
   stats,
 }: SubmissionFiltersProps) {
-  const filterOptions = ['all', 'pending', 'post_failed', 'rejected', 'posted'] as const
+  const filterOptions = ['all', 'pending', 'censored', 'post_failed', 'rejected', 'posted'] as const
 
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">

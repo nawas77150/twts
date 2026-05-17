@@ -13,6 +13,14 @@ import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Determine censored reason from filter reasons
+function getCensoredReason(reasons: string[]): 'ai' | 'filter' | 'both' {
+  const hasAi = reasons.some(r => r.startsWith('ai:'))
+  const hasFilter = reasons.some(r => !r.startsWith('ai:'))
+  if (hasAi && hasFilter) return 'both'
+  return hasAi ? 'ai' : 'filter'
+}
+
 // Log a rate limit hit (fire-and-forget, never blocks the response)
 function logLimitHit(username: string, limitType: string) {
   db.limitHit.create({ data: { username, limitType } }).catch(() => {
@@ -300,6 +308,7 @@ export async function POST(req: NextRequest) {
     // --- Step 2: Gemini AI filter (optional, only if rule-based passed) ---
     let geminiChecked = false
     let geminiPassed = true
+    let geminiError = false // Track if Gemini errored (for informational filterReasons)
 
     if (filterResult.passed && filterSettings.geminiEnabled && filterSettings.geminiApiKeySet) {
       try {
@@ -310,13 +319,15 @@ export async function POST(req: NextRequest) {
           geminiChecked = geminiResult.checked
 
           if (!geminiResult.passed) {
-            // Gemini flagged the submission (or error/timeout — sends to pending)
-            geminiPassed = false
-            const geminiReason = geminiResult.reason || 'Flagged by AI'
-            allFilterReasons.push(`ai:${geminiReason}`)
             if (geminiResult.error) {
-              debug('[submit] Gemini error (sending to pending):', geminiResult.error)
+              // Gemini error/timeout — skip it, don't block the submission
+              debug('[submit] Gemini error (skipping):', geminiResult.error)
+              geminiError = true
             } else {
+              // Gemini genuinely flagged the submission
+              geminiPassed = false
+              const geminiReason = geminiResult.reason || 'Flagged by AI'
+              allFilterReasons.push(`ai:${geminiReason}`)
               debug('[submit] Gemini flagged submission:', geminiReason)
             }
           } else {
@@ -324,17 +335,26 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        // Gemini threw an exception — send to pending for manual review
-        geminiPassed = false
-        allFilterReasons.push('ai:gemini_error')
-        debug('[submit] Gemini exception (sending to pending):', err)
+        // Gemini threw an exception — skip it, don't block the submission
+        debug('[submit] Gemini exception (skipping):', err)
+        geminiError = true
       }
     }
 
     // Determine if submission passes all filters
     const passedAllFilters = filterResult.passed && geminiPassed
 
-    // --- AUTO-APPROVE OFF: All submissions go to pending (original behavior) ---
+    // Determine submission status based on filter results
+    // censored = has actual censor reasons (not just informational ai:skipped_error)
+    const hasCensorReasons = allFilterReasons.length > 0
+    const submissionStatus: 'pending' | 'censored' = hasCensorReasons ? 'censored' : 'pending'
+
+    // Build filterReasons JSON — include ai:skipped_error if Gemini errored
+    const allFilterReasonsWithInfo = [...allFilterReasons]
+    if (geminiError) allFilterReasonsWithInfo.push('ai:skipped_error')
+    const filterReasonsJson = allFilterReasonsWithInfo.length > 0 ? JSON.stringify(allFilterReasonsWithInfo) : null
+
+    // --- AUTO-APPROVE OFF: Submissions go to pending or censored ---
     if (!filterSettings.autoApprove) {
       const submission = await db.submission.create({
         data: {
@@ -342,14 +362,23 @@ export async function POST(req: NextRequest) {
           normalizedMessage: normalizeText(trimmedMessage),
           category: sanitizedCategory,
           submitterId: submitter.id,
-          filterReasons: allFilterReasons.length > 0 ? JSON.stringify(allFilterReasons) : null,
+          status: submissionStatus,
+          filterReasons: filterReasonsJson,
         },
       })
+
+      if (hasCensorReasons) {
+        return NextResponse.json({
+          submission,
+          censored: true,
+          censoredReason: getCensoredReason(allFilterReasons),
+        }, { status: 201 })
+      }
 
       return NextResponse.json({ submission }, { status: 201 })
     }
 
-    // --- AUTO-APPROVE ON + FILTER FAILED: Goes to pending with reasons ---
+    // --- AUTO-APPROVE ON + FILTER FAILED: Goes to censored with reasons ---
     if (!passedAllFilters) {
       debug('[submit] Filter blocked submission:', allFilterReasons)
       const submission = await db.submission.create({
@@ -358,13 +387,15 @@ export async function POST(req: NextRequest) {
           normalizedMessage: normalizeText(trimmedMessage),
           category: sanitizedCategory,
           submitterId: submitter.id,
-          filterReasons: allFilterReasons.length > 0 ? JSON.stringify(allFilterReasons) : null,
+          status: 'censored',
+          filterReasons: filterReasonsJson,
         },
       })
 
       return NextResponse.json({
         submission,
-        filtered: true,
+        censored: true,
+        censoredReason: getCensoredReason(allFilterReasons),
         filterReasons: allFilterReasons,
       }, { status: 201 })
     }
@@ -478,13 +509,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Create as pending first, then attempt to post
+    const autoPostFilterReasons = geminiError ? JSON.stringify(['ai:skipped_error']) : null
     const submission = await db.submission.create({
       data: {
         message: trimmedMessage,
         normalizedMessage: normalizeText(trimmedMessage),
         category: sanitizedCategory,
         submitterId: submitter.id,
-        filterReasons: null,
+        filterReasons: autoPostFilterReasons,
       },
     })
 

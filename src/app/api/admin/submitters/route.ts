@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
       totalSubmissions: s._count.submissions,
       posted: counts['posted'] || 0,
       pending: counts['pending'] || 0,
+      censored: counts['censored'] || 0,
       posting: counts['posting'] || 0,
       rejected: counts['rejected'] || 0,
       postFailed: counts['post_failed'] || 0,
