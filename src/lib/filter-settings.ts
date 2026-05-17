@@ -212,6 +212,5 @@ export async function getGeminiApiKey(): Promise<string | null> {
 export async function getGeminiModel(): Promise<string> {
   const setting = await db.setting.findUnique({ where: { key: 'gemini_model' } })
   if (!setting) return DEFAULT_GEMINI_MODEL
-  const decrypted = decryptSetting(setting.value)
-  return decrypted?.trim() || DEFAULT_GEMINI_MODEL
+  return setting.value.trim() || DEFAULT_GEMINI_MODEL
 }
