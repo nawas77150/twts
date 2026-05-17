@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   let migrated = 0
   for (const s of submitters) {
-    const updates = {}
+    const updates: Record<string, string> = {}
     if (s.oauth2AccessToken && !isEncrypted(s.oauth2AccessToken)) {
       updates.oauth2AccessToken = encrypt(s.oauth2AccessToken)
     }
