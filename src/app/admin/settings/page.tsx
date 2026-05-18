@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { usePostingSettings } from '@/hooks/use-posting-settings'
 import { useFilterSettings } from '@/hooks/use-filter-settings'
 import { useCircuitBreaker } from '@/hooks/use-circuit-breaker'
-import { useStats } from '@/hooks/use-stats'
+import { useStatsSummary } from '@/hooks/use-stats'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
 import { ApiFallbackCard } from '@/components/settings/api-fallback-card'
@@ -29,7 +29,7 @@ export default function AdminSettingsPage() {
   const posting = usePostingSettings({ adminToken })
   const filterSettings = useFilterSettings({ adminToken })
   const circuitBreaker = useCircuitBreaker({ adminToken })
-  const stats = useStats({ adminToken, lightweight: true })
+  const stats = useStatsSummary({ adminToken })
 
   // Track whether initial settings load has happened
   // to prevent overwriting local state (toggles, text inputs) on every render
