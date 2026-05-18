@@ -67,6 +67,10 @@ interface LoginResult {
   error?: string
 }
 
+// --- Cookie API Error Classification ---
+
+type ApiErrorClass = 'login_cookies_invalid' | 'retryable' | 'terminal'
+
 /** Parse twitterapi_keys JSON into a validated string array. */
 function parseApiKeys(rawJson: string | undefined): string[] {
   try {
@@ -294,52 +298,12 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
 export async function postViaCookieApi(text: string): Promise<FallbackResult> {
   const settings = await getApiSettings()
 
-  // 1. Validate required cookies before converting (specific error messages)
-  // Uses inline .test() checks instead of importing parseXCookies to avoid
-  // circular dependency (twitter-post-cookie.ts imports from this file).
-  const cookieStr = settings.x_cookie_string || ''
-  const missingCookies: string[] = []
-  if (!/auth_token=([^;]+)/.test(cookieStr)) missingCookies.push('auth_token')
-  if (!/ct0=([^;]+)/.test(cookieStr)) missingCookies.push('ct0')
-  if (!/twid=([^;]+)/.test(cookieStr)) missingCookies.push('twid')
-  if (missingCookies.length > 0) {
-    return {
-      success: false,
-      error: `Cookie API: Missing ${missingCookies.join(', ')}. Paste full cookie string from browser in X Settings.`,
-      method: 'fallback_cookie',
-    }
-  }
-  const loginCookies = cookieStringToLoginCookies(cookieStr)
-  if (!loginCookies) {
-    return {
-      success: false,
-      error: 'Cookie API: No browser cookies configured. Paste cookies in X Settings.',
-      method: 'fallback_cookie',
-    }
-  }
+  // Validate prerequisites
+  const prereqs = validateCookieApiPrereqs(settings)
+  if (!('loginCookies' in prereqs)) return prereqs
+  const { loginCookies, proxy, apiKeys } = prereqs
 
-  // 2. Proxy is required for create_tweet_v2
-  const proxy = settings.twitterapi_proxy
-  if (!proxy) {
-    return {
-      success: false,
-      error: 'Cookie API: Proxy is required. Configure in API Settings.',
-      method: 'fallback_cookie',
-    }
-  }
-
-  // 3. Parse API keys
-  const apiKeys = parseApiKeys(settings.twitterapi_keys)
-
-  if (apiKeys.length === 0) {
-    return {
-      success: false,
-      error: 'Cookie API: No API keys configured. Add keys in Admin → API Settings.',
-      method: 'fallback_cookie',
-    }
-  }
-
-  // 4. Round-robin through API keys
+  // Round-robin through API keys
   const startIndex = await getRotationIndex()
 
   for (let i = 0; i < apiKeys.length; i++) {
@@ -388,14 +352,9 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
       const errorMsg = extractApiError(data)
       debug('[cookie-api] create_tweet_v2 failed:', errorMsg)
 
-      // login_cookies invalid — don't retry other keys (same cookies)
-      // This signals the caller to try Layer 3 if available
-      if (
-        errorMsg.includes('login_cookies is not valid') ||
-        errorMsg.includes('login_cookies is required') ||
-        errorMsg.includes('login_cookie is not valid') ||
-        errorMsg.includes('login_cookie is required')
-      ) {
+      const errorClass = classifyApiError(errorMsg, response.status)
+
+      if (errorClass === 'login_cookies_invalid') {
         return {
           success: false,
           error: `Cookie API: login_cookies rejected — ${errorMsg}`,
@@ -403,26 +362,11 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
         }
       }
 
-      // Invalid API key — try next key
-      if (
-        response.status === 401 ||
-        errorMsg.includes('API key is invalid') ||
-        errorMsg.includes('Unauthorized')
-      ) {
+      if (errorClass === 'retryable') {
         continue
       }
 
-      // Rate limit or credit exhaustion — try next key
-      if (
-        response.status === 429 ||
-        errorMsg.includes('rate limit') ||
-        errorMsg.includes('credits') ||
-        errorMsg.includes('quota')
-      ) {
-        continue
-      }
-
-      // Other errors — don't retry (proxy issue, etc.)
+      // terminal — don't retry
       return {
         success: false,
         error: `Cookie API: ${errorMsg}`,
@@ -449,6 +393,193 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
 export async function isV2LoginEnabled(): Promise<boolean> {
   const settings = await getApiSettings()
   return settings.v2_login_enabled === 'true'
+}
+
+interface CookieApiPrereqs {
+  loginCookies: string
+  proxy: string
+  apiKeys: string[]
+}
+
+/**
+ * Validate all prerequisites for Cookie API posting.
+ * Returns the validated prereqs on success, or a FallbackResult error on failure.
+ */
+function validateCookieApiPrereqs(settings: Record<string, string>): CookieApiPrereqs | FallbackResult {
+  // 1. Validate required cookies before converting (specific error messages)
+  const cookieStr = settings.x_cookie_string || ''
+  const missingCookies: string[] = []
+  if (!/auth_token=([^;]+)/.test(cookieStr)) missingCookies.push('auth_token')
+  if (!/ct0=([^;]+)/.test(cookieStr)) missingCookies.push('ct0')
+  if (!/twid=([^;]+)/.test(cookieStr)) missingCookies.push('twid')
+  if (missingCookies.length > 0) {
+    return {
+      success: false,
+      error: `Cookie API: Missing ${missingCookies.join(', ')}. Paste full cookie string from browser in X Settings.`,
+      method: 'fallback_cookie',
+    }
+  }
+  const loginCookies = cookieStringToLoginCookies(cookieStr)
+  if (!loginCookies) {
+    return {
+      success: false,
+      error: 'Cookie API: No browser cookies configured. Paste cookies in X Settings.',
+      method: 'fallback_cookie',
+    }
+  }
+
+  // 2. Proxy is required for create_tweet_v2
+  const proxy = settings.twitterapi_proxy
+  if (!proxy) {
+    return {
+      success: false,
+      error: 'Cookie API: Proxy is required. Configure in API Settings.',
+      method: 'fallback_cookie',
+    }
+  }
+
+  // 3. Parse API keys
+  const apiKeys = parseApiKeys(settings.twitterapi_keys)
+  if (apiKeys.length === 0) {
+    return {
+      success: false,
+      error: 'Cookie API: No API keys configured. Add keys in Admin → API Settings.',
+      method: 'fallback_cookie',
+    }
+  }
+
+  return { loginCookies, proxy, apiKeys }
+}
+
+/**
+ * Classify a Cookie API error into one of 3 classes:
+ * - 'login_cookies_invalid': Cookie/session issue — don't retry other keys (same cookies)
+ * - 'retryable': Invalid key, rate limit, credits — try next key
+ * - 'terminal': All other errors — don't retry
+ */
+function classifyApiError(errorMsg: string, httpStatus: number): ApiErrorClass {
+  // login_cookies invalid — don't retry other keys (same cookies)
+  if (
+    errorMsg.includes('login_cookies is not valid') ||
+    errorMsg.includes('login_cookies is required') ||
+    errorMsg.includes('login_cookie is not valid') ||
+    errorMsg.includes('login_cookie is required')
+  ) {
+    return 'login_cookies_invalid'
+  }
+
+  // Invalid API key — try next key
+  if (
+    httpStatus === 401 ||
+    errorMsg.includes('API key is invalid') ||
+    errorMsg.includes('Unauthorized')
+  ) {
+    return 'retryable'
+  }
+
+  // Rate limit or credit exhaustion — try next key
+  if (
+    httpStatus === 429 ||
+    errorMsg.includes('rate limit') ||
+    errorMsg.includes('credits') ||
+    errorMsg.includes('quota')
+  ) {
+    return 'retryable'
+  }
+
+  // Other errors — don't retry (proxy issue, etc.)
+  return 'terminal'
+}
+
+// --- V2 Login API Helpers ---
+
+/**
+ * Get or generate a login_cookie for V2 API posting.
+ * Returns the login_cookie string on success, or a FallbackResult error on failure.
+ */
+async function ensureLoginCookie(settings: Record<string, string>): Promise<string | FallbackResult> {
+  const loginCookie = settings.twitterapi_login_cookie || null
+
+  if (loginCookie) return loginCookie
+
+  const loginResult = await loginViaTwitterApi()
+  if (!loginResult.success) {
+    return {
+      success: false,
+      error: `No cached login_cookie and auto-login failed: ${loginResult.error}`,
+      method: 'fallback_login',
+    }
+  }
+  return loginResult.loginCookie!
+}
+
+/**
+ * Handle login_cookies error by re-logging in and retrying with the same API key.
+ * Always returns — never continues the key-rotation loop.
+ *
+ * All 5 exit paths from the original inline block are preserved:
+ * 1. Re-login success + retry success → return success with rotation
+ * 2. Re-login success + retry failure → return "failed after re-login"
+ * 3. Re-login failure → return "re-login failed"
+ */
+async function retryWithNewLogin(opts: {
+  text: string
+  apiKey: string
+  proxy: string | null
+  keyIndex: number
+  apiKeysLength: number
+}): Promise<FallbackResult> {
+  const { text, apiKey, proxy, keyIndex, apiKeysLength } = opts
+
+  // Re-login once to get a fresh login_cookie
+  const loginResult = await loginViaTwitterApi()
+  if (!loginResult.success) {
+    return {
+      success: false,
+      error: `API fallback: login_cookie expired and re-login failed: ${loginResult.error}`,
+      method: 'fallback_login',
+    }
+  }
+
+  const newCookie = loginResult.loginCookie!
+  // Retry with new login_cookie using same API key
+  const retryBody: Record<string, string> = {
+    login_cookies: newCookie,
+    tweet_text: text,
+  }
+  if (proxy) retryBody.proxy = proxy
+
+  const retryResponse = await fetch(`${TWITTERAPI_BASE}/twitter/create_tweet_v2`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(retryBody),
+  })
+
+  const retryData = await retryResponse.json()
+  debug('[twitterapi] create_tweet_v2 retry response:', JSON.stringify(retryData))
+
+  const retryTweetId = retryData?.data?.tweet_id || retryData?.data?.id || retryData?.tweet_id || retryData?.id || null
+
+  if (retryResponse.ok && retryTweetId) {
+    await setRotationIndex((keyIndex + 1) % apiKeysLength)
+    return {
+      success: true,
+      tweetId: String(retryTweetId),
+      method: 'fallback_login',
+      apiKeyUsed: apiKey.slice(0, 8) + '...',
+    }
+  }
+
+  // Retry also failed — stop, don't try other keys (same login_cookie issue)
+  const retryError = extractApiError(retryData)
+  return {
+    success: false,
+    error: `API fallback failed after re-login: ${retryError}`,
+    method: 'fallback_login',
+  }
 }
 
 /**
@@ -478,19 +609,9 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
   }
 
   // Get or generate login_cookie
-  let loginCookie = settings.twitterapi_login_cookie || null
-
-  if (!loginCookie) {
-    const loginResult = await loginViaTwitterApi()
-    if (!loginResult.success) {
-      return {
-        success: false,
-        error: `No cached login_cookie and auto-login failed: ${loginResult.error}`,
-        method: 'fallback_login',
-      }
-    }
-    loginCookie = loginResult.loginCookie!
-  }
+  const loginCookieResult = await ensureLoginCookie(settings)
+  if (typeof loginCookieResult !== 'string') return loginCookieResult
+  const loginCookie = loginCookieResult
 
   const proxy = settings.twitterapi_proxy || null
 
@@ -546,71 +667,18 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
       lastApiError = `HTTP ${response.status}: ${errorMsg}`
       debug('[twitterapi] create_tweet_v2 failed:', lastApiError)
 
-      // login_cookies expired/invalid → auto re-login and retry ONCE
-      // Only match specific login_cookie errors — broad matches like
-      // includes('cookie') or includes('session') cause false positives
-      // (e.g. "Too many requests in this session") that waste 500 credits
-      // on unnecessary re-logins and skip trying other API keys.
+      // login_cookies expired/invalid → re-login and retry ONCE (always returns, never continues)
+      // Only match specific login_cookie errors — broad matches cause false positives
       if (
         errorMsg.includes('login_cookies is not valid') ||
         errorMsg.includes('login_cookies is required') ||
         errorMsg.includes('login_cookie is not valid') ||
         errorMsg.includes('login_cookie is required')
       ) {
-        // Only re-login once to avoid infinite loops
-        const loginResult = await loginViaTwitterApi()
-        if (loginResult.success) {
-          loginCookie = loginResult.loginCookie!
-          // Retry with new login_cookie using same API key
-          const retryBody: Record<string, string> = {
-            login_cookies: loginCookie,
-            tweet_text: text,
-          }
-          if (proxy) retryBody.proxy = proxy
-
-          const retryResponse = await fetch(`${TWITTERAPI_BASE}/twitter/create_tweet_v2`, {
-            method: 'POST',
-            headers: {
-              'x-api-key': apiKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(retryBody),
-          })
-
-          const retryData = await retryResponse.json()
-          debug('[twitterapi] create_tweet_v2 retry response:', JSON.stringify(retryData))
-
-          const retryTweetId = retryData?.data?.tweet_id || retryData?.data?.id || retryData?.tweet_id || retryData?.id || null
-
-          if (retryResponse.ok && retryTweetId) {
-            await setRotationIndex((keyIndex + 1) % apiKeys.length)
-            return {
-              success: true,
-              tweetId: String(retryTweetId),
-              method: 'fallback_login',
-              apiKeyUsed: apiKey.slice(0, 8) + '...',
-            }
-          }
-
-          // Retry also failed — stop, don't try other keys (same login_cookie issue)
-          const retryError = extractApiError(retryData)
-          return {
-            success: false,
-            error: `API fallback failed after re-login: ${retryError}`,
-            method: 'fallback_login',
-          }
-        }
-
-        // Re-login failed
-        return {
-          success: false,
-          error: `API fallback: login_cookie expired and re-login failed: ${loginResult.error}`,
-          method: 'fallback_login',
-        }
+        return retryWithNewLogin({ text, apiKey, proxy, keyIndex, apiKeysLength: apiKeys.length })
       }
-      // All errors (invalid key, rate limit, other) — try next key.
-      // login_cookies errors are handled above (return, not continue).
-      // lastApiError is already set for diagnostics.
+
+      // All other errors (invalid key, rate limit, etc.) — try next key
       continue
     } catch (error) {
       lastApiError = `Network error: ${error instanceof Error ? error.message : String(error)}`

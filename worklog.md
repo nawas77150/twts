@@ -279,3 +279,163 @@ Stage Summary:
 - All changes verified clean against plan
 - File 2 exception path 502→200 is an intentional consistency improvement (not a regression)
 - Code is ready for deployment
+
+---
+Task ID: CC-7-10-plan
+Agent: main
+Task: CC Reduction Steps 7–10 — Detailed implementation plan with full verification
+
+Work Log:
+- Read all 3 target files: content-filter.ts (527 lines), twitter-api-fallback.ts (796 lines), submissions/route.ts (608 lines)
+- Read consumer files: types/index.ts (getFilterReasonLabel, getFilterReasonColor)
+- Identified 5 bugs in original plan through 3 rounds of peer review
+- Fixed all bugs and produced final implementation-ready plan
+- Wrote complete plan to CC-REDUCTION-PLAN.md
+
+Bugs found and fixed:
+1. BUG 1 (refactoring risk): Table-driven approach would lose matchedWords data → fixed with RuleCheckResult = { reasons, matched? }
+2. BUG 2 (severity): phoneNumbers must NOT get alwaysOverrideSeverity → only blockedWords qualifies (L424 unconditional vs L470 guarded)
+3. BUG 3 (scope): isWhitelisted/effectivePostCap lost in checkSubmissionRateLimits → RateLimitContext return type
+4. BUG 4 (pre-lock #4): createQueuedSubmission can't handle postCapped/logLimitHit/dynamic error → keep #4 inline
+5. ISSUE 5 (geminiError): Helper must hardcode filterReasons: null → geminiError only affects final create
+6. Step 8: classifyApiError needs 3 classes (login_cookies_invalid/retryable/terminal) to preserve error prefix
+7. Step 9: retryWithNewLogin must include keyIndex + apiKeysLength for setRotationIndex (L586)
+8. Pre-existing bug: nsfw_word: prefix never produced → checkBlockedWords gets reasonPrefix param
+
+Stage Summary:
+- Complete plan at CC-REDUCTION-PLAN.md with:
+  - Exact line numbers for every change
+  - Full behavioral equivalence matrix (9 rules × severity interactions)
+  - Error branch preservation tables (5 branches Cookie API, 4 branches V2 API)
+  - Scope correctness tables for all extracted variables
+  - Pre-lock create correctness matrix (4 creates)
+  - 3 pre-existing bugs identified and fixed
+  - Per-step verification checklists (tsc, lint, behavioral tests)
+- Target: ~132 CC → ~46 CC (net -86 CC across 4 steps)
+
+---
+Task ID: CC-7
+Agent: full-stack-developer
+Task: Step 7 — Table-driven runContentFilter refactor + nsfw_word: prefix fix
+
+Work Log:
+- Added `reasonPrefix = 'blocked_word'` parameter to `checkBlockedWords()` signature (line 221)
+- Replaced all 3 occurrences of `reasons.push(\`blocked_word:${blocked}\`)` with `reasons.push(\`${reasonPrefix}:${blocked}\`)` at lines 236, 246, 252
+- Added `RuleCheckResult` interface with `reasons: string[]` and optional `matched?: string[]`
+- Added `RuleChecker` interface with `ruleKey`, `severity`, `alwaysOverrideSeverity?`, and `check` function
+- Defined `RULE_CHECKERS` array with 9 entries: blockedWords (alwaysOverrideSeverity=true), nsfw (nsfw_word prefix), jualan, urls, mentions, phoneNumbers (high, no override), capsSpam, repeatedChars, tooShort
+- Replaced 9 identical if/rule blocks in `runContentFilter` with a single `for (const checker of RULE_CHECKERS)` loop
+- NSFW checker passes `'nsfw_word'` as reasonPrefix to checkBlockedWords, fixing the dead `nsfw_word:` branches in `getFilterReasonColor` and `getFilterReasonLabel`
+- `duplicate24h` remains outside RULE_CHECKERS (handled at API level with DB)
+- `ALWAYS_ON_RULES` array unchanged (sets `effectiveRules.duplicate24h = true` harmlessly)
+- Verification: `npx tsc --noEmit` clean, `bun run lint` clean
+
+Stage Summary:
+- 9 if/rule blocks → 1 table-driven loop (~18 CC reduced)
+- Pre-existing bug fixed: nsfw_word: prefix now correctly produced (was blocked_word: for NSFW hits)
+- `getFilterReasonColor` nsfw_word: branch and `getFilterReasonLabel` nsfw_word: branch now activated
+- Function signature of `runContentFilter` unchanged
+- `FilterResult` type unchanged
+- All individual check functions unchanged
+- Only `src/lib/content-filter.ts` modified
+
+---
+Task ID: CC-8
+Agent: full-stack-developer
+Task: Step 8 — Extract validateCookieApiPrereqs + 3-class classifyApiError
+
+Work Log:
+- Added `ApiErrorClass` type (`'login_cookies_invalid' | 'retryable' | 'terminal'`) after existing interfaces at L70
+- Added `CookieApiPrereqs` interface with `loginCookies`, `proxy`, `apiKeys` fields
+- Extracted `validateCookieApiPrereqs()` function from `postViaCookieApi` L297-340 prerequisite checks
+  - Validates cookie string (auth_token, ct0, twid) with specific error messages preserved verbatim
+  - Converts cookies via `cookieStringToLoginCookies()`
+  - Validates proxy and API keys presence
+  - Returns `CookieApiPrereqs` on success or `FallbackResult` error on failure
+- Extracted `classifyApiError()` function from `postViaCookieApi` L391-430 error classification
+  - 3-class mapping: `login_cookies_invalid` → return, `retryable` → continue, `terminal` → return
+  - All error string checks and HTTP status codes preserved exactly
+- Refactored `postViaCookieApi` to use both helpers
+  - Prerequisite validation: `const prereqs = validateCookieApiPrereqs(settings)` + `if (!('loginCookies' in prereqs)) return prereqs`
+  - Used `!('loginCookies' in prereqs)` instead of spec's `'success' in prereqs && !prereqs.success` for TypeScript type narrowing (FallbackResult doesn't have `loginCookies` property, so the `in` check properly narrows the union)
+  - Error classification: `const errorClass = classifyApiError(errorMsg, response.status)` + switch on 3 classes
+  - All error messages, branch behaviors (return vs continue), and debug logs preserved verbatim
+- TypeScript fix: `'success' in prereqs && !prereqs.success` doesn't narrow `FallbackResult | CookieApiPrereqs` union in TypeScript; changed to `!('loginCookies' in prereqs)` which is equivalent (CookieApiPrereqs always has `loginCookies`, FallbackResult never does)
+- Verification: `npx tsc --noEmit` clean, `bun run lint` clean
+
+Stage Summary:
+- `postViaCookieApi` CC reduced from ~15 to ~8 (extracted 2 helpers with ~7 CC total)
+- All 4 prerequisite error messages preserved exactly
+- 3-class error classification preserves all branch behaviors: `login_cookies_invalid` → return, `retryable` → continue, `terminal` → return
+- Only `src/lib/twitter-api-fallback.ts` modified
+- `FallbackResult` interface unchanged, `postViaTwitterApi` unchanged
+
+---
+Task ID: CC-9
+Agent: main
+Task: Step 9 — Extract ensureLoginCookie + retryWithNewLogin from postViaTwitterApi
+
+Work Log:
+- Extracted `ensureLoginCookie(settings)` from L520-533 of `postViaTwitterApi`
+  - Returns `string` (login_cookie) on success, or `FallbackResult` error on failure
+  - Discriminator: `typeof loginCookieResult !== 'string'` — safe since FallbackResult is always an object
+  - Preserves exact error message: `No cached login_cookie and auto-login failed: ${loginResult.error}`
+- Extracted `retryWithNewLogin(opts)` from L594-649 (the re-login block inside the key loop)
+  - Takes `{ text, apiKey, proxy, keyIndex, apiKeysLength }` — keyIndex and apiKeysLength needed for `setRotationIndex((keyIndex + 1) % apiKeysLength)`
+  - All 3 return paths preserved:
+    1. Re-login success + retry success → return success with rotation (L566-573)
+    2. Re-login success + retry failure → return "failed after re-login" (L576-582)
+    3. Re-login failure → return "re-login failed" (L536-542)
+  - FIX 1 applied: No `loginCookie = loginCookie` no-op — `retryWithNewLogin` always returns (never continues loop), so outer loginCookie doesn't need updating
+  - Debug log at L562 preserved verbatim
+- Refactored `postViaTwitterApi`:
+  - `const loginCookieResult = await ensureLoginCookie(settings)` + `if (typeof loginCookieResult !== 'string') return loginCookieResult`
+  - `loginCookie` is now `const` (was `let`) since `retryWithNewLogin` handles its own cookie update internally
+  - Re-login block replaced with: `return retryWithNewLogin({ text, apiKey, proxy, keyIndex, apiKeysLength: apiKeys.length })`
+  - Debug logs at L635-638 preserved verbatim
+  - All other logic unchanged (success path, error path, catch, final return)
+- Verification: `npx tsc --noEmit` clean, `bun run lint` clean
+
+Stage Summary:
+- `postViaTwitterApi` CC reduced from ~17 to ~8
+- `ensureLoginCookie` ~3 CC, `retryWithNewLogin` ~8 CC (both module-private)
+- Fix 1 applied: removed `loginCookie = loginCookie` no-op
+- All 7 return paths from original code preserved across both helpers
+- Only `src/lib/twitter-api-fallback.ts` modified
+
+---
+Task ID: CC-10
+Agent: full-stack-developer
+Task: Step 10 — Extract validateSubmission + checkSubmissionRateLimits + runFilterPipeline + createQueuedSubmission
+
+Work Log:
+- Added 3 type definitions after `logLimitHit` function: `ValidatedInput`, `RateLimitContext`, `FilterPipelineResult`
+- Extracted `validateSubmission(req)` from POST handler L87-127 (auth check + input validation)
+  - Returns `ValidatedInput` on success or `NextResponse` on validation failure
+  - Discriminated via `instanceof NextResponse`
+  - Preserves all error messages and HTTP status codes exactly (401, 403, 400)
+- Extracted `checkSubmissionRateLimits(submitter, filterSettings)` from POST handler L151-259 (blocked check + global/per-user rate limits)
+  - Returns `RateLimitContext { isWhitelisted, effectivePostCap }` on pass or `NextResponse` on rejection
+  - Simplified `submitter.username ? ... : false` ternary guards to direct `.includes()` calls since `username: string` is non-nullable in the structural type `{ id: string; username: string; customLimits: unknown }`
+  - All error messages and HTTP status codes preserved exactly (403, 400)
+- Extracted `runFilterPipeline(trimmedMessage, filterSettings, submitterId)` from POST handler L261-342 (rule-based filter + Gemini AI filter)
+  - Returns `FilterPipelineResult` on pass or `NextResponse` on always-on rejection
+  - Removed dead `geminiChecked` variable (was assigned but never used downstream)
+  - Debug log changed from `debug('[submit] All filters passed, auto-posting submission', geminiChecked ? '(Gemini verified)' : '')` to `debug('[submit] All filters passed, auto-posting submission')`
+- Extracted `createQueuedSubmission(trimmedMessage, sanitizedCategory, submitterId)` from POST handler pre-lock creates #1-3 (L416-424, L446-454, L472-480)
+  - Always uses `filterReasons: null`
+  - Returns `{ id: string }` (the submission record)
+  - Pre-lock create #4 (per-user post cap) stays inline due to 3 unique properties: `logLimitHit`, `postCapped: true`, dynamic error message
+- Refactored POST handler to use 4 sequential helper calls with `instanceof NextResponse` early-exit pattern
+  - Filter settings fallback object stays inline (tightly coupled to handler's error handling)
+  - Auto-approve OFF create, filter-failed create, final auto-post create stay inline (have specific `filterReasons` values)
+  - Post-result mapping code (lockBusy, underLockAbortReason, casAborted, success/failure) stays inline (already low CC)
+- Verification: `npx tsc --noEmit` clean, `bun run lint` clean, dev server compiles route
+
+Stage Summary:
+- POST handler CC reduced from ~52 to ~20 (~32 CC reduced)
+- 4 helper functions extracted with clear single responsibilities
+- `geminiChecked` dead variable removed (Fix 3 from plan)
+- `submitter.username` type uses `string` (non-nullable) in `checkSubmissionRateLimits` — matches Prisma schema (Fix 2 from plan)
+- All error messages, HTTP status codes, and behavioral paths preserved exactly
+- Only `src/app/api/submissions/route.ts` modified

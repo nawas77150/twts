@@ -218,6 +218,7 @@ export function normalizeText(text: string): string {
 function checkBlockedWords(
   message: string,
   blockedWords: string[],
+  reasonPrefix = 'blocked_word',
 ): { matched: string[]; reasons: string[] } {
   const normalized = normalizeText(message).toLowerCase() // toLowerCase is redundant but safe — normalizeText already lowercases
   const words = normalized.split(/\s+/)
@@ -232,7 +233,7 @@ function checkBlockedWords(
     if (blockedLower.includes(' ')) {
       if (normalized.includes(blockedLower)) {
         matched.push(blocked)
-        reasons.push(`blocked_word:${blocked}`)
+        reasons.push(`${reasonPrefix}:${blocked}`)
       }
       continue
     }
@@ -242,13 +243,13 @@ function checkBlockedWords(
     const regex = new RegExp(`\\b${escaped}\\b`, 'i')
     if (regex.test(normalized)) {
       matched.push(blocked)
-      reasons.push(`blocked_word:${blocked}`)
+      reasons.push(`${reasonPrefix}:${blocked}`)
     }
 
     // Also check each individual word for exact match
     if (words.includes(blockedLower) && !matched.includes(blocked)) {
       matched.push(blocked)
-      reasons.push(`blocked_word:${blocked}`)
+      reasons.push(`${reasonPrefix}:${blocked}`)
     }
   }
 
@@ -397,6 +398,78 @@ export async function checkDuplicate24h(
   return { isDuplicate: false }
 }
 
+// --- Table-Driven Rule Engine ---
+
+interface RuleCheckResult {
+  reasons: string[]
+  matched?: string[]  // Only for word-matching rules (blockedWords, nsfw)
+}
+
+interface RuleChecker {
+  ruleKey: keyof FilterRules
+  severity: FilterSeverity
+  alwaysOverrideSeverity?: boolean  // Only blockedWords sets this
+  check: (message: string, extra?: { blockedWords?: string[]; nsfwWords?: string[] }) => RuleCheckResult
+}
+
+const RULE_CHECKERS: RuleChecker[] = [
+  {
+    ruleKey: 'blockedWords',
+    severity: 'high',
+    alwaysOverrideSeverity: true,  // L424: severity = 'high' — unconditional
+    check: (message, extra) => {
+      if (!extra?.blockedWords?.length) return { reasons: [] }
+      const result = checkBlockedWords(message, extra.blockedWords)
+      return { reasons: result.reasons, matched: result.matched }
+    },
+  },
+  {
+    ruleKey: 'nsfw',
+    severity: 'medium',
+    check: (message, extra) => {
+      if (!extra?.nsfwWords?.length) return { reasons: [] }
+      const result = checkBlockedWords(message, extra.nsfwWords, 'nsfw_word')
+      return { reasons: result.reasons, matched: result.matched }
+    },
+  },
+  {
+    ruleKey: 'jualan',
+    severity: 'medium',
+    check: (message) => ({ reasons: checkJualan(message) }),
+  },
+  {
+    ruleKey: 'urls',
+    severity: 'medium',
+    check: (message) => ({ reasons: checkUrls(message) }),
+  },
+  {
+    ruleKey: 'mentions',
+    severity: 'medium',
+    check: (message) => ({ reasons: checkMentions(message) }),
+  },
+  {
+    ruleKey: 'phoneNumbers',
+    severity: 'high',
+    // NO alwaysOverrideSeverity — L470: if (severity === 'none') severity = 'high'
+    check: (message) => ({ reasons: checkPhoneNumbers(message) }),
+  },
+  {
+    ruleKey: 'capsSpam',
+    severity: 'low',
+    check: (message) => ({ reasons: checkCapsSpam(message) }),
+  },
+  {
+    ruleKey: 'repeatedChars',
+    severity: 'low',
+    check: (message) => ({ reasons: checkRepeatedChars(message) }),
+  },
+  {
+    ruleKey: 'tooShort',
+    severity: 'low',
+    check: (message) => ({ reasons: checkTooShort(message) }),
+  },
+]
+
 // --- Main Filter Function ---
 
 export function runContentFilter(
@@ -415,91 +488,29 @@ export function runContentFilter(
   const matchedWords: string[] = []
   let severity: FilterSeverity = 'none'
 
-  // 1. Blocked words (profanity + SARA)
-  if (effectiveRules.blockedWords) {
-    const result = checkBlockedWords(message, blockedWords)
-    if (result.matched.length > 0) {
-      matchedWords.push(...result.matched)
+  // Run all applicable rule checkers
+  const extra = { blockedWords, nsfwWords }
+
+  for (const checker of RULE_CHECKERS) {
+    if (!effectiveRules[checker.ruleKey]) continue
+
+    const result = checker.check(message, extra)
+
+    if (result.reasons.length > 0) {
       reasons.push(...result.reasons)
-      severity = 'high'
+      if (result.matched) {
+        matchedWords.push(...result.matched)
+      }
+      // Update severity — only upgrade, never downgrade
+      if (checker.alwaysOverrideSeverity) {
+        severity = checker.severity
+      } else if (severity === 'none') {
+        severity = checker.severity
+      }
     }
   }
 
-  // 2. NSFW words (OFF by default for Alter menfess)
-  if (effectiveRules.nsfw && nsfwWords && nsfwWords.length > 0) {
-    const result = checkBlockedWords(message, nsfwWords)
-    if (result.matched.length > 0) {
-      matchedWords.push(...result.matched)
-      reasons.push(...result.reasons)
-      if (severity === 'none') severity = 'medium'
-    }
-  }
-
-  // 3. Jualan/Promosi
-  if (effectiveRules.jualan) {
-    const result = checkJualan(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'medium'
-    }
-  }
-
-  // 4. URLs
-  if (effectiveRules.urls) {
-    const result = checkUrls(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'medium'
-    }
-  }
-
-  // 5. @mentions
-  if (effectiveRules.mentions) {
-    const result = checkMentions(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'medium'
-    }
-  }
-
-  // 6. Phone numbers
-  if (effectiveRules.phoneNumbers) {
-    const result = checkPhoneNumbers(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'high'
-    }
-  }
-
-  // 7. ALL CAPS spam (always on)
-  if (effectiveRules.capsSpam) {
-    const result = checkCapsSpam(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'low'
-    }
-  }
-
-  // 8. Repeated characters (always on)
-  if (effectiveRules.repeatedChars) {
-    const result = checkRepeatedChars(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'low'
-    }
-  }
-
-  // 9. Too short (always on)
-  if (effectiveRules.tooShort) {
-    const result = checkTooShort(message)
-    if (result.length > 0) {
-      reasons.push(...result)
-      if (severity === 'none') severity = 'low'
-    }
-  }
-
-  // 10. Duplicate 24h — handled separately at API level (needs DB)
-  // This check is NOT included here, it's added in the route handler
+  // duplicate24h is handled at API level (needs DB), not in RULE_CHECKERS
 
   const passed = reasons.length === 0
 
