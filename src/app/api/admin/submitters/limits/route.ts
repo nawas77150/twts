@@ -29,10 +29,9 @@ export async function PATCH(req: NextRequest) {
     // Find or create submitter by username
     // A user can be whitelisted before they ever log in, so they may not
     // have a Submitter record yet. We create a placeholder if needed.
-    // Use case-insensitive lookup — the DB stores the original-case username
-    // from Twitter (e.g. "JohnDoe"), but admins type lowercase in the UI.
+    // Both DB and input are lowercase — exact match is sufficient.
     let submitter = await db.submitter.findFirst({
-      where: { username: { equals: normalizedUsername, mode: 'insensitive' } },
+      where: { username: normalizedUsername },
       select: { id: true, username: true, customLimits: true },
     })
 

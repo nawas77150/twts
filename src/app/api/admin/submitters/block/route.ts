@@ -60,6 +60,28 @@ export async function POST(req: NextRequest) {
       AND "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
     `
 
+    // Auto-reject all queued submissions from this blocked user.
+    // Keeps the queue clean so the cron autopost never encounters
+    // a blocked user's submissions in pending/post_failed status.
+    // Note: rejected submissions are NOT restored on unblock.
+    // Admin must manually re-approve any submissions they want to reinstate.
+    const blockedSubmitter = await db.submitter.findUnique({
+      where: { username: normalizedUsername },
+      select: { id: true },
+    })
+    if (blockedSubmitter) {
+      await db.submission.updateMany({
+        where: {
+          submitterId: blockedSubmitter.id,
+          status: { in: ['pending', 'post_failed'] },
+        },
+        data: {
+          status: 'rejected',
+          postError: '[Auto] Submitter blocked',
+        },
+      })
+    }
+
     return NextResponse.json({ success: true, blocked: normalizedUsername })
   } catch (error) {
     console.error('Block user error:', error)

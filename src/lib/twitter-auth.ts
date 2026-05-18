@@ -167,11 +167,10 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
   try {
     // First, check if there's a placeholder record (admin-created) with this username
     // but a pending twitterId. If so, claim it by updating the twitterId.
-    // Use case-insensitive match — admin may have created the placeholder with
-    // lowercase username, while Twitter returns original case (e.g. "JohnDoe").
+    // Both DB and input are lowercase — exact match is sufficient.
     const placeholder = await db.submitter.findFirst({
       where: {
-        username: { equals: username, mode: 'insensitive' },
+        username: username.toLowerCase(),
         twitterId: { startsWith: 'pending:' },
       },
     })
@@ -179,7 +178,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       return db.submitter.update({
         where: { id: placeholder.id },
         data: {
-          username,  // Update to the real-cased username from Twitter
+          username: username.toLowerCase(),
           twitterId,
           displayName: displayName || placeholder.displayName,
           profileImage: profile_image_url || placeholder.profileImage,
@@ -192,7 +191,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
     return await db.submitter.upsert({
       where: { twitterId },
       update: {
-        username,
+        username: username.toLowerCase(),
         displayName: displayName || null,
         profileImage: profile_image_url || null,
         ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
@@ -200,7 +199,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       },
       create: {
         twitterId,
-        username,
+        username: username.toLowerCase(),
         displayName: displayName || null,
         profileImage: profile_image_url || null,
         ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
@@ -216,7 +215,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       return db.submitter.upsert({
         where: { twitterId },
         update: {
-          username,
+          username: username.toLowerCase(),
           displayName: displayName || null,
           profileImage: profile_image_url || null,
           ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
@@ -224,7 +223,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
         },
         create: {
           twitterId,
-          username: suffixedUsername,
+          username: suffixedUsername.toLowerCase(),
           displayName: displayName || null,
           profileImage: profile_image_url || null,
           ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
