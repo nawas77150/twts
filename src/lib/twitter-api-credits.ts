@@ -8,7 +8,6 @@
 // On Vercel, the in-memory cache resets on cold starts — acceptable tradeoff.
 // ============================================================
 
-import { db } from '@/lib/db'
 import {
   TWITTERAPI_BASE,
   parseApiKeys,
