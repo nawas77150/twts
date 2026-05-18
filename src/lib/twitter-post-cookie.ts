@@ -324,7 +324,7 @@ function buildCreateTweetHeaders(
  */
 async function waitBeforeRetry(failedAttempt: number): Promise<void> {
   const base = RETRY_DELAYS[failedAttempt] ?? 4000
-  const jitter = Math.round(base * (0.8 + Math.random() * 0.5)) // 80%-130%
+  const jitter = Math.round(base * (0.8 + crypto.randomInt(501) / 1000)) // 80%-130%
   debug('[direct] Attempt', failedAttempt, 'failed — waiting', jitter, 'ms before retry')
   await sleep(jitter)
   clearXactCache() // Fresh transaction ID for each retry
