@@ -4,7 +4,7 @@ import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
-import { checkStalePosting } from '@/lib/stale-posting'
+import { fetchSubmissionForPosting, handlePostEarlyReturns } from '../_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
@@ -22,39 +22,9 @@ export async function POST(
   return withErrorBoundary(async () => {
     const { id } = await params
 
-    let submission = await db.submission.findUnique({ where: { id } })
-    if (!submission) {
-      return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-    }
-
-    if (submission.status === 'posted') {
-      return NextResponse.json({ error: 'Submission sudah diposting' }, { status: 400 })
-    }
-
-    if (submission.status === 'posting') {
-      const stale = await checkStalePosting(submission)
-      if (!stale.isStale) {
-        return NextResponse.json(
-          { error: 'Submission sedang diproses (posting ke X). Coba lagi dalam beberapa menit.' },
-          { status: 409 }
-        )
-      }
-      // Stale posting auto-recovered — re-fetch with updated status and fall through.
-      const refreshed = await db.submission.findUnique({ where: { id } })
-      if (!refreshed) {
-        return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-      }
-      submission = refreshed
-    }
-
-    if (submission.status === 'rejected') {
-      return NextResponse.json({ error: 'Submission sudah ditolak' }, { status: 400 })
-    }
-
-    // Only pending, censored, and post_failed statuses can be retried
-    if (submission.status !== 'pending' && submission.status !== 'post_failed' && submission.status !== 'censored') {
-      return NextResponse.json({ error: `Status tidak valid untuk retry: ${submission.status}` }, { status: 400 })
-    }
+    const validationResult = await fetchSubmissionForPosting(id, 'Status tidak valid untuk retry')
+    if (validationResult instanceof NextResponse) return validationResult
+    const { submission } = validationResult
 
     // Load filter settings before executePostAndRecord (which acquires the posting lock internally)
     const filterSettings = await getFilterSettings()
@@ -67,28 +37,10 @@ export async function POST(
       casStatuses: ['pending', 'post_failed', 'censored'],
     })
 
-    // Map result to HTTP response (caller decides status + shape)
-    if (postResult.lockBusy) {
-      debug('[post route] Posting lock busy')
-      return NextResponse.json(
-        { error: 'Sedang ada posting lain yang berjalan. Coba lagi dalam beberapa detik.' },
-        { status: 409 }
-      )
-    }
-    if (postResult.underLockAbortReason === 'global_post_daily_cap_reached') {
-      debug('[post route] Global post daily cap reached:', postResult.error)
-      return NextResponse.json(
-        { error: `Batas post harian global tercapai (${postResult.error}). Naikkan batas di Rate Limit settings.` },
-        { status: 400 }
-      )
-    }
-    if (postResult.casAborted) {
-      debug('[post route] Submission status changed before posting, aborting')
-      return NextResponse.json(
-        { error: 'Submission sedang diproses oleh proses lain.' },
-        { status: 409 }
-      )
-    }
+    // Map result to HTTP response
+    const earlyReturn = handlePostEarlyReturns(postResult, '[post route]')
+    if (earlyReturn) return earlyReturn
+
     if (postResult.success) {
       debug('[post route] Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method, 'retries:', postResult.retriesUsed)
       if (postResult.warning) {
@@ -110,7 +62,7 @@ export async function POST(
       debug('[post route] Post failed:', postResult.error, 'method:', postResult.method)
       return NextResponse.json(
         { error: `Gagal posting ke X: ${postResult.error}`, postMethod: postResult.method },
-        { status: 502 }
+        { status: 502 },
       )
     }
   })

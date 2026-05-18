@@ -5,6 +5,7 @@ import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { checkStalePosting } from '@/lib/stale-posting'
+import { fetchSubmissionForPosting, handlePostEarlyReturns, getMethodDescription, getPostErrorHint } from './_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
@@ -27,47 +28,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Status tidak valid' }, { status: 400 })
     }
 
-    let submission = await db.submission.findUnique({ where: { id } })
-    if (!submission) {
-      return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-    }
-
-    if (submission.status === 'posted') {
-      return NextResponse.json(
-        { error: 'Submission sudah diposting' },
-        { status: 400 }
-      )
-    }
-
-    if (submission.status === 'posting') {
-      const stale = await checkStalePosting(submission)
-      if (!stale.isStale) {
-        return NextResponse.json(
-          { error: 'Submission sedang diproses (posting ke X). Coba lagi dalam beberapa menit.' },
-          { status: 409 }
-        )
-      }
-      // Stale posting auto-recovered — re-fetch with updated status and fall through.
-      const refreshed = await db.submission.findUnique({ where: { id } })
-      if (!refreshed) {
-        return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-      }
-      submission = refreshed
-    }
-
-    if (submission.status === 'rejected') {
-      return NextResponse.json(
-        { error: 'Submission sudah ditolak' },
-        { status: 400 }
-      )
-    }
-
-    if (submission.status !== 'pending' && submission.status !== 'post_failed' && submission.status !== 'censored') {
-      return NextResponse.json(
-        { error: `Status tidak valid: ${submission.status}` },
-        { status: 400 }
-      )
-    }
+    const validationResult = await fetchSubmissionForPosting(id, 'Status tidak valid')
+    if (validationResult instanceof NextResponse) return validationResult
+    const { submission } = validationResult
 
     // If approving, auto-post to X via cookie auth (with retry + fallback)
     if (status === 'approved') {
@@ -82,42 +45,14 @@ export async function PATCH(
         casStatuses: ['pending', 'post_failed', 'censored'],
       })
 
-      // Map result to HTTP response (caller decides status + shape)
-      if (postResult.lockBusy) {
-        debug('[approve route] Posting lock busy')
-        return NextResponse.json(
-          { error: 'Sedang ada posting lain yang berjalan. Coba lagi dalam beberapa detik.' },
-          { status: 409 }
-        )
-      }
-      if (postResult.underLockAbortReason === 'global_post_daily_cap_reached') {
-        debug('[approve route] Global post daily cap reached:', postResult.error)
-        return NextResponse.json(
-          { error: `Batas post harian global tercapai (${postResult.error}). Naikkan batas di Rate Limit settings.` },
-          { status: 400 }
-        )
-      }
-      if (postResult.casAborted) {
-        debug('[approve route] Submission status changed before posting, aborting')
-        return NextResponse.json(
-          { error: 'Submission sedang diproses oleh proses lain.' },
-          { status: 409 }
-        )
-      }
+      // Map result to HTTP response
+      const earlyReturn = handlePostEarlyReturns(postResult, '[approve route]')
+      if (earlyReturn) return earlyReturn
+
       if (postResult.success) {
         debug('[approve route] Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method)
 
-        // Build descriptive message based on method used
-        let description = ''
-        if (postResult.method === 'direct') {
-          description = 'Pesan otomatis diposting ke X.'
-        } else if (postResult.method === 'retry') {
-          description = `Pesan diposting setelah retry (${postResult.retriesUsed}x).`
-        } else if (postResult.method === 'fallback_cookie') {
-          description = 'Pesan diposting via Cookie API (twitterapi.io).'
-        } else if (postResult.method === 'fallback_login') {
-          description = 'Pesan diposting via V2 Login API (twitterapi.io).'
-        }
+        const description = getMethodDescription(postResult.method ?? '', postResult.retriesUsed ?? 0)
 
         if (postResult.warning) {
           return NextResponse.json({
@@ -138,24 +73,8 @@ export async function PATCH(
         })
       } else {
         debug('[approve route] Post failed:', postResult.error, 'method:', postResult.method)
-        // Context-aware hint based on error type
         const errorMsg = postResult.error || ''
-        let hint = ''
-        if (errorMsg.includes('code: 344') || errorMsg.includes('daily limit')) {
-          hint = 'Batas harian tweet tercapai. Coba lagi besok.'
-        } else if (errorMsg.includes('code: 32') || errorMsg.includes('Could not authenticate')) {
-          hint = 'Cookie expired. Perbarui cookie di X Settings lalu klik "Post to X".'
-        } else if (errorMsg.includes('code: 88') || errorMsg.includes('Rate limit')) {
-          hint = 'Rate limit tercapai. Tunggu beberapa menit lalu coba lagi.'
-        } else if (errorMsg.includes('226') || errorMsg.includes('automated')) {
-          hint = 'X mendeteksi otomatisasi (226). Semua retry gagal. Coba lagi dalam 1-2 menit.'
-        } else if (errorMsg.includes('Empty tweet_results') || errorMsg.includes('silently rejected')) {
-          hint = 'Tweet ditolak X (empty results). Semua retry gagal. Coba lagi dalam 1-2 menit.'
-        } else if (errorMsg.includes('Fallback API') || errorMsg.includes('fallback')) {
-          hint = 'Direct post gagal, fallback API juga gagal. Periksa API keys dan cookie.'
-        } else {
-          hint = 'Cek X Settings lalu klik "Post to X" untuk retry.'
-        }
+        const hint = getPostErrorHint(errorMsg)
 
         const updated = await db.submission.findUnique({ where: { id } })
         return NextResponse.json({
