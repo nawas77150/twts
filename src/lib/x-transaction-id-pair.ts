@@ -29,6 +29,7 @@
 
 import * as crypto from 'crypto'
 import { debug } from '@/lib/debug'
+import { buildTransactionId } from '@/lib/x-transaction-id-shared'
 
 // --- Types ---
 
@@ -40,11 +41,6 @@ interface PairDict {
 // --- Constants ---
 
 const PAIR_URL = process.env.PAIR_JSON_URL || 'https://raw.githubusercontent.com/fa0311/x-client-transaction-id-pair-dict/refs/heads/main/pair.json'
-
-// Same constants as the live approach — shared algorithm
-const EPOCH_OFFSET_MS = 1682924400 * 1000 // 2023-05-01 00:00:00 UTC
-const DEFAULT_KEYWORD = 'obfiowerehiring'
-const ADDITIONAL_RANDOM_NUMBER = 3
 
 // --- Cache ---
 
@@ -118,42 +114,14 @@ export async function generateTransactionIdFromPair(
 ): Promise<string | null> {
   try {
     const pairs = await fetchPairs()
-    const pair = pairs[Math.floor(Math.random() * pairs.length)]
-
-    // Timestamp: seconds since custom epoch, little-endian bytes
-    const timeNow = Math.floor((Date.now() - EPOCH_OFFSET_MS) / 1000)
-    const timeNowBytes = [
-      timeNow & 0xff,
-      (timeNow >> 8) & 0xff,
-      (timeNow >> 16) & 0xff,
-      (timeNow >> 24) & 0xff,
-    ]
-
-    // Build hash payload and compute SHA-256
-    const data = `${method}!${path}!${timeNow}${DEFAULT_KEYWORD}${pair.animationKey}`
-    const hashBytes = Array.from(
-      crypto.createHash('sha256').update(data).digest()
-    ).slice(0, 16)
+    // Cryptographically-secure random selection (not Math.random)
+    const pair = pairs[crypto.randomInt(pairs.length)]
 
     // Decode verification key (base64 → bytes — the twitter-site-verification key)
     const keyBytes = Array.from(Buffer.from(pair.verification, 'base64'))
 
-    // Build byte array + XOR encode with random byte
-    const randomNum = Math.floor(Math.random() * 256)
-    const bytesArr = [
-      ...keyBytes,
-      ...timeNowBytes,
-      ...hashBytes,
-      ADDITIONAL_RANDOM_NUMBER,
-    ]
-
-    const out = Buffer.from([
-      randomNum,
-      ...bytesArr.map((item) => item ^ randomNum),
-    ])
-
-    // Base64 encode, strip padding
-    return out.toString('base64').replace(/=/g, '')
+    // Delegate to shared builder (handles timestamp, hash, XOR, base64)
+    return buildTransactionId(method, path, keyBytes, pair.animationKey)
   } catch (error) {
     debug(
       '[pair-dict] Failed:',
