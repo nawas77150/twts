@@ -3,6 +3,7 @@
 import type { SubmissionStatus } from '@/types'
 import { STATUS_CONFIG } from '@/types'
 import { Badge } from '@/components/ui/badge'
+import { safeAccess } from '@/lib/utils'
 
 interface StatusBadgeProps {
   status: SubmissionStatus
@@ -10,7 +11,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status]
+  const config = safeAccess(STATUS_CONFIG, status)
   if (!config) return null
 
   return (

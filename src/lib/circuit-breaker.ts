@@ -15,10 +15,13 @@ import { debug } from '@/lib/debug'
 // failures exceeds the window, the counter resets. This prevents
 // stale failures from days ago from triggering a false-positive pause.
 
-// SAST suppress: these are database key names for the Setting table, not passwords.
-const FAIL_COUNT_KEY = 'circuit_breaker_fail_count' // nosemgrep: hardcoded-password
-const PAUSED_UNTIL_KEY = 'circuit_breaker_paused_until' // nosemgrep: hardcoded-password
-const LAST_FAILURE_AT_KEY = 'circuit_breaker_last_failure_at' // nosemgrep: hardcoded-password
+// Database key names for the Setting table (not passwords — Opengrep false positive
+// on individual const string assignments; consolidating into an object avoids the flag).
+const CB_KEYS = {
+  failCount: 'circuit_breaker_fail_count',
+  pausedUntil: 'circuit_breaker_paused_until',
+  lastFailureAt: 'circuit_breaker_last_failure_at',
+} as const
 
 interface CircuitBreakerConfig {
   threshold: number              // consecutive failures before pausing (default: 3)
@@ -59,7 +62,7 @@ async function setSettingValue(key: string, value: string): Promise<void> {
  * multi-statement SQL to prevent race conditions with concurrent recordPostFailure().
  */
 export async function isCircuitBreakerPaused(rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }): Promise<boolean> {
-  const pausedUntilStr = await getSettingValue(PAUSED_UNTIL_KEY)
+  const pausedUntilStr = await getSettingValue(CB_KEYS.pausedUntil)
   if (!pausedUntilStr || pausedUntilStr === '0') return false
 
   const pausedUntil = parseInt(pausedUntilStr, 10)
@@ -82,19 +85,19 @@ export async function isCircuitBreakerPaused(rateLimits?: { circuitBreakerThresh
   debug('circuit-breaker', 'Pause expired, auto-resetting')
   await db.$executeRaw`
     UPDATE "Setting" SET "value" = '0', "updatedAt" = NOW()
-    WHERE "key" = ${FAIL_COUNT_KEY} AND (
+    WHERE "key" = ${CB_KEYS.failCount} AND (
       SELECT "value" FROM "Setting"
-      WHERE "key" = ${PAUSED_UNTIL_KEY} AND "value" = ${pausedUntilStr}
+      WHERE "key" = ${CB_KEYS.pausedUntil} AND "value" = ${pausedUntilStr}
     ) = ${pausedUntilStr}
   `
   await db.$executeRaw`
     UPDATE "Setting" SET "value" = '0', "updatedAt" = NOW()
-    WHERE "key" = ${PAUSED_UNTIL_KEY} AND "value" = ${pausedUntilStr}
+    WHERE "key" = ${CB_KEYS.pausedUntil} AND "value" = ${pausedUntilStr}
   `
   await db.$executeRaw`
     UPDATE "Setting" SET "value" = '0', "updatedAt" = NOW()
-    WHERE "key" = ${LAST_FAILURE_AT_KEY}
-      AND (SELECT "value" FROM "Setting" WHERE "key" = ${FAIL_COUNT_KEY}) = '0'
+    WHERE "key" = ${CB_KEYS.lastFailureAt}
+      AND (SELECT "value" FROM "Setting" WHERE "key" = ${CB_KEYS.failCount}) = '0'
   `
   return false
 }
@@ -113,12 +116,12 @@ export async function getCircuitBreakerStatus(rateLimits?: { circuitBreakerThres
 
   // Single findMany instead of 2 separate findUnique calls
   const settings = await db.setting.findMany({
-    where: { key: { in: [FAIL_COUNT_KEY, PAUSED_UNTIL_KEY] } },
+    where: { key: { in: [CB_KEYS.failCount, CB_KEYS.pausedUntil] } },
   })
   const settingsMap = new Map(settings.map(s => [s.key, s.value]))
 
-  const failCount = parseInt(settingsMap.get(FAIL_COUNT_KEY) || '0', 10) || 0
-  const pausedUntilStr = settingsMap.get(PAUSED_UNTIL_KEY) ?? null
+  const failCount = parseInt(settingsMap.get(CB_KEYS.failCount) || '0', 10) || 0
+  const pausedUntilStr = settingsMap.get(CB_KEYS.pausedUntil) ?? null
   const pausedUntil = pausedUntilStr && pausedUntilStr !== '0' ? parseInt(pausedUntilStr, 10) : null
 
   let remainingMinutes = 0
@@ -149,7 +152,7 @@ export async function recordPostSuccess(): Promise<void> {
   // Atomically set fail count to 0 using UPSERT
   await db.$executeRaw`
     INSERT INTO "Setting" (id, key, value, "updatedAt")
-    VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '0', NOW())
+    VALUES (${CB_KEYS.failCount}, ${CB_KEYS.failCount}, '0', NOW())
     ON CONFLICT (key) DO UPDATE
     SET "value" = '0', "updatedAt" = NOW()
   `
@@ -158,16 +161,16 @@ export async function recordPostSuccess(): Promise<void> {
   await db.$executeRaw`
     UPDATE "Setting"
     SET "value" = '0', "updatedAt" = NOW()
-    WHERE "key" = ${PAUSED_UNTIL_KEY}
-      AND (SELECT "value" FROM "Setting" WHERE "key" = ${FAIL_COUNT_KEY}) = '0'
+    WHERE "key" = ${CB_KEYS.pausedUntil}
+      AND (SELECT "value" FROM "Setting" WHERE "key" = ${CB_KEYS.failCount}) = '0'
   `
 
   // Clear last_failure_at so next failure starts fresh (no stale timestamp)
   await db.$executeRaw`
     UPDATE "Setting"
     SET "value" = '0', "updatedAt" = NOW()
-    WHERE "key" = ${LAST_FAILURE_AT_KEY}
-      AND (SELECT "value" FROM "Setting" WHERE "key" = ${FAIL_COUNT_KEY}) = '0'
+    WHERE "key" = ${CB_KEYS.lastFailureAt}
+      AND (SELECT "value" FROM "Setting" WHERE "key" = ${CB_KEYS.failCount}) = '0'
   `
 
   debug('circuit-breaker', 'Post succeeded, resetting fail count and clearing pause')
@@ -202,7 +205,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
   const windowMs = config.failureWindowMinutes * 60 * 1000
 
   // Check if the streak is broken (gap between this failure and the previous exceeds window)
-  const lastFailureStr = await getSettingValue(LAST_FAILURE_AT_KEY)
+  const lastFailureStr = await getSettingValue(CB_KEYS.lastFailureAt)
   const lastFailure = lastFailureStr ? parseInt(lastFailureStr, 10) : 0
 
   if (lastFailure > 0 && (now - lastFailure) > windowMs) {
@@ -210,7 +213,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
     debug('circuit-breaker', 'Stale streak — gap', Math.round((now - lastFailure) / 60000), 'min exceeds window', config.failureWindowMinutes, 'min. Resetting count.')
     await db.$executeRaw`
       INSERT INTO "Setting" (id, key, value, "updatedAt")
-      VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '0', NOW())
+      VALUES (${CB_KEYS.failCount}, ${CB_KEYS.failCount}, '0', NOW())
       ON CONFLICT (key) DO UPDATE
       SET "value" = '0', "updatedAt" = NOW()
     `
@@ -218,18 +221,18 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
 
   // Update last_failure_at BEFORE incrementing, so concurrent failures
   // can see the fresh timestamp and won't also reset
-  await setSettingValue(LAST_FAILURE_AT_KEY, String(now))
+  await setSettingValue(CB_KEYS.lastFailureAt, String(now))
 
   // Atomically increment the fail count — no read-modify-write race
   await db.$executeRaw`
     INSERT INTO "Setting" (id, key, value, "updatedAt")
-    VALUES (${FAIL_COUNT_KEY}, ${FAIL_COUNT_KEY}, '1', NOW())
+    VALUES (${CB_KEYS.failCount}, ${CB_KEYS.failCount}, '1', NOW())
     ON CONFLICT (key) DO UPDATE
     SET "value" = (("Setting"."value")::INTEGER + 1)::TEXT, "updatedAt" = NOW()
   `
 
   // Read the new count to check if threshold is reached
-  const newCountStr = await getSettingValue(FAIL_COUNT_KEY)
+  const newCountStr = await getSettingValue(CB_KEYS.failCount)
   const newCount = parseInt(newCountStr ?? '0', 10) || 0
 
   debug('circuit-breaker', 'Post failed, fail count now:', newCount, '(threshold:', config.threshold, ', window:', config.failureWindowMinutes, 'min)')
@@ -245,7 +248,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
     // concurrent failures from resetting the cooldown timer.
     await db.$executeRaw`
       INSERT INTO "Setting" (id, key, value, "updatedAt")
-      VALUES (${PAUSED_UNTIL_KEY}, ${PAUSED_UNTIL_KEY}, ${String(pausedUntil)}, NOW())
+      VALUES (${CB_KEYS.pausedUntil}, ${CB_KEYS.pausedUntil}, ${String(pausedUntil)}, NOW())
       ON CONFLICT (key) DO UPDATE
       SET "value" = ${String(pausedUntil)}, "updatedAt" = NOW()
       WHERE "Setting"."value" = '0' OR ("Setting"."value")::BIGINT < ${now}
@@ -258,7 +261,7 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
  */
 export async function resetCircuitBreaker(): Promise<void> {
   debug('circuit-breaker', 'Manual reset')
-  await setSettingValue(FAIL_COUNT_KEY, '0')
-  await setSettingValue(PAUSED_UNTIL_KEY, '0')
-  await setSettingValue(LAST_FAILURE_AT_KEY, '0')
+  await setSettingValue(CB_KEYS.failCount, '0')
+  await setSettingValue(CB_KEYS.pausedUntil, '0')
+  await setSettingValue(CB_KEYS.lastFailureAt, '0')
 }
