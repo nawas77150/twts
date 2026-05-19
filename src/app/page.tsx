@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useToast } from '@/hooks/use-toast'
 import { useSubmitterAuth } from '@/hooks/use-submitter-auth'
@@ -24,8 +24,8 @@ export default function HomePage() {
     isAnonUser,
   })
 
-  const handleLogin = () => { window.location.href = '/api/auth/twitter' }
-  const handleLogout = () => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }
+  const handleLogin = useCallback(() => { window.location.href = '/api/auth/twitter' }, [])
+  const handleLogout = useCallback(() => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }, [logout, toast])
 
   const handleSubmit = async (message: string, category: string): Promise<boolean> => {
     if (!message.trim()) { toast({ title: 'Error', description: 'Pesan tidak boleh kosong', variant: 'destructive' }); return false }

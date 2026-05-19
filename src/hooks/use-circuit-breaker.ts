@@ -25,8 +25,10 @@ export function useCircuitBreaker() {
       return
     }
 
-    const compute = () => {
-      const remaining = (circuitBreakerStatus.pausedUntil ?? 0) - Date.now()
+    const pausedUntil = circuitBreakerStatus.pausedUntil
+
+    function tick() {
+      const remaining = (pausedUntil ?? 0) - Date.now()
       if (remaining <= 0) {
         setLiveRemainingMinutes(0)
         // Auto-clear paused state when timer expires
@@ -40,12 +42,12 @@ export function useCircuitBreaker() {
       setLiveRemainingMinutes(Math.ceil(remaining / 60000))
     }
 
-    // Compute immediately so the UI shows the correct remaining time
+    // Tick immediately so the UI shows the correct remaining time
     // instead of flashing 0 for the first second
-    compute()
+    tick()
 
     // Then update every second
-    intervalRef.current = setInterval(compute, 1000)
+    intervalRef.current = setInterval(tick, 1000)
 
     return () => {
       if (intervalRef.current) {

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Sparkles,
-  ChevronDown,
   AlertTriangle,
   ShieldCheck,
   Loader2,
@@ -57,7 +56,7 @@ export function GeminiCard({
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [isTesting, setIsTesting] = useState(false)
 
-  const testHealth = async () => {
+  const testHealth = useCallback(async () => {
     setIsTesting(true)
     setHealthStatus(null)
     try {
@@ -69,7 +68,7 @@ export function GeminiCard({
     } finally {
       setIsTesting(false)
     }
-  }
+  }, [])
 
   const statusBadge = geminiSaving ? (
     <Badge variant="outline" className="text-[10px] px-1.5 bg-blue-50 text-blue-700 border-blue-300">

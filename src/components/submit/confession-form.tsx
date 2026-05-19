@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Send, Loader2, MessageSquare, Zap, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Image from 'next/image'
 import type { SubmissionLimitsData } from '@/types'
 
 interface ConfessionFormProps {
@@ -28,13 +29,13 @@ export function ConfessionForm({
   const [message, setMessage] = useState('')
   const [category, setCategory] = useState('')
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const success = await onSubmit(message, category)
     if (success) {
       setMessage('')
       setCategory('')
     }
-  }
+  }, [onSubmit, message, category])
 
   const remainingDaily = limits ? Math.max(0, limits.dailyCap - limits.dailyUsed) : null
   const isCustom = limits?.isCustom ?? false
@@ -48,7 +49,7 @@ export function ConfessionForm({
         </CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs sm:text-sm">
           {submitterImage ? (
-            <img src={submitterImage} alt="" className="w-4 h-4 rounded-full shrink-0" />
+            <Image src={submitterImage} alt="" width={16} height={16} className="w-4 h-4 rounded-full shrink-0" />
           ) : null}
           <span className="inline-flex items-center gap-1">
             Login sebagai <span className="font-medium text-[#0F1419]">@{submitterUsername || 'user'}</span>

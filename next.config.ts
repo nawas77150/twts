@@ -42,6 +42,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "pbs.twimg.com" },
+      { protocol: "https", hostname: "abs.twimg.com" },
+    ],
+  },
   headers: async () => [
     {
       source: "/(.*)",

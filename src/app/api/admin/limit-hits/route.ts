@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { getStartOfTodayWIB } from '@/lib/constants'
+import { safeAccess } from '@/lib/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 const LIMIT_TYPE_LABELS: Record<string, string> = {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
     const distinctRow = distinctByType.find((r) => r.limitType === type)
     return {
       limitType: type,
-      label: LIMIT_TYPE_LABELS[type],
+      label: safeAccess(LIMIT_TYPE_LABELS, type as keyof typeof LIMIT_TYPE_LABELS),
       totalHits: hitRow?._count._all ?? 0,
       uniqueUsers: Number(distinctRow?.uniqueUsers ?? 0),
     }
