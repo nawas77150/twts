@@ -47,69 +47,67 @@ export async function PATCH(req: NextRequest) {
       })
     }
 
-    // Handle customLimits
+    // Compute the customLimits value to store
+    let customLimitsData: typeof Prisma.DbNull | Prisma.InputJsonObject
+
     if (customLimits === null) {
       // Clear all custom limits
-      const updated = await db.submitter.update({
-        where: { id: submitter.id },
-        data: { customLimits: Prisma.DbNull },
-        select: { id: true, username: true, customLimits: true },
-      })
-      return NextResponse.json({
-        success: true,
-        submitter: updated,
-        previousCustomLimits: submitter.customLimits,
-      })
-    }
-
-    if (typeof customLimits !== 'object' || customLimits === null || Array.isArray(customLimits)) {
-      return NextResponse.json(
-        { error: 'customLimits harus berupa object atau null' },
-        { status: 400 }
-      )
-    }
-
-    // Merge with existing customLimits
-    const existing = (submitter.customLimits && typeof submitter.customLimits === 'object' && !Array.isArray(submitter.customLimits))
-      ? { ...(submitter.customLimits as Record<string, unknown>) }
-      : {}
-
-    const merged: Record<string, number> = {}
-
-    for (const [key, value] of Object.entries(customLimits as Record<string, unknown>)) {
-      if (!(PER_USER_LIMIT_KEYS as readonly string[]).includes(key)) {
+      customLimitsData = Prisma.DbNull
+    } else {
+      if (typeof customLimits !== 'object' || Array.isArray(customLimits)) {
         return NextResponse.json(
-          { error: `Key tidak valid: ${key}. Key yang valid: ${PER_USER_LIMIT_KEYS.join(', ')}` },
+          { error: 'customLimits harus berupa object atau null' },
           { status: 400 }
         )
       }
 
-      if (value === null) {
-        // Remove this override key
-        delete existing[key]
-      } else if (typeof value === 'number' && value >= 0) {
-        existing[key] = value
-      } else {
-        return NextResponse.json(
-          { error: `Value untuk ${key} harus berupa angka tidak negatif atau null` },
-          { status: 400 }
-        )
+      // Map (not Record) avoids "Generic Object Injection Sink" SAST warnings:
+      // plain objects have a prototype chain that SAST flags on dynamic-key access.
+      // Map.get() / Map.set() / Map.delete() have no prototype chain.
+      const existing = (submitter.customLimits && typeof submitter.customLimits === 'object' && !Array.isArray(submitter.customLimits))
+        ? new Map(Object.entries(submitter.customLimits as Record<string, unknown>))
+        : new Map<string, unknown>()
+
+      const merged = new Map<string, number>()
+
+      for (const [key, value] of Object.entries(customLimits as Record<string, unknown>)) {
+        if (!(PER_USER_LIMIT_KEYS as readonly string[]).includes(key)) {
+          return NextResponse.json(
+            { error: `Key tidak valid: ${key}. Key yang valid: ${PER_USER_LIMIT_KEYS.join(', ')}` },
+            { status: 400 }
+          )
+        }
+
+        if (value === null) {
+          // Remove this override key
+          existing.delete(key)
+        } else if (typeof value === 'number' && value >= 0) {
+          existing.set(key, value)
+        } else {
+          return NextResponse.json(
+            { error: `Value untuk ${key} harus berupa angka tidak negatif atau null` },
+            { status: 400 }
+          )
+        }
       }
+
+      // Build final map with only valid per-user keys that have number values
+      for (const key of PER_USER_LIMIT_KEYS) {
+        const val = existing.get(key)
+        if (val !== undefined && typeof val === 'number') {
+          merged.set(key, val)
+        }
+      }
+
+      // Store null if no overrides remain (not empty object)
+      const finalCustomLimits = merged.size > 0 ? Object.fromEntries(merged) : null
+      customLimitsData = finalCustomLimits ? (finalCustomLimits as Prisma.InputJsonObject) : Prisma.DbNull
     }
 
-    // Build final object with only valid per-user keys that have number values
-    for (const key of PER_USER_LIMIT_KEYS) {
-      if (key in existing && typeof existing[key] === 'number') {
-        merged[key] = existing[key] as number
-      }
-    }
-
-    // Store null if no overrides remain (not empty object)
-    const finalCustomLimits = Object.keys(merged).length > 0 ? merged : null
-
+    // Single update + response — eliminates duplicated update/return block
     const updated = await db.submitter.update({
       where: { id: submitter.id },
-      data: { customLimits: finalCustomLimits ? (finalCustomLimits as Prisma.InputJsonObject) : Prisma.DbNull },
+      data: { customLimits: customLimitsData },
       select: { id: true, username: true, customLimits: true },
     })
 

@@ -149,7 +149,26 @@ export async function executePostForSubmission(
   return { postResult }
 }
 
-// --- Helper 4: Warning response builder ---
+// --- Helper 4: Post-success warning check + fetch updated submission ---
+
+/**
+ * Check for post-result warning (early return) or fetch the updated submission.
+ * Shared by PATCH (approve) and POST (manual retry) success paths.
+ *
+ * @returns NextResponse if warning needs to be returned, otherwise the updated submission
+ */
+export async function getUpdatedSubmissionOrWarning(
+  id: string,
+  postResult: ExecutePostResult,
+): Promise<{ updated: Submission | null } | NextResponse> {
+  if (postResult.warning) {
+    return buildPostWarningResponse(postResult)
+  }
+  const updated = await db.submission.findUnique({ where: { id } })
+  return { updated }
+}
+
+// --- Helper 5: Warning response builder ---
 
 /**
  * Build the warning response when post succeeds but with a warning.

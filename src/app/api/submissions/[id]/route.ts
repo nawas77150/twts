@@ -4,7 +4,7 @@ import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { checkStalePosting } from '@/lib/stale-posting'
-import { fetchSubmissionForPosting, executePostForSubmission, buildPostWarningResponse, getMethodDescription, getPostErrorHint } from './_lib'
+import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getMethodDescription, getPostErrorHint } from './_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
@@ -43,13 +43,11 @@ export async function PATCH(
 
         const description = getMethodDescription(postResult.method ?? '', postResult.retriesUsed ?? 0)
 
-        if (postResult.warning) {
-          return buildPostWarningResponse(postResult)
-        }
-        const updated = await db.submission.findUnique({ where: { id } })
+        const result = await getUpdatedSubmissionOrWarning(id, postResult)
+        if (result instanceof NextResponse) return result
 
         return NextResponse.json({
-          submission: updated,
+          submission: result.updated,
           autoPosted: true,
           tweetId: postResult.tweetId,
           postMethod: postResult.method,

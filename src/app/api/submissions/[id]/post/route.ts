@@ -1,9 +1,8 @@
-import { db } from '@/lib/db'
 import { withErrorBoundary } from '@/lib/execute-post'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
-import { fetchSubmissionForPosting, executePostForSubmission, buildPostWarningResponse } from '../_lib'
+import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning } from '../_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
@@ -32,12 +31,12 @@ export async function POST(
 
     if (postResult.success) {
       debug('retry', 'Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method, 'retries:', postResult.retriesUsed)
-      if (postResult.warning) {
-        return buildPostWarningResponse(postResult)
-      }
-      const updated = await db.submission.findUnique({ where: { id } })
+
+      const result = await getUpdatedSubmissionOrWarning(id, postResult)
+      if (result instanceof NextResponse) return result
+
       return NextResponse.json({
-        submission: updated,
+        submission: result.updated,
         tweetId: postResult.tweetId,
         postMethod: postResult.method,
         retriesUsed: postResult.retriesUsed,
