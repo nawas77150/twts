@@ -22,7 +22,8 @@
 import { db } from '@/lib/db'
 import { debug } from '@/lib/debug'
 
-const LOCK_KEY = 'posting_lock'
+// SAST suppress: this is a database key name for the Setting table, not a password.
+const LOCK_KEY = 'posting_lock' // nosemgrep: hardcoded-password
 const LOCK_TIMEOUT_MS = 60_000 // 60s — 2× maxDuration to prevent double-post race
 
 /**

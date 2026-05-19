@@ -46,27 +46,28 @@ export function useSubmitterAuth() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const authResult = params.get('auth')
-    if (authResult === 'success') {
-      let attempts = 0
-      const maxAttempts = 4
-      async function tryAuth() {
-        const ok = await checkAuth()
-        if (ok) {
-          toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
-          window.history.replaceState({}, '', '/')
-        } else if (attempts < maxAttempts) {
-          attempts++
-          setTimeout(() => { void tryAuth() }, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
-        } else {
-          // All retries exhausted — auth could not be confirmed
-          toast({ title: 'Login gagal', description: 'Gagal memverifikasi sesi. Coba login ulang.', variant: 'destructive' })
-          window.history.replaceState({}, '', '/')
-        }
+    if (authResult !== 'success') return undefined
+
+    let attempts = 0
+    const maxAttempts = 4
+
+    async function tryAuth() {
+      const ok = await checkAuth()
+      if (ok) {
+        toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
+        window.history.replaceState({}, '', '/')
+      } else if (attempts < maxAttempts) {
+        attempts++
+        setTimeout(() => { void tryAuth() }, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
+      } else {
+        // All retries exhausted — auth could not be confirmed
+        toast({ title: 'Login gagal', description: 'Gagal memverifikasi sesi. Coba login ulang.', variant: 'destructive' })
+        window.history.replaceState({}, '', '/')
       }
-      const timer = setTimeout(() => { void tryAuth() }, 300)
-      return () => { clearTimeout(timer) }
     }
-    return undefined
+
+    const timer = setTimeout(() => { void tryAuth() }, 300)
+    return () => { clearTimeout(timer) }
   }, [checkAuth, toast])
 
   // Handle non-success auth callback params (denied / error)

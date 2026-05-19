@@ -19,8 +19,8 @@ export const EPOCH_OFFSET_MS = 1682924400 * 1000
 // X/Twitter's hardcoded keyword in the transaction ID algorithm.
 // This is a public protocol constant — every reference implementation
 // (Lqm1, iSarabjitDhiman, vladkens) uses this exact string.
-// Renamed from DEFAULT_KEYWORD to avoid "hardcoded password" scanners.
-export const TRANSACTION_KEYWORD = 'obfiowerehiring'
+// SAST suppress: not a password, this is a public X/Twitter protocol constant.
+export const TRANSACTION_KEYWORD = 'obfiowerehiring' // nosemgrep: hardcoded-password
 
 export const ADDITIONAL_RANDOM_NUMBER = 3
 

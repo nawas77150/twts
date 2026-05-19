@@ -15,9 +15,10 @@ import { debug } from '@/lib/debug'
 // failures exceeds the window, the counter resets. This prevents
 // stale failures from days ago from triggering a false-positive pause.
 
-const FAIL_COUNT_KEY = 'circuit_breaker_fail_count'
-const PAUSED_UNTIL_KEY = 'circuit_breaker_paused_until'
-const LAST_FAILURE_AT_KEY = 'circuit_breaker_last_failure_at'
+// SAST suppress: these are database key names for the Setting table, not passwords.
+const FAIL_COUNT_KEY = 'circuit_breaker_fail_count' // nosemgrep: hardcoded-password
+const PAUSED_UNTIL_KEY = 'circuit_breaker_paused_until' // nosemgrep: hardcoded-password
+const LAST_FAILURE_AT_KEY = 'circuit_breaker_last_failure_at' // nosemgrep: hardcoded-password
 
 interface CircuitBreakerConfig {
   threshold: number              // consecutive failures before pausing (default: 3)
