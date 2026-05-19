@@ -25,39 +25,49 @@ export async function parseUsernameRequest(req: NextRequest): Promise<{ normaliz
 // Uses tagged template literal for safe parameterization.
 // ${settingKey} becomes $1, $2 etc. — identical SQL to current inline code.
 export async function atomicJsonbAppend(settingKey: string, username: string): Promise<void> {
-  const usernameArr = JSON.stringify([username])
-  await db.$executeRaw`
-    INSERT INTO "Setting" (id, key, value, "updatedAt")
-    VALUES (
-      ${settingKey},
-      ${settingKey},
-      ${usernameArr},
-      NOW()
-    )
-    ON CONFLICT (key) DO UPDATE
-    SET "value" = (
-      CASE WHEN "Setting"."value"::jsonb @> ${usernameArr}::jsonb
-      THEN "Setting"."value"
-      ELSE ("Setting"."value"::jsonb || ${JSON.stringify(username)}::jsonb)::text
-      END
-    ),
-    "updatedAt" = NOW()
-  `
+  try {
+    const usernameArr = JSON.stringify([username])
+    await db.$executeRaw`
+      INSERT INTO "Setting" (id, key, value, "updatedAt")
+      VALUES (
+        ${settingKey},
+        ${settingKey},
+        ${usernameArr},
+        NOW()
+      )
+      ON CONFLICT (key) DO UPDATE
+      SET "value" = (
+        CASE WHEN "Setting"."value"::jsonb @> ${usernameArr}::jsonb
+        THEN "Setting"."value"
+        ELSE ("Setting"."value"::jsonb || ${JSON.stringify(username)}::jsonb)::text
+        END
+      ),
+      "updatedAt" = NOW()
+    `
+  } catch (error) {
+    console.error('[submitters] atomicJsonbAppend failed:', error)
+    throw error
+  }
 }
 
 // --- Helper 3: Atomic JSONB remove ---
 // Without the AND guard — functionally correct: UPDATE is a no-op if
 // username isn't in the array (only updatedAt changes).
 export async function atomicJsonbRemove(settingKey: string, username: string): Promise<void> {
-  await db.$executeRaw`
-    UPDATE "Setting"
-    SET "value" = COALESCE(
-      (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${username}),
-      '[]'::jsonb
-    )::text,
-    "updatedAt" = NOW()
-    WHERE "key" = ${settingKey}
-  `
+  try {
+    await db.$executeRaw`
+      UPDATE "Setting"
+      SET "value" = COALESCE(
+        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${username}),
+        '[]'::jsonb
+      )::text,
+      "updatedAt" = NOW()
+      WHERE "key" = ${settingKey}
+    `
+  } catch (error) {
+    console.error('[submitters] atomicJsonbRemove failed:', error)
+    throw error
+  }
 }
 
 // --- Helper 4: Check user exists in list (for error response) ---

@@ -36,25 +36,30 @@ async function upsertRateLimits(
   rateLimits: Record<string, number | undefined>,
   results: { key: string; updated: boolean }[],
 ): Promise<void> {
-  for (const def of RATE_LIMIT_DEFS) {
-    const raw = rateLimits[def.field]
-    if (typeof raw === 'number') {
-      const clamped = def.max !== null
-        ? Math.min(def.max, Math.max(def.min, raw))
-        : Math.max(def.min, raw)
-      const val = clamped.toString()
-      try {
-        await db.setting.upsert({
-          where: { key: def.key },
-          update: { value: val },
-          create: { key: def.key, value: val },
-        })
-        results.push({ key: def.key, updated: true })
-      } catch (e) {
-        console.error(`[filter-settings] Failed to upsert ${def.key}:`, e)
-        results.push({ key: def.key, updated: false })
+  try {
+    for (const def of RATE_LIMIT_DEFS) {
+      const raw = rateLimits[def.field]
+      if (typeof raw === 'number') {
+        const clamped = def.max !== null
+          ? Math.min(def.max, Math.max(def.min, raw))
+          : Math.max(def.min, raw)
+        const val = clamped.toString()
+        try {
+          await db.setting.upsert({
+            where: { key: def.key },
+            update: { value: val },
+            create: { key: def.key, value: val },
+          })
+          results.push({ key: def.key, updated: true })
+        } catch (e) {
+          console.error(`[filter-settings] Failed to upsert ${def.key}:`, e)
+          results.push({ key: def.key, updated: false })
+        }
       }
     }
+  } catch (error) {
+    console.error('[filter-settings] upsertRateLimits unexpected error:', error)
+    throw error
   }
 }
 

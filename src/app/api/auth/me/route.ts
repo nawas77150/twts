@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
       submitter,
       blocked,
     })
-  } catch {
+  } catch (error) {
+    console.error('[auth/me] Error:', error)
     return NextResponse.json({ authenticated: false })
   }
 }

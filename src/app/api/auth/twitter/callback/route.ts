@@ -26,8 +26,9 @@ async function cleanupExpiredFlows() {
     await db.oAuthFlow.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     })
-  } catch {
+  } catch (error) {
     // Non-critical — don't block the login flow
+    console.error('[oauth] Expired flow cleanup failed:', error)
   }
 }
 
@@ -177,6 +178,13 @@ export async function GET(req: NextRequest) {
 
     // Create session token
     const sessionToken = createSessionToken(submitter.id)
+
+    // Validate session token format before embedding in HTML (SAST: prevent XSS).
+    // Session tokens are JWT-like: base64url segments separated by dots.
+    if (!/^[A-Za-z0-9._-]+$/.test(sessionToken)) {
+      console.error('[oauth] Invalid session token format — possible injection')
+      return authErrorRedirect(baseUrl)
+    }
 
     // Return an intermediate HTML page that sets the session cookie via fetch,
     // then redirects. This is more reliable on Vercel than setting cookies

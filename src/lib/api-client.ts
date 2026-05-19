@@ -32,6 +32,12 @@ class ApiClient {
     path: string,
     options?: RequestInit & { silent?: boolean }
   ): Promise<T> {
+    // Validate path is a relative internal API endpoint (SAST: prevent SSRF).
+    // Rejects absolute URLs (http://, https://) and drive letters (C:\).
+    if (!path.startsWith('/') || /:\/\/|^[a-zA-Z]:/.test(path)) {
+      throw new ApiError(400, 'Invalid API path: must be a relative path')
+    }
+
     const headers: Record<string, string> = {}
     if (options?.body && typeof options.body === 'string') {
       headers['Content-Type'] = 'application/json'

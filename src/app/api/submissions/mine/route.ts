@@ -121,7 +121,8 @@ export async function GET(req: NextRequest) {
       stats,
       limits: limitsData,
     })
-  } catch {
+  } catch (error) {
+    console.error('[submissions/mine] Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

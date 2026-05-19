@@ -93,7 +93,7 @@ export function UsersDialog({
             hasAnyOverride = true
           } else {
             // Invalid input — abort and show error
-            toast({ title: 'Input tidak valid', description: `${PER_USER_LIMIT_LABELS[key]}: masukkan angka tidak negatif atau kosongkan`, variant: 'destructive' })
+            toast({ title: 'Input tidak valid', description: `${safeAccess(PER_USER_LIMIT_LABELS, key)}: masukkan angka tidak negatif atau kosongkan`, variant: 'destructive' })
             return false
           }
         }

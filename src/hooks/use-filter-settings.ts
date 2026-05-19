@@ -6,6 +6,7 @@ import { DEFAULT_FILTER_RULES } from '@/types'
 import { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 import { apiClient } from '@/lib/api-client'
+import { safeAccess } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useAdminAuth } from '@/contexts/admin-auth-context'
 
@@ -45,7 +46,7 @@ export function useFilterSettings() {
   }, [])
 
   const toggleRule = useCallback((key: keyof FilterRules) => {
-    setFilterRules((prev) => ({ ...prev, [key]: !prev[key] }))
+    setFilterRules((prev) => ({ ...prev, [key]: !safeAccess(prev, key) }))
   }, [])
 
   const [geminiSaving, setGeminiSaving] = useState(false)

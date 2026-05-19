@@ -7,19 +7,22 @@ import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useAdminAuth } from '@/contexts/admin-auth-context'
 
-const SETTING_LABELS: Record<string, string> = {
-  x_cookie_string: 'Cookie String',
-  x_query_id: 'Query ID',
-  x_bearer_token: 'Bearer Token',
-  twitterapi_keys: 'API Keys',
-  twitterapi_proxy: 'Proxy URL',
-  post_method: 'Post Method',
-  x_username: 'X Username',
-  x_email: 'X Email',
-  x_password: 'X Password',
-  x_totp_secret: '2FA Secret',
-  v2_login_enabled: 'V2 Login Fallback',
-}
+// Map (not Record) avoids the "Generic Object Injection Sink" SAST warning:
+// plain objects have a prototype chain (__proto__, constructor) that SAST
+// flags on dynamic-key access. Map.get() has no prototype chain.
+const SETTING_LABELS = new Map<string, string>([
+  ['x_cookie_string', 'Cookie String'],
+  ['x_query_id', 'Query ID'],
+  ['x_bearer_token', 'Bearer Token'],
+  ['twitterapi_keys', 'API Keys'],
+  ['twitterapi_proxy', 'Proxy URL'],
+  ['post_method', 'Post Method'],
+  ['x_username', 'X Username'],
+  ['x_email', 'X Email'],
+  ['x_password', 'X Password'],
+  ['x_totp_secret', '2FA Secret'],
+  ['v2_login_enabled', 'V2 Login Fallback'],
+])
 
 export function usePostingSettings() {
   const { isAdmin } = useAdminAuth()
@@ -75,7 +78,7 @@ export function usePostingSettings() {
             ? 'Auto-login berhasil — cookie tersimpan.'
             : `Disimpan, tapi auto-login gagal: ${data.autoLogin.error || 'Unknown error'}`
           : undefined
-        toast({ title: `${SETTING_LABELS[key] || key} disimpan!`, description: desc })
+        toast({ title: `${SETTING_LABELS.get(key) || key} disimpan!`, description: desc })
       }
       onSuccess?.()
     } catch (err: unknown) {
