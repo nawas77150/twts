@@ -1,10 +1,9 @@
 import { db } from '@/lib/db'
-import { executePostAndRecord, withErrorBoundary } from '@/lib/execute-post'
+import { withErrorBoundary } from '@/lib/execute-post'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
-import { getFilterSettings } from '@/lib/filter-settings'
-import { fetchSubmissionForPosting, handlePostEarlyReturns } from '../_lib'
+import { fetchSubmissionForPosting, executePostForSubmission, buildPostWarningResponse } from '../_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
@@ -26,30 +25,15 @@ export async function POST(
     if (validationResult instanceof NextResponse) return validationResult
     const { submission } = validationResult
 
-    // Load filter settings before executePostAndRecord (which acquires the posting lock internally)
-    const filterSettings = await getFilterSettings()
-
-    // Delegated: lock → CAS → post → record → release
-    const postResult = await executePostAndRecord({
-      submissionId: id,
-      message: decodeHtmlEntities(submission.message),
-      rateLimits: filterSettings.rateLimits,
-      casStatuses: ['pending', 'post_failed', 'censored'],
-    })
-
-    // Map result to HTTP response
-    const earlyReturn = handlePostEarlyReturns(postResult, 'retry')
-    if (earlyReturn) return earlyReturn
+    // Delegated: load settings → lock → CAS → post → record → release → handle early returns
+    const postAttempt = await executePostForSubmission(id, decodeHtmlEntities(submission.message), 'retry')
+    if (postAttempt instanceof NextResponse) return postAttempt
+    const { postResult } = postAttempt
 
     if (postResult.success) {
       debug('retry', 'Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method, 'retries:', postResult.retriesUsed)
       if (postResult.warning) {
-        return NextResponse.json({
-          autoPosted: true,
-          tweetId: postResult.tweetId,
-          postMethod: postResult.method,
-          warning: postResult.warning,
-        })
+        return buildPostWarningResponse(postResult)
       }
       const updated = await db.submission.findUnique({ where: { id } })
       return NextResponse.json({

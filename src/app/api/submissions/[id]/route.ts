@@ -1,11 +1,10 @@
 import { db } from '@/lib/db'
-import { executePostAndRecord, withErrorBoundary } from '@/lib/execute-post'
+import { withErrorBoundary } from '@/lib/execute-post'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
-import { getFilterSettings } from '@/lib/filter-settings'
 import { checkStalePosting } from '@/lib/stale-posting'
-import { fetchSubmissionForPosting, handlePostEarlyReturns, getMethodDescription, getPostErrorHint } from './_lib'
+import { fetchSubmissionForPosting, executePostForSubmission, buildPostWarningResponse, getMethodDescription, getPostErrorHint } from './_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
@@ -34,20 +33,10 @@ export async function PATCH(
 
     // If approving, auto-post to X via cookie auth (with retry + fallback)
     if (status === 'approved') {
-      // Load filter settings before executePostAndRecord (which acquires the posting lock internally)
-      const filterSettings = await getFilterSettings()
-
-      // Delegated: lock → CAS → post → record → release
-      const postResult = await executePostAndRecord({
-        submissionId: id,
-        message: decodeHtmlEntities(submission.message),
-        rateLimits: filterSettings.rateLimits,
-        casStatuses: ['pending', 'post_failed', 'censored'],
-      })
-
-      // Map result to HTTP response
-      const earlyReturn = handlePostEarlyReturns(postResult, 'approve')
-      if (earlyReturn) return earlyReturn
+      // Delegated: load settings → lock → CAS → post → record → release → handle early returns
+      const postAttempt = await executePostForSubmission(id, decodeHtmlEntities(submission.message), 'approve')
+      if (postAttempt instanceof NextResponse) return postAttempt
+      const { postResult } = postAttempt
 
       if (postResult.success) {
         debug('approve', 'Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method)
@@ -55,12 +44,7 @@ export async function PATCH(
         const description = getMethodDescription(postResult.method ?? '', postResult.retriesUsed ?? 0)
 
         if (postResult.warning) {
-          return NextResponse.json({
-            autoPosted: true,
-            tweetId: postResult.tweetId,
-            postMethod: postResult.method,
-            warning: postResult.warning,
-          })
+          return buildPostWarningResponse(postResult)
         }
         const updated = await db.submission.findUnique({ where: { id } })
 

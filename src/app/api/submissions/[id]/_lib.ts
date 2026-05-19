@@ -7,9 +7,10 @@
 // ============================================================
 
 import { db } from '@/lib/db'
+import { executePostAndRecord, type ExecutePostResult } from '@/lib/execute-post'
+import { getFilterSettings } from '@/lib/filter-settings'
 import { checkStalePosting } from '@/lib/stale-posting'
 import { debug } from '@/lib/debug'
-import type { ExecutePostResult } from '@/lib/execute-post'
 import type { Submission } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
@@ -116,7 +117,54 @@ export function handlePostEarlyReturns(
   return null
 }
 
-// --- Helper 3: Error hint lookup ---
+// --- Helper 3: Execute post with settings + early returns ---
+
+/**
+ * Execute posting for a submission: load filter settings, run executePostAndRecord,
+ * and handle early-return conditions (lockBusy, dailyCap, casAborted).
+ * Shared by PATCH (approve) and POST (manual retry).
+ *
+ * @param id - Submission ID
+ * @param message - Decoded submission message
+ * @param logLabel - Debug label ('approve' or 'retry')
+ * @returns ExecutePostResult on success, or NextResponse for early-return conditions
+ */
+export async function executePostForSubmission(
+  id: string,
+  message: string,
+  logLabel: string,
+): Promise<{ postResult: ExecutePostResult } | NextResponse> {
+  const filterSettings = await getFilterSettings()
+
+  const postResult = await executePostAndRecord({
+    submissionId: id,
+    message,
+    rateLimits: filterSettings.rateLimits,
+    casStatuses: ['pending', 'post_failed', 'censored'],
+  })
+
+  const earlyReturn = handlePostEarlyReturns(postResult, logLabel)
+  if (earlyReturn) return earlyReturn
+
+  return { postResult }
+}
+
+// --- Helper 4: Warning response builder ---
+
+/**
+ * Build the warning response when post succeeds but with a warning.
+ * Identical shape for both approve and retry routes.
+ */
+export function buildPostWarningResponse(postResult: ExecutePostResult): NextResponse {
+  return NextResponse.json({
+    autoPosted: true,
+    tweetId: postResult.tweetId,
+    postMethod: postResult.method,
+    warning: postResult.warning,
+  })
+}
+
+// --- Helper 5: Error hint lookup ---
 
 const HINT_PATTERNS: Array<{ patterns: string[]; hint: string }> = [
   { patterns: ['code: 344', 'daily limit'], hint: 'Batas harian tweet tercapai. Coba lagi besok.' },

@@ -1,8 +1,8 @@
 'use client'
 
-import { Filter, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import type { Stats } from '@/types'
 import { STATUS_CONFIG } from '@/types'
 
@@ -61,24 +61,13 @@ export function SubmissionFilters({
           </button>
         )
       })}
-      <div className="relative ml-2 shrink-0">
-        <Input
-          placeholder="Cari pesan atau username..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value) }}
-          className="pl-7 h-7 text-xs w-32 sm:w-44 border-[#EFF3F4]"
-        />
-        <Filter className="w-3 h-3 text-[#71767B] absolute left-2 top-1/2 -translate-y-1/2" />
-        {search && (
-          <button
-            type="button"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419] text-xs leading-none"
-            onClick={() => { setSearch('') }}
-          >
-            ×
-          </button>
-        )}
-      </div>
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Cari pesan atau username..."
+        className="ml-2 shrink-0"
+        inputClassName="pl-7 h-7 w-32 sm:w-44"
+      />
       <Button
         variant="ghost"
         size="sm"

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, Ban, Filter, RefreshCw, Loader2, User, Settings2, X } from 'lucide-react'
+import { Users, Ban, RefreshCw, Loader2, User, Settings2, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -75,7 +76,7 @@ export function UsersDialog({
       let hasAnyOverride = false
 
       for (const key of PER_USER_LIMIT_KEYS) {
-        const raw = editValues[key]?.trim()
+        const raw = editValues[key].trim()
         if (raw === '') {
           // Empty = remove this override (send null to clear)
           customLimits[key] = null
@@ -129,24 +130,11 @@ export function UsersDialog({
         </DialogHeader>
 
         {/* Search */}
-        <div className="relative">
-          <Input
-            placeholder="Cari username..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value) }}
-            className="pl-8 h-8 text-xs border-[#EFF3F4]"
-          />
-          <Filter className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
-          {search && (
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419]"
-              onClick={() => { setSearch('') }}
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Cari username..."
+        />
 
         <div
           className="flex-1 overflow-y-auto space-y-4 pr-1"
@@ -288,6 +276,8 @@ export function UsersDialog({
                             <img
                               src={s.profileImage}
                               alt=""
+                              width={32}
+                              height={32}
                               className="w-8 h-8 rounded-full flex-shrink-0"
                             />
                           ) : (
@@ -366,7 +356,7 @@ export function UsersDialog({
                             <div className="grid grid-cols-2 gap-2">
                               {PER_USER_LIMIT_KEYS.map((key) => (
                                 <div key={key} className="space-y-0.5">
-                                  <label className="text-[10px] text-[#536471] font-medium flex items-center gap-1">
+                                  <label htmlFor={`limit-${key}`} className="text-[10px] text-[#536471] font-medium flex items-center gap-1">
                                     {PER_USER_LIMIT_LABELS[key]}
                                     {globalRateLimits && (
                                       <span className="text-[9px] text-[#71767B]">
@@ -375,6 +365,7 @@ export function UsersDialog({
                                     )}
                                   </label>
                                   <Input
+                                    id={`limit-${key}`}
                                     type="number"
                                     min="0"
                                     placeholder={globalRateLimits ? String(globalRateLimits[key]) : '—'}
