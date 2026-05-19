@@ -45,7 +45,7 @@ export function UsersDialog({
 }: UsersDialogProps) {
   const [search, setSearch] = useState('')
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, string>>({})
+  const [editValues, setEditValues] = useState<Map<string, string>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
   const { toast } = useToast()
 
@@ -55,16 +55,19 @@ export function UsersDialog({
     if (!isOpen) {
       setSearch('')
       setEditingUsername(null)
-      setEditValues({})
+      setEditValues(new Map())
     }
   }
 
+  // Map (not Record) avoids the "Generic Object Injection Sink" SAST warning:
+  // plain objects have a prototype chain (__proto__, constructor) that SAST
+  // flags on dynamic-key access. Map.get() / Map.set() have no prototype chain.
   const startEditing = (submitter: SubmitterWithStats) => {
     setEditingUsername(submitter.username)
-    const vals: Record<string, string> = {}
+    const vals = new Map<string, string>()
     for (const key of PER_USER_LIMIT_KEYS) {
       const override = submitter.customLimits?.[key]
-      vals[key] = override !== undefined && override !== null ? String(override) : ''
+      vals.set(key, override !== undefined && override !== null ? String(override) : '')
     }
     setEditValues(vals)
   }
@@ -72,18 +75,18 @@ export function UsersDialog({
   const handleSaveLimits = async (username: string) => {
     setIsSaving(true)
     try {
-      const customLimits: Record<string, number | null> = {}
+      const customLimits = new Map<string, number | null>()
       let hasAnyOverride = false
 
       for (const key of PER_USER_LIMIT_KEYS) {
-        const raw = editValues[key].trim()
+        const raw = (editValues.get(key) ?? '').trim()
         if (raw === '') {
           // Empty = remove this override (send null to clear)
-          customLimits[key] = null
+          customLimits.set(key, null)
         } else {
           const num = parseInt(raw, 10)
           if (!isNaN(num) && num >= 0) {
-            customLimits[key] = num
+            customLimits.set(key, num)
             hasAnyOverride = true
           } else {
             // Invalid input — abort and show error
@@ -94,11 +97,12 @@ export function UsersDialog({
       }
 
       // If no fields have values, clear all custom limits
-      const payload = hasAnyOverride ? customLimits : null
+      // Convert Map → plain object at API boundary (onSetCustomLimits expects Record)
+      const payload = hasAnyOverride ? Object.fromEntries(customLimits) : null
       const success = await onSetCustomLimits(username, payload)
       if (success) {
         setEditingUsername(null)
-        setEditValues({})
+        setEditValues(new Map())
       }
       return success
     } finally {
@@ -111,7 +115,7 @@ export function UsersDialog({
     try {
       await onSetCustomLimits(username, null)
       setEditingUsername(null)
-      setEditValues({})
+      setEditValues(new Map())
     } finally {
       setIsSaving(false)
     }
@@ -369,8 +373,8 @@ export function UsersDialog({
                                     type="number"
                                     min="0"
                                     placeholder={globalRateLimits ? String(globalRateLimits[key]) : '—'}
-                                    value={editValues[key] || ''}
-                                    onChange={(e) => { setEditValues(prev => ({ ...prev, [key]: e.target.value })) }}
+                                    value={editValues.get(key) ?? ''}
+                                    onChange={(e) => { setEditValues(prev => { const next = new Map(prev); next.set(key, e.target.value); return next }) }}
                                     className="h-7 text-xs border-[#EFF3F4]"
                                   />
                                 </div>
