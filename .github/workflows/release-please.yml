@@ -20,6 +20,7 @@ jobs:
         with:
           release-type: node
           config-file: release-please-config.json
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           # Uses package.json version as the source of truth
           # Conventional commits on main auto-update the release PR
           # Merging the release PR → creates tag + GitHub Release
