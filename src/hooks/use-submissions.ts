@@ -5,7 +5,6 @@ import type { Submission, SubmissionStatus } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { useAdminAuth } from '@/contexts/admin-auth-context'
 
 interface UseSubmissionsParams {
   isAdmin: boolean

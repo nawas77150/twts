@@ -27,13 +27,24 @@ export function useSubmitters() {
     }
   }, [isAdmin])
 
-  const block = useCallback(async (username: string) => {
+  // Shared helper for block/unblock — eliminates duplication
+  const toggleBlock = useCallback(async (
+    username: string,
+    action: 'block' | 'unblock',
+  ) => {
     if (!isAdmin) return
+    const apiCall = action === 'block'
+      ? apiClient.blockUser(username)
+      : apiClient.unblockUser(username)
     try {
-      const data = await apiClient.blockUser(username)
+      const data = await apiCall
       if (!data.error) {
-        setBlockedUsernames((prev) => [...prev, username.toLowerCase()])
-        toast({ title: `@${username} diblokir` })
+        setBlockedUsernames((prev) =>
+          action === 'block'
+            ? [...prev, username.toLowerCase()]
+            : prev.filter((u) => u !== username.toLowerCase())
+        )
+        toast({ title: `@${username} ${action === 'block' ? 'diblokir' : 'dibebaskan'}` })
         void fetchSubmitters()
       } else {
         toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
@@ -43,21 +54,8 @@ export function useSubmitters() {
     }
   }, [isAdmin, fetchSubmitters, toast])
 
-  const unblock = useCallback(async (username: string) => {
-    if (!isAdmin) return
-    try {
-      const data = await apiClient.unblockUser(username)
-      if (!data.error) {
-        setBlockedUsernames((prev) => prev.filter((u) => u !== username.toLowerCase()))
-        toast({ title: `@${username} dibebaskan` })
-        void fetchSubmitters()
-      } else {
-        toast({ title: 'Gagal', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
-    }
-  }, [isAdmin, fetchSubmitters, toast])
+  const block = useCallback((username: string) => toggleBlock(username, 'block'), [toggleBlock])
+  const unblock = useCallback((username: string) => toggleBlock(username, 'unblock'), [toggleBlock])
 
   const setCustomLimits = useCallback(async (username: string, customLimits: Record<string, number | null> | null): Promise<boolean> => {
     if (!isAdmin) return false
