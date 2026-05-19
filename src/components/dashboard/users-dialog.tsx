@@ -67,7 +67,8 @@ export function UsersDialog({
     setEditingUsername(submitter.username)
     const vals = new Map<string, string>()
     for (const key of PER_USER_LIMIT_KEYS) {
-      const override = submitter.customLimits && Object.hasOwn(submitter.customLimits, key) ? submitter.customLimits[key] : undefined
+      const limits = submitter.customLimits as Partial<PerUserLimits> | null
+      const override = limits ? safeAccess(limits, key) : undefined
       vals.set(key, override !== undefined && override !== null ? String(override) : '')
     }
     setEditValues(vals)
