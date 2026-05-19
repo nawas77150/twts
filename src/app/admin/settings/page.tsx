@@ -72,7 +72,7 @@ export default function AdminSettingsPage() {
     if (stats.circuitBreaker) {
       circuitBreaker.setStatus(stats.circuitBreaker)
     }
-  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting]) // deps include all used functions
+  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting, posting.setV2LoginEnabled])
 
   // Always sync circuit breaker status (read-only display, safe to update)
   useEffect(() => {
