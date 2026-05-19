@@ -19,11 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from '@/components/shared/settings-card'
 import { SecretInput } from '@/components/shared/secret-input'
-import type { PostMethod, ApiLoginStatus, KeyCredits } from '@/types'
+import type { PostMethodSetting, ApiLoginStatus, KeyCredits } from '@/types'
 
 interface ApiFallbackCardProps {
-  postMethodSetting: PostMethod
-  setPostMethodSetting: (v: PostMethod) => void
+  postMethodSetting: PostMethodSetting
+  setPostMethodSetting: (v: PostMethodSetting) => void
   v2LoginEnabled: boolean
   setV2LoginEnabled: (v: boolean) => void
   xUsername: string
@@ -80,9 +80,9 @@ export function ApiFallbackCard({
   const [showTotpSecret, setShowTotpSecret] = useState(false)
 
   const postMethodOptions = [
-    { value: 'direct' as PostMethod, label: 'Direct', desc: 'Cookie only' },
-    { value: 'auto' as PostMethod, label: 'Auto', desc: 'Cookie → API' },
-    { value: 'api' as PostMethod, label: 'API Only', desc: 'TwitterAPI.io only' },
+    { value: 'direct' as PostMethodSetting, label: 'Direct', desc: 'Cookie only' },
+    { value: 'auto' as PostMethodSetting, label: 'Auto', desc: 'Cookie → API' },
+    { value: 'api' as PostMethodSetting, label: 'API Only', desc: 'TwitterAPI.io only' },
   ]
 
   const handleV2Toggle = () => {

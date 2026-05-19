@@ -2,11 +2,16 @@
 // Tweetfess — Shared TypeScript Types
 // ============================================================
 
+import type { FilterRules } from '@/lib/content-filter-engine'
+
 // --- Status ---
 
 export type SubmissionStatus = 'pending' | 'censored' | 'posting' | 'post_failed' | 'rejected' | 'posted'
 
-export type PostMethod = 'direct' | 'api' | 'auto'
+export type PostMethodSetting = 'direct' | 'api' | 'auto'
+export type PostMethodResult = 'direct' | 'retry' | 'fallback' | 'fallback_cookie' | 'fallback_login'
+/** @deprecated Use PostMethodSetting or PostMethodResult */
+export type PostMethod = PostMethodSetting
 
 // --- Models ---
 
@@ -23,7 +28,7 @@ export interface Submission {
   message: string
   status: SubmissionStatus
   tweetId: string | null
-  postMethod: string | null
+  postMethod: PostMethodResult | null
   postError: string | null
   category: string | null
   filterReasons: string | null
@@ -72,18 +77,7 @@ export interface CookieAuthStatus {
 
 // --- Filter Types ---
 
-export interface FilterRules {
-  blockedWords: boolean
-  jualan: boolean
-  urls: boolean
-  mentions: boolean
-  phoneNumbers: boolean
-  nsfw: boolean
-  capsSpam: boolean
-  repeatedChars: boolean
-  tooShort: boolean
-  duplicate24h: boolean
-}
+export type { FilterRules }
 
 export interface RateLimitSettings {
   submissionCooldown: number
@@ -129,7 +123,7 @@ export interface Stats {
   apiCredits: KeyCredits[] | null
   apiLoginStatus: ApiLoginStatus | null
   filterSettings: FilterSettings | null
-  postMethodSetting?: PostMethod
+  postMethodSetting?: PostMethodSetting
   circuitBreaker?: CircuitBreakerStatus | null
   encryptionEnabled?: boolean
 }
@@ -254,94 +248,11 @@ export interface AdminLoginResponse {
 
 // --- Default Values ---
 
-export const DEFAULT_FILTER_RULES: FilterRules = {
-  blockedWords: true,
-  jualan: true,
-  urls: true,
-  mentions: true,
-  phoneNumbers: true,
-  nsfw: false,
-  capsSpam: true,
-  repeatedChars: true,
-  tooShort: true,
-  duplicate24h: true,
-}
+export { DEFAULT_FILTER_RULES } from '@/lib/content-filter-engine'
 
 // Re-exported from @/lib/filter-settings for backward compatibility
 export { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
 
-// --- Status Config (for UI rendering) ---
+// --- UI Helpers (re-exported from @/lib/format) ---
 
-export const STATUS_CONFIG = {
-  pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  censored: { label: 'Disensor', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  posting: { label: 'Posting', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  post_failed: { label: 'Gagal', color: 'bg-red-100 text-red-800 border-red-300' },
-  rejected: { label: 'Ditolak', color: 'bg-gray-100 text-gray-600 border-gray-300' },
-  posted: { label: 'Diposting', color: 'bg-green-100 text-green-800 border-green-300' },
-} as const
-
-// --- Filter Reason Label Helper ---
-
-export function getFilterReasonLabel(reason: string): string {
-  // Blocked word — mask the word for display
-  if (reason.startsWith('blocked_word:')) {
-    const word = reason.replace('blocked_word:', '')
-    const masked = word.length > 2
-      ? word[0] + '*'.repeat(word.length - 2) + word[word.length - 1]
-      : '**'
-    return `Blocked: "${masked}"`
-  }
-
-  // NSFW word — mask the word for display
-  if (reason.startsWith('nsfw_word:')) {
-    const word = reason.replace('nsfw_word:', '')
-    const masked = word.length > 2
-      ? word[0] + '*'.repeat(word.length - 2) + word[word.length - 1]
-      : '**'
-    return `NSFW: "${masked}"`
-  }
-
-  if (reason === 'ai:skipped_error') return 'AI: Skipped (error)'
-  if (reason.startsWith('ai:')) return `AI: ${reason.replace('ai:', '')}`
-
-  // Jualan
-  if (reason.startsWith('jualan:')) {
-    const tag = reason.replace('jualan:', '')
-    return `Marketplace (${tag})`
-  }
-
-  if (reason === 'contains_url') return 'Link'
-  if (reason.startsWith('contains_mention')) return '@Mention'
-  if (reason === 'contains_phone_number') return 'No. HP'
-  if (reason === 'caps_spam') return 'ALL CAPS'
-  if (reason === 'repeated_characters') return 'Spam chars'
-  if (reason === 'too_short') return 'Terlalu pendek'
-  if (reason === 'duplicate_24h') return 'Duplikat (24j)'
-  return reason
-}
-
-export function parseFilterReasons(filterReasons: string | null): string[] {
-  if (!filterReasons) return []
-  try {
-    const parsed = JSON.parse(filterReasons)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-// --- Date Formatter ---
-
-export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-// Admin cookie helpers removed — auth is now handled via HttpOnly cookies
-// set by the server on login. See src/lib/admin-auth.ts getAdminTokenFromRequest().
+export { STATUS_CONFIG, getFilterReasonLabel, parseFilterReasons, formatDate } from '@/lib/format'

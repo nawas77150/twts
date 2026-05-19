@@ -499,3 +499,126 @@ Stage Summary:
   - 2× findMany→map→for→decryptSetting → readSettingsMap()
 - KeyCredits: 2 definitions → 1 (canonical in @/types, re-exported)
 - Code is Vercel clean — zero clones expected on next deploy
+---
+Task ID: 1b
+Agent: verification-agent
+Task: Find all 'as PostMethod' casts and PostMethod usages
+
+Work Log:
+- Searched entire codebase for `as PostMethod` pattern
+- Searched for all imports of PostMethod
+- Searched for all usages of PostMethod (type annotations, references, etc.)
+- Read full contents of use-stats-summary.ts, api-fallback-card.tsx, use-posting-settings.ts
+- Read types/index.ts for PostMethod definition and Stats interface
+
+Stage Summary:
+- Found 4 instances of `as PostMethod` casts across 2 files
+- Found 4 files that import PostMethod from @/types
+- Found PostMethod used as type annotation in 6 locations across 4 files
+- Detailed findings below
+
+---
+Task ID: 1c
+Agent: verification-agent
+Task: Verify use-submissions dual-guard, admin-auth, settings page badge risk, onStatsRefresh prop drilling
+
+Work Log:
+- Read /home/z/my-project/src/hooks/use-submissions.ts — found dual-guard at line 98
+- Read /home/z/my-project/src/hooks/use-admin-auth.ts — understood adminToken sentinel pattern
+- Read /home/z/my-project/src/hooks/use-stats.ts — confirmed active (not deprecated), used by dashboard
+- Read /home/z/my-project/src/app/admin/layout.tsx — identified double getStats() on login + stats-update listener
+- Read /home/z/my-project/src/app/admin/page.tsx — confirmed onStatsRefresh prop drilling and dispatchEvent pattern
+- Read /home/z/my-project/src/app/admin/settings/page.tsx — confirmed NO stats-update dispatch, uses useStatsSummary not useStats
+- Searched for onStatsRefresh across entire codebase — found in 3 hooks, passed from 1 page
+
+Stage Summary:
+- DUAL-GUARD: `if (isAdmin && adminToken)` at line 98 of use-submissions.ts protects the debounced search effect. adminToken is used ONLY as a truthy condition (not consumed after guard). It guards against triggering search when auth state is incomplete.
+- ADMIN-TOKEN: `setAdminToken('session')` (lines 26, 39 of use-admin-auth.ts) sets a literal sentinel string, NOT a real token. Comment on line 10-11 explains: kept as truthy indicator for backward compat with hooks that check `if (!adminToken) return`. Actual auth is HttpOnly cookie-based.
+- USE-STATS: Active hook, NOT deprecated. Used by dashboard page. Complements useStatsSummary (lightweight, used by settings page).
+- TRIPLE FETCH on admin login: (1) useAdminAuth calls getStats() for session check, (2) layout useEffect calls getStats() for badge pendingCount, (3) dashboard page calls fetchStats() on mount. All three fire when isAdmin becomes true.
+- STATS-UPDATE EVENT: Dashboard page.tsx line 77 dispatches `window.dispatchEvent(new CustomEvent('stats-update', ...))`. Layout.tsx line 47 listens for it. This is the cross-component communication channel for badge sync.
+- SETTINGS PAGE BADGE RISK: Settings page uses `useStatsSummary` (not `useStats`) and does NOT dispatch `stats-update` events. After mutations (block/unblock/save), calls `stats.refetch()` locally but the layout badge goes stale. Badge only refreshes when user navigates back to dashboard (which dispatches stats-update). Moderate risk — badge can show stale pending count while on settings page.
+- ONSTATSREFRESH PROP DRILLING: Confirmed. `fetchStats` from `useStats` is passed as `onStatsRefresh: fetchStats` (page.tsx line 52) into `useSubmissions`. The callback is invoked after approve/reject/delete/retryPost (lines 136, 150, 164, 182). Also defined in use-filter-settings.ts (line 13) and use-posting-settings.ts (line 11) but NOT passed by settings page (which uses direct `stats.refetch()` calls instead). Total: 3 hooks accept onStatsRefresh, 1 page passes it.
+
+---
+Task ID: 1a
+Agent: verification-agent
+Task: Verify PostMethod type issues and FilterRules duplication
+
+Work Log:
+- Read src/types/index.ts (348 lines) — found PostMethod, FilterRules, DEFAULT_FILTER_RULES, STATUS_CONFIG, getFilterReasonLabel, parseFilterReasons, formatDate
+- Read src/lib/content-filter-engine.ts (247 lines) — found duplicate FilterRules and DEFAULT_FILTER_RULES
+- Searched for /api/stats/route.ts — not found; actual path is /api/admin/stats/route.ts
+- Read src/app/api/admin/stats/route.ts (138 lines) — found 'fallback' value check at line 111
+- Searched entire src/ for 'fallback' — found extensive usage across 12+ files
+
+Stage Summary:
+- PostMethod type (L9): `type PostMethod = 'direct' | 'api' | 'auto'` — does NOT include 'retry', 'fallback', 'fallback_cookie', 'fallback_login'
+- Submission.postMethod (L26): typed as `string | null`, NOT `PostMethod | null` — workaround for mismatch
+- PostMethodStats interface (L56-64) uses `fallback: number` and `fallbackRate: number` but PostMethod type lacks 'fallback'
+- 'fallback' as postMethod value: stats/route.ts L111 checks `row.postMethod === 'fallback' || row.postMethod === 'fallback_cookie' || row.postMethod === 'fallback_login'`
+- PostMethod is a *setting* type (direct/api/auto), but the DB stores *outcome* values (direct/retry/fallback_cookie/fallback_login) — these are semantically different
+- FilterRules interface duplicated identically in types/index.ts (L75-86) and content-filter-engine.ts (L29-40)
+- DEFAULT_FILTER_RULES duplicated identically in types/index.ts (L257-268) and content-filter-engine.ts (L53-64)
+- Non-type exports in types/index.ts: PER_USER_LIMIT_KEYS (L168), PER_USER_LIMIT_LABELS (L175), DEFAULT_FILTER_RULES (L257), DEFAULT_RATE_LIMITS re-export (L271), STATUS_CONFIG (L275), getFilterReasonLabel (L286), parseFilterReasons (L324), formatDate (L336)
+
+---
+Task ID: 1d
+Agent: verification-agent
+Task: Verify CI/debugging/database recommendations
+
+Work Log:
+- Read package.json — checked scripts and dependencies
+- Read eslint.config.mjs — checked all rule configurations
+- Read tsconfig.json — checked compiler options
+- Read src/lib/debug.ts — full file analysis
+- Read src/lib/db.ts — full file analysis
+- Read src/lib/circuit-breaker.ts — counted findUnique calls, analyzed redundant fetches
+- Read src/lib/filter-settings.ts — checked caching and findUnique calls
+- Read prisma/schema.prisma — checked all indexes
+- Globbed for src/app/api/test-x/route.ts — not found
+- Globbed for .vscode/launch.json — not found
+
+Stage Summary:
+1. package.json: Scripts = dev, build, postinstall, start, lint, db:push, db:generate, db:migrate, db:reset. MISSING: 'ci', 'typecheck', 'dev:debug', 'db:studio'. Dependencies present: sonner (^2.0.6) ✅, @tanstack/react-query (^5.82.0) ✅, z-ai-web-dev-sdk (^0.0.18) ✅.
+2. eslint.config.mjs: react-hooks/exhaustive-deps = "off" ✅, no-unreachable = "off" ✅. Also off: no-explicit-any, no-unused-vars, no-console, no-debugger, no-fallthrough, and 12+ other rules.
+3. tsconfig.json: Has strict:true, noImplicitAny:true. MISSING: noImplicitReturns, noFallthroughCasesInSwitch.
+4. src/lib/debug.ts: Binary on/off via `!!process.env.DEBUG`. No namespaces, no timestamps, no log levels. Just `[debug]` prefix with console.log/console.error.
+5. src/lib/db.ts: Logging = ['query'] in dev, ['error'] in prod. No duration tracking configured.
+6. src/lib/circuit-breaker.ts: 5 findUnique calls via getSettingValue across 3 exported functions (isCircuitBreakerPaused:1, getCircuitBreakerStatus:2, recordPostFailure:2). Redundant fetch: recordPostFailure reads FAIL_COUNT_KEY via findUnique after just having incremented it via raw SQL. getCircuitBreakerStatus re-fetches PAUSED_UNTIL_KEY that isCircuitBreakerPaused already fetched.
+7. src/lib/filter-settings.ts: getFilterSettings() is NOT cached — every call does a fresh db.setting.findMany. 2 extra findUnique calls exist: getGeminiApiKey() and getGeminiModel() each do separate db.setting.findUnique (not batched with findMany).
+8. prisma/schema.prisma: NO [status, createdAt] compound index. Submission has 8 indexes: [status], [status,postMethod], [createdAt], [submitterId,status], [status,updatedAt], [submitterId,createdAt], [submitterId,status,updatedAt], [submitterId,normalizedMessage,createdAt].
+9. src/app/api/test-x/route.ts — DOES NOT EXIST.
+10. .vscode/launch.json — DOES NOT EXIST.
+
+---
+Task ID: batch-1
+Agent: main
+Task: Batch 1 — Split PostMethod, deduplicate FilterRules, extract format helpers
+
+Work Log:
+- Created src/lib/format.ts with 4 extracted helpers: STATUS_CONFIG, getFilterReasonLabel, parseFilterReasons, formatDate
+- Edited src/types/index.ts (7 changes via MultiEdit):
+  1. Added import type { FilterRules } from '@/lib/content-filter-engine' (needed for local use in FilterSettings/SaveFilterSettingsRequest)
+  2. Split PostMethod into PostMethodSetting + PostMethodResult + deprecated PostMethod shim
+  3. Changed Submission.postMethod from `string | null` to `PostMethodResult | null`
+  4. Replaced duplicate FilterRules interface with re-export from content-filter-engine
+  5. Changed Stats.postMethodSetting from `PostMethod` to `PostMethodSetting`
+  6. Replaced duplicate DEFAULT_FILTER_RULES const with re-export from content-filter-engine
+  7. Replaced STATUS_CONFIG + 3 helper functions with re-exports from @/lib/format
+- Edited src/hooks/use-stats-summary.ts: import PostMethod→PostMethodSetting, cast as PostMethodSetting
+- Edited src/hooks/use-posting-settings.ts: import PostMethod→PostMethodSetting, useState<PostMethodSetting>
+- Edited src/components/settings/api-fallback-card.tsx: import PostMethod→PostMethodSetting, props + 3 casts
+- Verification: lint clean, dev server 200, all checklist items pass:
+  - `as PostMethod` (non-Setting): 0 occurrences
+  - `as PostMethodSetting`: 4 occurrences (1+3)
+  - `interface FilterRules`: 1 (content-filter-engine.ts only)
+  - `const DEFAULT_FILTER_RULES`: 1 (content-filter-engine.ts only)
+  - No circular import: content-filter-engine.ts does not import from @/types
+
+Stage Summary:
+- types/index.ts: 348→263 lines (85 lines removed, 5 re-export lines added)
+- PostMethod split: PostMethodSetting (config) vs PostMethodResult (runtime) — no more string | null workaround
+- FilterRules/DEFAULT_FILTER_RULES: single definition in content-filter-engine.ts, re-exported from @/types
+- 4 UI helpers moved to lib/format.ts, re-exported from @/types — zero consumer changes needed
+- Zero regressions, zero new bugs

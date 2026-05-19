@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { Stats, CookieAuthStatus, KeyCredits, ApiLoginStatus, PostMethod } from '@/types'
+import type { Stats, CookieAuthStatus, KeyCredits, ApiLoginStatus, PostMethodSetting } from '@/types'
 import { apiClient } from '@/lib/api-client'
 
 // ============================================================
@@ -33,7 +33,7 @@ function buildStatsFromSummary(prev: Stats | null, data: SummaryData): Stats {
     postMethodStats: prev?.postMethodStats ?? null,
     apiCredits: data.apiCredits ?? prev?.apiCredits ?? [],
     apiLoginStatus: data.apiLoginStatus ?? prev?.apiLoginStatus ?? null,
-    postMethodSetting: (data.postMethodSetting ?? prev?.postMethodSetting ?? 'auto') as PostMethod,
+    postMethodSetting: (data.postMethodSetting ?? prev?.postMethodSetting ?? 'auto') as PostMethodSetting,
     filterSettings: data.filterSettings ?? prev?.filterSettings ?? null,
     circuitBreaker: data.circuitBreaker ?? prev?.circuitBreaker ?? null,
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { PostMethod } from '@/types'
+import type { PostMethodSetting } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -34,7 +34,7 @@ export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSet
   // API settings
   const [apiKeys, setApiKeys] = useState('')
   const [apiProxy, setApiProxy] = useState('')
-  const [postMethodSetting, setPostMethodSetting] = useState<PostMethod>('auto')
+  const [postMethodSetting, setPostMethodSetting] = useState<PostMethodSetting>('auto')
 
   // X Login Credentials (for twitterapi.io user_login_v2)
   const [xUsername, setXUsername] = useState('')
