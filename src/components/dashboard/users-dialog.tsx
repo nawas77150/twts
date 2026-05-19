@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import type { SubmitterWithStats } from '@/types'
 import { PER_USER_LIMIT_KEYS, PER_USER_LIMIT_LABELS, type PerUserLimits } from '@/types'
 import { useToast } from '@/hooks/use-toast'
+import { safeAccess } from '@/lib/utils'
 
 interface UsersDialogProps {
   open: boolean
@@ -66,7 +67,7 @@ export function UsersDialog({
     setEditingUsername(submitter.username)
     const vals = new Map<string, string>()
     for (const key of PER_USER_LIMIT_KEYS) {
-      const override = submitter.customLimits?.[key]
+      const override = submitter.customLimits && Object.hasOwn(submitter.customLimits, key) ? submitter.customLimits[key] : undefined
       vals.set(key, override !== undefined && override !== null ? String(override) : '')
     }
     setEditValues(vals)
@@ -361,10 +362,10 @@ export function UsersDialog({
                               {PER_USER_LIMIT_KEYS.map((key) => (
                                 <div key={key} className="space-y-0.5">
                                   <label htmlFor={`limit-${key}`} className="text-[10px] text-[#536471] font-medium flex items-center gap-1">
-                                    {PER_USER_LIMIT_LABELS[key]}
+                                    {safeAccess(PER_USER_LIMIT_LABELS, key)}
                                     {globalRateLimits && (
                                       <span className="text-[9px] text-[#71767B]">
-                                        (default: {globalRateLimits[key]})
+                                        (default: {safeAccess(globalRateLimits, key)})
                                       </span>
                                     )}
                                   </label>
@@ -372,7 +373,7 @@ export function UsersDialog({
                                     id={`limit-${key}`}
                                     type="number"
                                     min="0"
-                                    placeholder={globalRateLimits ? String(globalRateLimits[key]) : '—'}
+                                    placeholder={globalRateLimits ? String(safeAccess(globalRateLimits, key)) : '—'}
                                     value={editValues.get(key) ?? ''}
                                     onChange={(e) => { setEditValues(prev => { const next = new Map(prev); next.set(key, e.target.value); return next }) }}
                                     className="h-7 text-xs border-[#EFF3F4]"
