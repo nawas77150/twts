@@ -137,7 +137,7 @@ export async function getFilterSettings(): Promise<{
     where: { key: { in: FILTER_SETTING_KEYS } },
   })
 
-  const getRaw = (key: string): string | null => {
+  function getRaw(key: string): string | null {
     const s = settings.find((s) => s.key === key)
     if (!s) return null
     return decryptSetting(s.value)

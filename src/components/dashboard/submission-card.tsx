@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -42,9 +43,11 @@ export function SubmissionCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 {sub.submitter.profileImage ? (
-                  <img
+                  <Image
                     src={sub.submitter.profileImage}
                     alt=""
+                    width={24}
+                    height={24}
                     className="w-6 h-6 rounded-full border border-[#EFF3F4]"
                   />
                 ) : (

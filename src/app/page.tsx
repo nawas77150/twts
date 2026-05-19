@@ -27,7 +27,7 @@ export default function HomePage() {
   const handleLogin = useCallback(() => { window.location.assign('/api/auth/twitter') }, [])
   const handleLogout = useCallback(() => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }, [logout, toast])
 
-  const handleSubmit = async (message: string, category: string): Promise<boolean> => {
+  const handleSubmit = useCallback(async (message: string, category: string): Promise<boolean> => {
     if (!message.trim()) { toast({ title: 'Error', description: 'Pesan tidak boleh kosong', variant: 'destructive' }); return false }
     if (message.trim().length > 280) { toast({ title: 'Error', description: 'Pesan maksimal 280 karakter', variant: 'destructive' }); return false }
 
@@ -68,7 +68,7 @@ export default function HomePage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [toast, setBlocked, refetchMyPosts])
 
   const showMyPosts = !!submitter && !isAnonUser
 

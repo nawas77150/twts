@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import Image from 'next/image'
 import { Users, Ban, RefreshCw, Loader2, User, Settings2, X } from 'lucide-react'
 import {
   Dialog,
@@ -51,19 +52,19 @@ export function UsersDialog({
   const { toast } = useToast()
 
   // Reset state when dialog closes
-  const handleOpenChange = (isOpen: boolean) => {
+  const handleOpenChange = useCallback((isOpen: boolean) => {
     onOpenChange(isOpen)
     if (!isOpen) {
       setSearch('')
       setEditingUsername(null)
       setEditValues(new Map())
     }
-  }
+  }, [onOpenChange])
 
   // Map (not Record) avoids the "Generic Object Injection Sink" SAST warning:
   // plain objects have a prototype chain (__proto__, constructor) that SAST
   // flags on dynamic-key access. Map.get() / Map.set() have no prototype chain.
-  const startEditing = (submitter: SubmitterWithStats) => {
+  const startEditing = useCallback((submitter: SubmitterWithStats) => {
     setEditingUsername(submitter.username)
     const vals = new Map<string, string>()
     for (const key of PER_USER_LIMIT_KEYS) {
@@ -72,9 +73,9 @@ export function UsersDialog({
       vals.set(key, override !== undefined && override !== null ? String(override) : '')
     }
     setEditValues(vals)
-  }
+  }, [])
 
-  const handleSaveLimits = async (username: string) => {
+  const handleSaveLimits = useCallback(async (username: string) => {
     setIsSaving(true)
     try {
       const customLimits = new Map<string, number | null>()
@@ -110,9 +111,9 @@ export function UsersDialog({
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [editValues, onSetCustomLimits, toast])
 
-  const handleClearLimits = async (username: string) => {
+  const handleClearLimits = useCallback(async (username: string) => {
     setIsSaving(true)
     try {
       await onSetCustomLimits(username, null)
@@ -121,7 +122,7 @@ export function UsersDialog({
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [onSetCustomLimits])
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -279,7 +280,7 @@ export function UsersDialog({
                         {/* User row */}
                         <div className="flex items-center gap-2 p-2">
                           {s.profileImage ? (
-                            <img
+                            <Image
                               src={s.profileImage}
                               alt=""
                               width={32}

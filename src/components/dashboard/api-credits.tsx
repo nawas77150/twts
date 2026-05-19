@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { BarChart3, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,16 +16,16 @@ interface ApiCreditsProps {
 export function ApiCredits({ apiCredits, onRefresh, isLoading }: ApiCreditsProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  if (apiCredits.length === 0) return null
-
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     try {
       await onRefresh()
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [onRefresh])
+
+  if (apiCredits.length === 0) return null
 
   return (
     <Card className="shadow-sm border-[#EFF3F4]">

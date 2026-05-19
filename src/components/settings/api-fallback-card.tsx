@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Key,
   ChevronDown,
@@ -85,13 +85,13 @@ export function ApiFallbackCard({
     { value: 'api' as PostMethodSetting, label: 'API Only', desc: 'TwitterAPI.io only' },
   ]
 
-  const handleV2Toggle = () => {
+  const handleV2Toggle = useCallback(() => {
     const newValue = !v2LoginEnabled
     setV2LoginEnabled(newValue) // optimistic update
     saveSetting('v2_login_enabled', newValue ? 'true' : 'false', undefined, () => {
       setV2LoginEnabled(!newValue) // revert on failure
     })
-  }
+  }, [v2LoginEnabled, setV2LoginEnabled, saveSetting])
 
   const statusBadge = apiLoginStatus?.cookieApiReady ? (
     <Badge variant="outline" className="text-[10px] px-1.5 bg-green-50 text-green-700 border-green-300">

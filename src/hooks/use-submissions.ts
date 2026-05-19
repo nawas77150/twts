@@ -89,7 +89,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       return () => { clearInterval(interval) }
     }
     return undefined
-  }, [isAdmin, filterStatus, fetchSubmissions])
+  }, [isAdmin, fetchSubmissions])
 
   // Debounced search: trigger server-side search after 300ms of inactivity
   useEffect(() => {
@@ -103,16 +103,16 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   }, [search, isAdmin, fetchSubmissions])
 
   // Reset page when filter changes
-  const setFilter = (status: string) => {
+  const setFilter = useCallback((status: string) => {
     setFilterStatus(status)
     setPage(1)
-  }
+  }, [])
 
   // Wrapper for setSearch (also resets page)
-  const updateSearch = (value: string) => {
+  const updateSearch = useCallback((value: string) => {
     setSearch(value)
     setPage(1)
-  }
+  }, [])
 
   const approve = useCallback(async (id: string) => {
     setActionLoading(id)

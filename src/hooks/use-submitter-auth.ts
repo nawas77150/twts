@@ -49,7 +49,7 @@ export function useSubmitterAuth() {
     if (authResult === 'success') {
       let attempts = 0
       const maxAttempts = 4
-      const tryAuth = async () => {
+      async function tryAuth() {
         const ok = await checkAuth()
         if (ok) {
           toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
@@ -82,7 +82,7 @@ export function useSubmitterAuth() {
     }
   }, [toast])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setSubmitter(null)
     setAuthError(null)
     setIsBlocked(false)
@@ -99,9 +99,9 @@ export function useSubmitterAuth() {
         duration: 7000,
       })
     }
-  }
+  }, [toast])
 
-  const setBlocked = (val: boolean) => { setIsBlocked(val) }
+  const setBlocked = useCallback((val: boolean) => { setIsBlocked(val) }, [])
 
   return { submitter, isChecking, authError, isBlocked, setBlocked, logout, checkAuth }
 }

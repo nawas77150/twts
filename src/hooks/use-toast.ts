@@ -58,7 +58,7 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const addToRemoveQueue = (toastId: string) => {
+function addToRemoveQueue(toastId: string) {
   if (toastTimeouts.has(toastId)) {
     return
   }
@@ -145,13 +145,13 @@ type Toast = Omit<ToasterToast, "id">
 function toast({ ...props }: Toast) {
   const id = genId()
 
-  const update = (props: ToasterToast) => {
+  function update(props: ToasterToast) {
     dispatch({
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
   }
-  const dismiss = () => { dispatch({ type: "DISMISS_TOAST", toastId: id }); }
+  function dismiss() { dispatch({ type: "DISMISS_TOAST", toastId: id }); }
 
   dispatch({
     type: "ADD_TOAST",
@@ -185,10 +185,12 @@ function useToast() {
     }
   }, [])
 
+  const dismiss = React.useCallback((toastId?: string) => { dispatch({ type: "DISMISS_TOAST", toastId }); }, [])
+
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => { dispatch({ type: "DISMISS_TOAST", toastId }); },
+    dismiss,
   }
 }
 

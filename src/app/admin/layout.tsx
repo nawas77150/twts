@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Shield, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,11 +34,11 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { pendingCount } = useAdminStats()
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
     setIsLoggingIn(true)
     await login(loginPassword)
     setIsLoggingIn(false)
-  }
+  }, [login, loginPassword])
 
   if (isChecking) {
     return (
