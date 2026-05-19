@@ -1,11 +1,21 @@
+// ============================================================
+// Submission pipeline helpers
+//
+// validateSubmission  — auth + input validation
+// runFilterPipeline  — rule-based + Gemini AI filtering
+// createQueuedSubmission — queue a submission for admin review
+// getCensoredReason  — classify censor reason (ai/filter/both)
+//
+// Rate limit checks moved to _rate-limits.ts
+// Gemini submission check moved to lib/gemini-filter.ts
+// ============================================================
+
 import { db } from '@/lib/db'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
-import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
 import { runContentFilter, checkDuplicate24h, normalizeText, sanitizeInput, hasAlwaysOnReason, getRejectionMessage } from '@/lib/content-filter'
-import { runGeminiFilter } from '@/lib/gemini-filter'
+import { runGeminiSubmissionCheck } from '@/lib/gemini-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
-import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Determine censored reason from filter reasons
@@ -16,24 +26,12 @@ export function getCensoredReason(reasons: string[]): 'ai' | 'filter' | 'both' {
   return hasAi ? 'ai' : 'filter'
 }
 
-// Log a rate limit hit (fire-and-forget, never blocks the response)
-export function logLimitHit(username: string, limitType: string) {
-  db.limitHit.create({ data: { username, limitType } }).catch(() => {
-    // Swallow — logging must never break the submission flow
-  })
-}
-
 // --- Submission Pipeline Types ---
 
 export interface ValidatedInput {
   submitter: NonNullable<Awaited<ReturnType<typeof getSubmitterFromNextRequest>>>
   trimmedMessage: string
   sanitizedCategory: string | null
-}
-
-export interface RateLimitContext {
-  isWhitelisted: boolean
-  effectivePostCap: number
 }
 
 export interface FilterPipelineResult {
@@ -92,118 +90,6 @@ export async function validateSubmission(req: NextRequest): Promise<ValidatedInp
   return { submitter, trimmedMessage, sanitizedCategory }
 }
 
-export async function checkSubmissionRateLimits(
-  submitter: { id: string; username: string; customLimits: unknown },
-  filterSettings: Awaited<ReturnType<typeof getFilterSettings>>,
-): Promise<RateLimitContext | NextResponse> {
-  // Check if user is blocked (cannot submit at all)
-  const isBlocked = filterSettings.blockedUsernames.includes(submitter.username.toLowerCase())
-
-  if (isBlocked) {
-    debug('submit', 'User is blocked:', submitter.username)
-    return NextResponse.json({
-      error: 'Akun diblokir',
-      message: 'Akun kamu tidak diperbolehkan mengirim pesan.',
-    }, { status: 403 })
-  }
-
-  // Check if this user is whitelisted (bypasses rate limits)
-  const isWhitelisted = filterSettings.whitelistUsernames.includes(submitter.username.toLowerCase())
-
-  // --- GLOBAL RATE LIMITS (apply to everyone including whitelisted) ---
-  // Check global submission daily cap
-  if (filterSettings.rateLimits.globalSubmissionDailyCap > 0) {
-    const startOfToday = getStartOfTodayWIB()
-    const globalCount = await db.submission.count({
-      where: { createdAt: { gte: startOfToday } },
-    })
-    if (globalCount >= filterSettings.rateLimits.globalSubmissionDailyCap) {
-      debug('submit', 'Global daily cap reached:', globalCount)
-      logLimitHit(submitter.username, 'global_cap')
-      return NextResponse.json({
-        error: 'Sistem sedang sibuk',
-        message: 'Batas harian sistem tercapai. Coba lagi besok.',
-      }, { status: 400 })
-    }
-  }
-
-  // --- PER-USER RATE LIMITS (bypassed by whitelist) ---
-  // Resolve effective limits: custom overrides → global defaults
-  const effectiveCooldown = getEffectiveLimit('submissionCooldown', submitter.customLimits, filterSettings.rateLimits.submissionCooldown)
-  const effectiveDailyCap = getEffectiveLimit('submissionDailyCap', submitter.customLimits, filterSettings.rateLimits.submissionDailyCap)
-  const effectivePendingCap = getEffectiveLimit('userPendingCap', submitter.customLimits, filterSettings.rateLimits.userPendingCap)
-  const effectivePostCap = getEffectiveLimit('userPostDailyCap', submitter.customLimits, filterSettings.rateLimits.userPostDailyCap)
-
-  if (!isWhitelisted) {
-    // Check per-user cooldown
-    if (effectiveCooldown > 0) {
-      const lastSubmission = await db.submission.findFirst({
-        where: { submitterId: submitter.id },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
-      })
-      if (lastSubmission) {
-        const elapsedMs = Date.now() - lastSubmission.createdAt.getTime()
-        const cooldownMs = effectiveCooldown * 60 * 1000
-        if (elapsedMs < cooldownMs) {
-          const waitMinutes = Math.ceil((cooldownMs - elapsedMs) / 60000)
-          const waitSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000)
-          const waitMsg = waitMinutes > 1 ? `${waitMinutes} menit` : `${waitSeconds} detik`
-          debug('submit', 'Cooldown: user must wait', waitMsg)
-          logLimitHit(submitter.username, 'cooldown')
-          return NextResponse.json({
-            error: 'Tunggu sebentar',
-            message: `Tunggu ${waitMsg} sebelum mengirim pesan lagi.`,
-          }, { status: 400 })
-        }
-      }
-    }
-
-    // Check daily cap
-    if (effectiveDailyCap > 0) {
-      const startOfToday = getStartOfTodayWIB()
-      const todayCount = await db.submission.count({
-        where: {
-          submitterId: submitter.id,
-          createdAt: { gte: startOfToday },
-        },
-      })
-      if (todayCount >= effectiveDailyCap) {
-        debug('submit', 'Daily cap reached:', todayCount)
-        logLimitHit(submitter.username, 'daily_cap')
-        return NextResponse.json({
-          error: 'Batas harian tercapai',
-          message: `Kamu sudah mengirim ${todayCount} pesan hari ini (maksimal ${effectiveDailyCap}). Coba lagi besok.`,
-        }, { status: 400 })
-      }
-    }
-
-    // Check per-user pending cap (daily — resets 00:00 WIB)
-    if (effectivePendingCap > 0) {
-      const startOfToday = getStartOfTodayWIB()
-      const pendingCount = await db.submission.count({
-        where: {
-          submitterId: submitter.id,
-          status: 'pending',
-          createdAt: { gte: startOfToday },
-        },
-      })
-      if (pendingCount >= effectivePendingCap) {
-        debug('submit', 'User pending cap reached:', pendingCount, 'for user', submitter.username)
-        logLimitHit(submitter.username, 'pending_cap')
-        return NextResponse.json({
-          error: 'Terlalu banyak pesan menunggu',
-          message: `Kamu sudah mengirim ${pendingCount} pesan menunggu hari ini (maksimal ${effectivePendingCap}). Coba lagi besok.`,
-        }, { status: 400 })
-      }
-    }
-  } else {
-    debug('submit', 'User whitelisted, skipping rate limits:', submitter.username)
-  }
-
-  return { isWhitelisted, effectivePostCap }
-}
-
 export async function runFilterPipeline(
   trimmedMessage: string,
   filterSettings: Awaited<ReturnType<typeof getFilterSettings>>,
@@ -243,38 +129,12 @@ export async function runFilterPipeline(
   const allFilterReasons: string[] = filterResult.passed ? [] : [...filterResult.reasons]
 
   // --- Step 2: Gemini AI filter (optional, only if rule-based passed) ---
-  let geminiPassed = true
-  let geminiError = false // Track if Gemini errored (for informational filterReasons)
-
-  if (filterResult.passed && filterSettings.geminiEnabled && filterSettings.geminiApiKeySet) {
-    try {
-      const geminiApiKey = filterSettings.geminiApiKey  // Already loaded — no extra DB call
-      if (geminiApiKey) {
-        debug('submit', 'Running Gemini AI filter')
-        const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey, filterSettings.geminiModel)
-
-        if (!geminiResult.passed) {
-          if (geminiResult.error) {
-            // Gemini error/timeout — skip it, don't block the submission
-            debug('submit', 'Gemini error (skipping):', geminiResult.error)
-            geminiError = true
-          } else {
-            // Gemini genuinely flagged the submission
-            geminiPassed = false
-            const geminiReason = geminiResult.reason || 'Flagged by AI'
-            allFilterReasons.push(`ai:${geminiReason}`)
-            debug('submit', 'Gemini flagged submission:', geminiReason)
-          }
-        } else {
-          debug('submit', 'Gemini passed submission')
-        }
-      }
-    } catch (err) {
-      // Gemini threw an exception — skip it, don't block the submission
-      debug('submit', 'Gemini exception (skipping):', err)
-      geminiError = true
-    }
-  }
+  const { geminiPassed, geminiError } = await runGeminiSubmissionCheck(
+    trimmedMessage,
+    filterResult.passed,
+    filterSettings,
+    allFilterReasons,
+  )
 
   // Determine if submission passes all filters
   const passedAllFilters = filterResult.passed && geminiPassed

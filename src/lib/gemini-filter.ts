@@ -176,3 +176,57 @@ export async function runGeminiFilter(
     }
   }
 }
+
+// --- Submission-level Gemini check (used by runFilterPipeline) ---
+
+export interface GeminiCheckResult {
+  geminiPassed: boolean
+  geminiError: boolean
+}
+
+/**
+ * Run the Gemini AI filter for the submission pipeline.
+ * Only runs if the rule-based filter passed, Gemini is enabled, and an API key is set.
+ * Pushes 'ai:...' reasons into allFilterReasons if the submission is flagged.
+ *
+ * On error/exception, returns geminiPassed=true (don't block the submission)
+ * and geminiError=true (so the caller can add 'ai:skipped_error' to filterReasons).
+ */
+export async function runGeminiSubmissionCheck(
+  trimmedMessage: string,
+  ruleBasedPassed: boolean,
+  filterSettings: { geminiEnabled: boolean; geminiApiKeySet: boolean; geminiApiKey: string | null; geminiModel: string },
+  allFilterReasons: string[],
+): Promise<GeminiCheckResult> {
+  if (!ruleBasedPassed || !filterSettings.geminiEnabled || !filterSettings.geminiApiKeySet) {
+    return { geminiPassed: true, geminiError: false }
+  }
+
+  const geminiApiKey = filterSettings.geminiApiKey  // Already loaded — no extra DB call
+  if (!geminiApiKey) return { geminiPassed: true, geminiError: false }
+
+  try {
+    debug('submit', 'Running Gemini AI filter')
+    const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey, filterSettings.geminiModel)
+
+    if (!geminiResult.passed) {
+      if (geminiResult.error) {
+        // Gemini error/timeout — skip it, don't block the submission
+        debug('submit', 'Gemini error (skipping):', geminiResult.error)
+        return { geminiPassed: true, geminiError: true }
+      }
+      // Gemini genuinely flagged the submission
+      const geminiReason = geminiResult.reason || 'Flagged by AI'
+      allFilterReasons.push(`ai:${geminiReason}`)
+      debug('submit', 'Gemini flagged submission:', geminiReason)
+      return { geminiPassed: false, geminiError: false }
+    }
+
+    debug('submit', 'Gemini passed submission')
+    return { geminiPassed: true, geminiError: false }
+  } catch (err) {
+    // Gemini threw an exception — skip it, don't block the submission
+    debug('submit', 'Gemini exception (skipping):', err)
+    return { geminiPassed: true, geminiError: true }
+  }
+}
