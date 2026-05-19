@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   Settings,
-  ChevronDown,
   AlertTriangle,
   Zap,
   Loader2,
@@ -17,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { SettingsCard } from '@/components/shared/settings-card'
 import { SecretInput } from '@/components/shared/secret-input'
+import { GuideSection } from '@/components/shared/guide-section'
 import type { CookieAuthStatus } from '@/types'
 
 interface DirectPostingCardProps {
@@ -105,41 +104,26 @@ export function DirectPostingCard({
             {isSavingSetting === 'x_cookie_string' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
           </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => { setShowCookieGuide(!showCookieGuide) }}
-          className="text-xs text-[#536471] hover:underline flex items-center gap-1"
-        >
-          <ChevronDown className={`w-3 h-3 transition-transform ${showCookieGuide ? 'rotate-180' : ''}`} />
-          Cara mendapatkan cookie string
-        </button>
-        {showCookieGuide && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-[#F7F9F9] rounded-lg p-3 text-xs text-[#536471] space-y-2 border border-[#EFF3F4]"
-          >
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Login ke <strong>x.com</strong> di browser (Chrome/Firefox)</li>
-              <li>Tekan <kbd className="bg-[#EFF3F4] px-1 rounded">F12</kbd> → tab <strong>Application</strong></li>
-              <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
-              <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">auth_token</code> → copy value-nya</li>
-              <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">ct0</code> → copy value-nya</li>
-              <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">twid</code> → copy value-nya</li>
-              <li>Gabungkan: <code className="bg-[#EFF3F4] px-1 rounded">auth_token=...; ct0=...; twid=...</code></li>
-              <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
-            </ol>
-            <div className="flex items-start gap-1.5 text-amber-600 pt-1">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
-            </div>
-            <div className="flex items-start gap-1.5 text-[#536471] pt-1">
-              <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>Sertakan semua cookie dari browser untuk hasil terbaik. Cookie yang lengkap membuat request lebih mirip browser asli.</span>
-            </div>
-          </motion.div>
-        )}
+        <GuideSection title="Cara mendapatkan cookie string" isOpen={showCookieGuide} onToggle={() => { setShowCookieGuide(!showCookieGuide) }}>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Login ke <strong>x.com</strong> di browser (Chrome/Firefox)</li>
+            <li>Tekan <kbd className="bg-[#EFF3F4] px-1 rounded">F12</kbd> → tab <strong>Application</strong></li>
+            <li>Klik <strong>Cookies</strong> → <strong>https://x.com</strong></li>
+            <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">auth_token</code> → copy value-nya</li>
+            <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">ct0</code> → copy value-nya</li>
+            <li>Temukan baris <code className="bg-[#EFF3F4] px-1 rounded">twid</code> → copy value-nya</li>
+            <li>Gabungkan: <code className="bg-[#EFF3F4] px-1 rounded">auth_token=...; ct0=...; twid=...</code></li>
+            <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
+          </ol>
+          <div className="flex items-start gap-1.5 text-amber-600 pt-1">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>Gunakan akun X yang ingin kamu jadikan autobase! Cookie dari akun lain tidak akan bekerja.</span>
+          </div>
+          <div className="flex items-start gap-1.5 text-[#536471] pt-1">
+            <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>Sertakan semua cookie dari browser untuk hasil terbaik. Cookie yang lengkap membuat request lebih mirip browser asli.</span>
+          </div>
+        </GuideSection>
       </div>
 
       <Separator />
@@ -169,32 +153,17 @@ export function DirectPostingCard({
             {isSavingSetting === 'x_bearer_token' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan'}
           </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => { setShowBearerGuide(!showBearerGuide) }}
-          className="text-xs text-[#536471] hover:underline flex items-center gap-1"
-        >
-          <ChevronDown className={`w-3 h-3 transition-transform ${showBearerGuide ? 'rotate-180' : ''}`} />
-          Cara mendapatkan Bearer Token
-        </button>
-        {showBearerGuide && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-[#F7F9F9] rounded-lg p-3 text-xs text-[#536471] space-y-2 border border-[#EFF3F4]"
-          >
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Login ke <strong>x.com</strong> di browser</li>
-              <li>Tekan <kbd className="bg-[#EFF3F4] px-1 rounded">F12</kbd> → tab <strong>Network</strong></li>
-              <li>Lakukan aksi apapun (scroll, like, dll)</li>
-              <li>Klik salah satu request ke <code className="bg-[#EFF3F4] px-1 rounded">/i/api/</code></li>
-              <li>Cek header <strong>Authorization</strong> → copy value setelah <code className="bg-[#EFF3F4] px-1 rounded">Bearer </code></li>
-              <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
-            </ol>
-            <p className="text-[#71767B] pt-1">Token ini sama untuk semua user X (public consumer token). Jarang berubah.</p>
-          </motion.div>
-        )}
+        <GuideSection title="Cara mendapatkan Bearer Token" isOpen={showBearerGuide} onToggle={() => { setShowBearerGuide(!showBearerGuide) }}>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Login ke <strong>x.com</strong> di browser</li>
+            <li>Tekan <kbd className="bg-[#EFF3F4] px-1 rounded">F12</kbd> → tab <strong>Network</strong></li>
+            <li>Lakukan aksi apapun (scroll, like, dll)</li>
+            <li>Klik salah satu request ke <code className="bg-[#EFF3F4] px-1 rounded">/i/api/</code></li>
+            <li>Cek header <strong>Authorization</strong> → copy value setelah <code className="bg-[#EFF3F4] px-1 rounded">Bearer </code></li>
+            <li>Paste di atas, lalu klik <strong>Simpan</strong></li>
+          </ol>
+          <p className="text-[#71767B] pt-1">Token ini sama untuk semua user X (public consumer token). Jarang berubah.</p>
+        </GuideSection>
       </div>
 
       <Separator />
@@ -236,33 +205,19 @@ export function DirectPostingCard({
             </Button>
           </div>
         </div>
-        <button
-          onClick={() => { setShowQueryIdGuide(!showQueryIdGuide) }}
-          className="text-xs text-[#536471] hover:underline flex items-center gap-1"
-        >
-          <ChevronDown className={`w-3 h-3 transition-transform ${showQueryIdGuide ? 'rotate-180' : ''}`} />
-          Tentang auto-fetch & manual fallback
-        </button>
-        {showQueryIdGuide && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-[#F7F9F9] rounded-lg p-3 text-xs text-[#536471] space-y-2 border border-[#EFF3F4]"
-          >
-            <p>Query ID otomatis di-fetch dari JS bundle X sebelum setiap post. Kamu <strong>tidak perlu mengisi ini manual</strong>.</p>
-            <p>Isi manual hanya jika auto-fetch gagal (jarang terjadi). Cara manual:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Step 1 — ambil nama bundle terbaru:<br />
-                <code className="bg-[#EFF3F4] px-1 rounded text-[10px]">curl -sL &apos;https://x.com&apos; | grep -oP &apos;main\.[a-z0-9]+\.js&apos; | head -1</code>
-              </li>
-              <li>Step 2 — extract dari bundle tersebut:<br />
-                <code className="bg-[#EFF3F4] px-1 rounded text-[10px] break-all">curl -sL &apos;https://abs.twimg.com/responsive-web/client-web/&lt;BUNDLE&gt;.js&apos; | grep -oP &apos;queryId:&quot;[^&quot;]+&quot;,operationName:&quot;CreateTweet&apos;</code>
-              </li>
-              <li>Copy value setelah <code className="bg-[#EFF3F4] px-1 rounded">queryId:</code> → paste di atas</li>
-            </ol>
-          </motion.div>
-        )}
+        <GuideSection title="Tentang auto-fetch & manual fallback" isOpen={showQueryIdGuide} onToggle={() => { setShowQueryIdGuide(!showQueryIdGuide) }}>
+          <p>Query ID otomatis di-fetch dari JS bundle X sebelum setiap post. Kamu <strong>tidak perlu mengisi ini manual</strong>.</p>
+          <p>Isi manual hanya jika auto-fetch gagal (jarang terjadi). Cara manual:</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Step 1 — ambil nama bundle terbaru:<br />
+              <code className="bg-[#EFF3F4] px-1 rounded text-[10px]">curl -sL &apos;https://x.com&apos; | grep -oP &apos;main\.[a-z0-9]+\.js&apos; | head -1</code>
+            </li>
+            <li>Step 2 — extract dari bundle tersebut:<br />
+              <code className="bg-[#EFF3F4] px-1 rounded text-[10px] break-all">curl -sL &apos;https://abs.twimg.com/responsive-web/client-web/&lt;BUNDLE&gt;.js&apos; | grep -oP &apos;queryId:&quot;[^&quot;]+&quot;,operationName:&quot;CreateTweet&apos;</code>
+            </li>
+            <li>Copy value setelah <code className="bg-[#EFF3F4] px-1 rounded">queryId:</code> → paste di atas</li>
+          </ol>
+        </GuideSection>
       </div>
 
       <Separator />

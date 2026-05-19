@@ -12,6 +12,47 @@ import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from '@/components/shared/settings-card'
 import type { CircuitBreakerStatus, RateLimitSettings } from '@/types'
 
+function CircuitBreakerStatusDisplay({
+  status,
+  liveRemainingMinutes,
+  activeLabel = 'Active',
+  showReset = false,
+  onReset,
+}: {
+  status: CircuitBreakerStatus | null
+  liveRemainingMinutes: number
+  activeLabel?: string
+  showReset?: boolean
+  onReset?: () => void
+}) {
+  if (status?.paused) {
+    return (
+      <>
+        <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+          PAUSED — {liveRemainingMinutes}m tersisa
+        </Badge>
+        {showReset && onReset && (
+          <Button variant="outline" size="sm" className="text-[9px] h-5 px-2 ml-auto" onClick={onReset}>
+            <RotateCcw className="w-3 h-3 mr-1" /> Reset
+          </Button>
+        )}
+      </>
+    )
+  }
+  if (status && status.failCount > 0) {
+    return (
+      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+        {status.failCount}/{status.threshold} gagal
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-green-50 text-green-700 border-green-300">
+      {activeLabel}
+    </Badge>
+  )
+}
+
 interface CircuitBreakerCardProps {
   circuitBreakerStatus: CircuitBreakerStatus | null
   liveRemainingMinutes: number
@@ -32,23 +73,11 @@ export function CircuitBreakerCard({
   saveFilterSettings,
 }: CircuitBreakerCardProps) {
   const badges = (
-    <>
-      {circuitBreakerStatus?.paused && (
-        <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-          PAUSED — {liveRemainingMinutes}m tersisa
-        </Badge>
-      )}
-      {!circuitBreakerStatus?.paused && circuitBreakerStatus && circuitBreakerStatus.failCount > 0 && (
-        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-          {circuitBreakerStatus.failCount}/{circuitBreakerStatus.threshold} gagal
-        </Badge>
-      )}
-      {!circuitBreakerStatus?.paused && (!circuitBreakerStatus || circuitBreakerStatus.failCount === 0) && (
-        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-green-50 text-green-700 border-green-300">
-          Active
-        </Badge>
-      )}
-    </>
+    <CircuitBreakerStatusDisplay
+      status={circuitBreakerStatus}
+      liveRemainingMinutes={liveRemainingMinutes}
+      activeLabel="Active"
+    />
   )
 
   return (
@@ -56,31 +85,13 @@ export function CircuitBreakerCard({
       {/* Status display */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] font-medium text-[#536471]">Status</span>
-        {circuitBreakerStatus?.paused && (
-          <>
-            <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
-              PAUSED — {liveRemainingMinutes}m tersisa
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-[9px] h-5 px-2 ml-auto"
-              onClick={reset}
-            >
-              <RotateCcw className="w-3 h-3 mr-1" /> Reset
-            </Button>
-          </>
-        )}
-        {!circuitBreakerStatus?.paused && circuitBreakerStatus && circuitBreakerStatus.failCount > 0 && (
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-            {circuitBreakerStatus.failCount}/{circuitBreakerStatus.threshold} gagal
-          </Badge>
-        )}
-        {!circuitBreakerStatus?.paused && (!circuitBreakerStatus || circuitBreakerStatus.failCount === 0) && (
-          <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-green-50 text-green-700 border-green-300">
-            ✅ Active — no recent failures
-          </Badge>
-        )}
+        <CircuitBreakerStatusDisplay
+          status={circuitBreakerStatus}
+          liveRemainingMinutes={liveRemainingMinutes}
+          activeLabel="✅ Active — no recent failures"
+          showReset
+          onReset={reset}
+        />
       </div>
 
       {/* Threshold + Cooldown + Window inputs */}

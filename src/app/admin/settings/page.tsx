@@ -21,6 +21,19 @@ import { LimitHealthCard } from '@/components/settings/limit-health-card'
 import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 
+function TabPanel({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="space-y-4 mt-4"
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 export default function AdminSettingsPage() {
   const { adminToken } = useAdminAuth()
   const [isLoadingCredits, setIsLoadingCredits] = useState(false)
@@ -164,12 +177,7 @@ export default function AdminSettingsPage() {
 
         {/* ── Posting Tab ── */}
         <TabsContent value="posting">
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-4 mt-4"
-          >
+          <TabPanel>
             <DirectPostingCard
               cookieString={posting.cookieString}
               setCookieString={posting.setCookieString}
@@ -221,17 +229,12 @@ export default function AdminSettingsPage() {
               onRefreshCredits={handleRefreshCredits}
               isLoadingCredits={isLoadingCredits}
             />
-          </motion.div>
+          </TabPanel>
         </TabsContent>
 
         {/* ── Filter Tab ── */}
         <TabsContent value="filter">
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-4 mt-4"
-          >
+          <TabPanel>
             <FilterCard
               autoApprove={filterSettings.autoApprove}
               toggleAutoApprove={filterSettings.toggleAutoApprove}
@@ -264,17 +267,12 @@ export default function AdminSettingsPage() {
               setGeminiModel={filterSettings.setGeminiModel}
               saveGeminiModel={filterSettings.saveGeminiModel}
             />
-          </motion.div>
+          </TabPanel>
         </TabsContent>
 
         {/* ── Users Tab ── */}
         <TabsContent value="users">
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-4 mt-4"
-          >
+          <TabPanel>
             <WhitelistCard
               whitelistUsernames={filterSettings.whitelistUsernames}
               onWhitelistChange={() => { stats.refetch() }}
@@ -284,17 +282,12 @@ export default function AdminSettingsPage() {
               blockedUsernames={filterSettings.blockedUsernames}
               onBlocklistChange={() => { stats.refetch() }}
             />
-          </motion.div>
+          </TabPanel>
         </TabsContent>
 
         {/* ── Limits Tab ── */}
         <TabsContent value="limits">
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-4 mt-4"
-          >
+          <TabPanel>
             <LimitHealthCard />
 
             <RateLimitCard
@@ -313,7 +306,7 @@ export default function AdminSettingsPage() {
               isSaving={filterSettings.isSaving}
               saveFilterSettings={filterSaveFilterSettings}
             />
-          </motion.div>
+          </TabPanel>
         </TabsContent>
       </Tabs>
     </>

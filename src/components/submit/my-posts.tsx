@@ -15,36 +15,7 @@ interface MyPostsProps {
 }
 
 export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
-  if (posts.length === 0 && !isLoading) {
-    return (
-      <Card className="max-w-lg mx-auto mt-6 shadow-lg border-[#EFF3F4]">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <User className="w-4 h-4 text-[#536471]" /> Postinganku
-            </CardTitle>
-          </div>
-          <CardDescription>Pesan yang sudah kamu kirim dan statusnya</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <div className="text-center py-6">
-              <AlertCircle className="w-8 h-8 text-red-300 mx-auto mb-2" />
-              <p className="text-sm text-red-500">{error}</p>
-              <Button variant="link" className="text-xs text-[#71767B] mt-1" onClick={onRefresh}>
-                Coba lagi
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <MessageSquare className="w-8 h-8 text-[#EFF3F4] mx-auto mb-2" />
-              <p className="text-sm text-[#71767B]">Belum ada pesan yang dikirim</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
+  const showRefresh = isLoading || posts.length > 0
 
   return (
     <Card className="max-w-lg mx-auto mt-6 shadow-lg border-[#EFF3F4]">
@@ -53,20 +24,30 @@ export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
           <CardTitle className="text-base flex items-center gap-2">
             <User className="w-4 h-4 text-[#536471]" /> Postinganku
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="h-6 w-6 p-0 text-[#71767B]"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+          {showRefresh && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="h-6 w-6 p-0 text-[#71767B]"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
         </div>
         <CardDescription>Pesan yang sudah kamu kirim dan statusnya</CardDescription>
       </CardHeader>
       <CardContent>
-        {posts.length === 0 ? (
+        {error && !isLoading && posts.length === 0 ? (
+          <div className="text-center py-6">
+            <AlertCircle className="w-8 h-8 text-red-300 mx-auto mb-2" />
+            <p className="text-sm text-red-500">{error}</p>
+            <Button variant="link" className="text-xs text-[#71767B] mt-1" onClick={onRefresh}>
+              Coba lagi
+            </Button>
+          </div>
+        ) : posts.length === 0 ? (
           <div className="text-center py-6">
             <MessageSquare className="w-8 h-8 text-[#EFF3F4] mx-auto mb-2" />
             <p className="text-sm text-[#71767B]">Belum ada pesan yang dikirim</p>

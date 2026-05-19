@@ -150,6 +150,15 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
   }
 }
 
+// Build encrypted token fields for Prisma data objects.
+// Extracted because the same spread pattern appears 5 times in upsertSubmitterFromTwitter.
+function buildTokenFields(tokens?: { accessToken?: string; refreshToken?: string }) {
+  return {
+    ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
+    ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+  }
+}
+
 // Create or update a submitter from Twitter user data
 // Uses upsert to avoid TOCTOU race when two concurrent OAuth callbacks
 // for the same user both find null from findUnique and both attempt create.
@@ -182,8 +191,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
           twitterId,
           displayName: displayName || placeholder.displayName,
           profileImage: profile_image_url || placeholder.profileImage,
-          ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
-          ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+          ...buildTokenFields(tokens),
         },
       })
     }
@@ -194,16 +202,14 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
         username: username.toLowerCase(),
         displayName: displayName || null,
         profileImage: profile_image_url || null,
-        ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
-        ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+        ...buildTokenFields(tokens),
       },
       create: {
         twitterId,
         username: username.toLowerCase(),
         displayName: displayName || null,
         profileImage: profile_image_url || null,
-        ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
-        ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+        ...buildTokenFields(tokens),
       },
     })
   } catch (error: unknown) {
@@ -218,16 +224,14 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
           username: username.toLowerCase(),
           displayName: displayName || null,
           profileImage: profile_image_url || null,
-          ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
-          ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+          ...buildTokenFields(tokens),
         },
         create: {
           twitterId,
           username: suffixedUsername.toLowerCase(),
           displayName: displayName || null,
           profileImage: profile_image_url || null,
-          ...(tokens?.accessToken && { oauth2AccessToken: encrypt(tokens.accessToken) }),
-          ...(tokens?.refreshToken && { oauth2RefreshToken: encrypt(tokens.refreshToken) }),
+          ...buildTokenFields(tokens),
         },
       })
     }

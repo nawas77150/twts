@@ -3,57 +3,25 @@
 // no practical benefit. The PostgreSQL ::jsonb cast used for atomic add/remove operations
 // requires plaintext values. Do NOT apply encrypt() to these settings.
 
-import { db } from '@/lib/db'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, checkUserInList } from '../_lib'
 
 // POST /api/admin/submitters/whitelist — Add a user to the whitelist
 // Uses atomic PostgreSQL jsonb append to prevent race conditions.
 export async function POST(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
   try {
-    const { username } = await req.json()
-    if (!username || typeof username !== 'string' || !username.trim()) {
-      return NextResponse.json({ error: 'Username wajib diisi' }, { status: 400 })
-    }
-
-    const normalizedUsername = username.toLowerCase().trim()
+    const parsed = await parseUsernameRequest(req)
+    if (parsed instanceof NextResponse) return parsed
+    const { normalizedUsername } = parsed
 
     // Atomic append to whitelist_usernames JSON array using PostgreSQL jsonb.
     // Prevents read-modify-write race condition.
     // If the key doesn't exist yet, creates it with [username].
     // If the username is already in the array, leaves it unchanged (no duplicates).
-    await db.$executeRaw`
-      INSERT INTO "Setting" (id, key, value, "updatedAt")
-      VALUES (
-        ${'whitelist_usernames'},
-        ${'whitelist_usernames'},
-        ${JSON.stringify([normalizedUsername])},
-        NOW()
-      )
-      ON CONFLICT (key) DO UPDATE
-      SET "value" = (
-        CASE WHEN "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
-        THEN "Setting"."value"
-        ELSE ("Setting"."value"::jsonb || ${JSON.stringify(normalizedUsername)}::jsonb)::text
-        END
-      ),
-      "updatedAt" = NOW()
-    `
+    await atomicJsonbAppend('whitelist_usernames', normalizedUsername)
 
     // Also remove from blocked list if present (whitelist takes priority)
-    await db.$executeRaw`
-      UPDATE "Setting"
-      SET "value" = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
-        '[]'::jsonb
-      )::text,
-      "updatedAt" = NOW()
-      WHERE "key" = 'blocked_usernames'
-      AND "Setting"."value"::jsonb @> ${JSON.stringify([normalizedUsername])}::jsonb
-    `
+    await atomicJsonbRemove('blocked_usernames', normalizedUsername)
 
     return NextResponse.json({ success: true, whitelisted: normalizedUsername })
   } catch (error) {
@@ -65,42 +33,17 @@ export async function POST(req: NextRequest) {
 // DELETE /api/admin/submitters/whitelist — Remove a user from the whitelist
 // Uses atomic PostgreSQL jsonb removal to prevent race conditions.
 export async function DELETE(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
   try {
-    const { username } = await req.json()
-    if (!username || typeof username !== 'string' || !username.trim()) {
-      return NextResponse.json({ error: 'Username wajib diisi' }, { status: 400 })
-    }
-
-    const normalizedUsername = username.toLowerCase().trim()
+    const parsed = await parseUsernameRequest(req)
+    if (parsed instanceof NextResponse) return parsed
+    const { normalizedUsername } = parsed
 
     // Check if the username exists in the whitelist first
-    const existing = await db.setting.findUnique({ where: { key: 'whitelist_usernames' } })
-    if (!existing?.value) {
-      return NextResponse.json({ error: 'User tidak ditemukan di whitelist' }, { status: 400 })
-    }
-
-    let whitelisted: string[] = []
-    try {
-      whitelisted = JSON.parse(existing.value)
-    } catch { /* empty */ }
-
-    if (!whitelisted.includes(normalizedUsername)) {
-      return NextResponse.json({ error: 'User tidak ditemukan di whitelist' }, { status: 400 })
-    }
+    const notFound = await checkUserInList('whitelist_usernames', normalizedUsername, 'User tidak ditemukan di whitelist')
+    if (notFound) return notFound
 
     // Atomic removal from whitelist_usernames JSON array using PostgreSQL jsonb.
-    await db.$executeRaw`
-      UPDATE "Setting"
-      SET "value" = COALESCE(
-        (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${normalizedUsername}),
-        '[]'::jsonb
-      )::text,
-      "updatedAt" = NOW()
-      WHERE "key" = 'whitelist_usernames'
-    `
+    await atomicJsonbRemove('whitelist_usernames', normalizedUsername)
 
     return NextResponse.json({ success: true, removed: normalizedUsername })
   } catch (error) {
