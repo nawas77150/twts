@@ -24,7 +24,7 @@ export default function HomePage() {
     isAnonUser,
   })
 
-  const handleLogin = useCallback(() => { window.location.href = '/api/auth/twitter' }, [])
+  const handleLogin = useCallback(() => { window.location.assign('/api/auth/twitter') }, [])
   const handleLogout = useCallback(() => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }, [logout, toast])
 
   const handleSubmit = async (message: string, category: string): Promise<boolean> => {
