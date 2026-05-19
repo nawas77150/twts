@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Send, Shield, Clock, Users } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -8,6 +8,7 @@ import { usePostingSettings } from '@/hooks/use-posting-settings'
 import { useFilterSettings } from '@/hooks/use-filter-settings'
 import { useCircuitBreaker } from '@/hooks/use-circuit-breaker'
 import { useAdminStats } from '@/contexts/admin-stats-context'
+import { useSettingsSync } from '@/hooks/use-settings-sync'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
 import { ApiFallbackCard } from '@/components/settings/api-fallback-card'
 import { FilterCard } from '@/components/settings/filter-card'
@@ -33,6 +34,18 @@ function TabPanel({ children }: { children: React.ReactNode }) {
   )
 }
 
+const TAB_TRIGGER_CLASS =
+  'rounded-lg data-[state=active]:bg-[#0F1419] data-[state=active]:text-[#F7F9F9] text-[#536471] data-[state=active]:shadow-sm px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium gap-1 sm:gap-2'
+
+function SettingsTabTrigger({ value, icon: Icon, label }: { value: string; icon: React.ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <TabsTrigger value={value} className={TAB_TRIGGER_CLASS}>
+      <Icon className="size-3.5 sm:size-4" />
+      <span className="truncate">{label}</span>
+    </TabsTrigger>
+  )
+}
+
 export default function AdminSettingsPage() {
   const [isLoadingCredits, setIsLoadingCredits] = useState(false)
 
@@ -50,47 +63,8 @@ export default function AdminSettingsPage() {
     refetch: refetchAdminStats,
   } = useAdminStats()
 
-  // Track whether initial settings load has happened
-  // to prevent overwriting local state (toggles, text inputs) on every render
-  const hasLoadedRef = useRef(false)
-
-  // Sync stats → filter settings, circuit breaker, posting method
-  // Only runs on initial load (when stats first arrive)
-  useEffect(() => {
-    if (!stats) return
-    if (hasLoadedRef.current) return
-    hasLoadedRef.current = true
-    if (stats.filterSettings) {
-      filterSettings.loadFromFilterSettings(stats.filterSettings)
-    }
-    if (stats.postMethodSetting) {
-      posting.setPostMethodSetting(stats.postMethodSetting)
-    }
-    if (stats.apiLoginStatus?.v2LoginEnabled !== undefined) {
-      posting.setV2LoginEnabled(stats.apiLoginStatus.v2LoginEnabled)
-    }
-    if (stats.circuitBreaker) {
-      circuitBreaker.setStatus(stats.circuitBreaker)
-    }
-  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting, posting.setV2LoginEnabled])
-
-  // Always sync circuit breaker status (read-only display, safe to update)
-  useEffect(() => {
-    if (!stats?.circuitBreaker) return
-    if (!hasLoadedRef.current) return // skip during initial load (handled above)
-    circuitBreaker.setStatus(stats.circuitBreaker)
-  }, [stats?.circuitBreaker, circuitBreaker.setStatus])
-
-  // Sync blocklist/whitelist after mutations (display-only, safe to overwrite)
-  // Unlike text inputs/toggles, these lists are never edited in-place —
-  // they change atomically via API calls that trigger refetchAdminStats().
-  useEffect(() => {
-    if (!stats?.filterSettings) return
-    if (!hasLoadedRef.current) return // skip during initial load (handled above)
-    const { blockedUsernames, whitelistUsernames } = stats.filterSettings
-    if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
-    if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
-  }, [stats?.filterSettings?.blockedUsernames, stats?.filterSettings?.whitelistUsernames])
+  // Sync stats → local hook state (3 phases: initial load, circuit breaker, blocklist/whitelist)
+  useSettingsSync({ stats, posting, filterSettings, circuitBreaker })
 
   // Wrapper actions that also refresh stats after save
   // Single-call pattern: only refetchAdminStats() — one API call refreshes both settings data + badge
@@ -143,34 +117,10 @@ export default function AdminSettingsPage() {
       {/* Tab-based Settings Layout */}
       <Tabs defaultValue="posting" className="w-full">
         <TabsList className="bg-[#EFF3F4] p-1 h-auto rounded-xl w-full sm:w-fit grid grid-cols-4 sm:flex">
-          <TabsTrigger
-            value="posting"
-            className="rounded-lg data-[state=active]:bg-[#0F1419] data-[state=active]:text-[#F7F9F9] text-[#536471] data-[state=active]:shadow-sm px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium gap-1 sm:gap-2"
-          >
-            <Send className="size-3.5 sm:size-4" />
-            <span className="truncate">Posting</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="filter"
-            className="rounded-lg data-[state=active]:bg-[#0F1419] data-[state=active]:text-[#F7F9F9] text-[#536471] data-[state=active]:shadow-sm px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium gap-1 sm:gap-2"
-          >
-            <Shield className="size-3.5 sm:size-4" />
-            <span className="truncate">Filter</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="users"
-            className="rounded-lg data-[state=active]:bg-[#0F1419] data-[state=active]:text-[#F7F9F9] text-[#536471] data-[state=active]:shadow-sm px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium gap-1 sm:gap-2"
-          >
-            <Users className="size-3.5 sm:size-4" />
-            <span className="truncate">Users</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="limits"
-            className="rounded-lg data-[state=active]:bg-[#0F1419] data-[state=active]:text-[#F7F9F9] text-[#536471] data-[state=active]:shadow-sm px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium gap-1 sm:gap-2"
-          >
-            <Clock className="size-3.5 sm:size-4" />
-            <span className="truncate">Limits</span>
-          </TabsTrigger>
+          <SettingsTabTrigger value="posting" icon={Send} label="Posting" />
+          <SettingsTabTrigger value="filter" icon={Shield} label="Filter" />
+          <SettingsTabTrigger value="users" icon={Users} label="Users" />
+          <SettingsTabTrigger value="limits" icon={Clock} label="Limits" />
         </TabsList>
 
         {/* ── Posting Tab ── */}
