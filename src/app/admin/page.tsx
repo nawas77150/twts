@@ -16,7 +16,7 @@ import { UsersDialog } from '@/components/dashboard/users-dialog'
 import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
 
 export default function AdminDashboardPage() {
-  const { isAdmin, adminToken } = useAdminAuth()
+  const { isAdmin } = useAdminAuth()
   const [usersDialogOpen, setUsersDialogOpen] = useState(false)
 
   // Stats from context (AdminStatsProvider handles fetch + 15s auto-refresh)
@@ -39,18 +39,20 @@ export default function AdminDashboardPage() {
     search,
     isLoading: isLoadingSubmissions,
     actionLoading,
-    approve,
-    reject,
-    delete: deleteSubmission,
-    retryPost,
+    approve: rawApprove,
+    reject: rawReject,
+    delete: rawDelete,
+    retryPost: rawRetryPost,
     setFilter,
     setSearch,
     fetchSubmissions,
-  } = useSubmissions({
-    isAdmin,
-    adminToken,
-    onStatsRefresh: fetchStats,
-  })
+  } = useSubmissions({ isAdmin })
+
+  // Page-level stats refresh wrappers — call refetchStats after submission actions
+  const approve = useCallback(async (id: string) => { await rawApprove(id); void refetchStats() }, [rawApprove, refetchStats])
+  const reject = useCallback(async (id: string) => { await rawReject(id); void refetchStats() }, [rawReject, refetchStats])
+  const deleteSubmission = useCallback(async (id: string) => { await rawDelete(id); void refetchStats() }, [rawDelete, refetchStats])
+  const retryPost = useCallback(async (id: string) => { await rawRetryPost(id); void refetchStats() }, [rawRetryPost, refetchStats])
 
   // Submitters hook
   const {
@@ -62,7 +64,7 @@ export default function AdminDashboardPage() {
     unblock,
     setCustomLimits,
     setBlockedUsernames,
-  } = useSubmitters({ adminToken })
+  } = useSubmitters()
 
   // Sync blocked usernames from stats
   useEffect(() => {

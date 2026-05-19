@@ -5,14 +5,13 @@ import type { Submission, SubmissionStatus } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
 
 interface UseSubmissionsParams {
   isAdmin: boolean
-  adminToken: string
-  onStatsRefresh?: () => void
 }
 
-export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmissionsParams) {
+export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -40,7 +39,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
   const outstandingLoadingRef = useRef(false)
 
   const fetchSubmissions = useCallback(async (silent = false, targetPage?: number) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     const p = targetPage ?? pageRef.current
     const q = searchRef.current
     if (!silent) {
@@ -81,7 +80,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
         outstandingLoadingRef.current = false
       }
     }
-  }, [adminToken, filterStatus, toast])
+  }, [isAdmin, filterStatus, toast])
 
   // Auto-refresh every 15s when admin is active
   useEffect(() => {
@@ -96,13 +95,13 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
   // Debounced search: trigger server-side search after 300ms of inactivity
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isAdmin && adminToken) {
+      if (isAdmin) {
         pageRef.current = 1
         void fetchSubmissions()
       }
     }, 300)
     return () => { clearTimeout(timer) }
-  }, [search, isAdmin, adminToken, fetchSubmissions])
+  }, [search, isAdmin, fetchSubmissions])
 
   // Reset page when filter changes
   const setFilter = (status: string) => {
@@ -134,13 +133,12 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
         toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
       }
       void fetchSubmissions(true) // silent — don't nuke the list with spinner
-      onStatsRefresh?.()
     } catch (err: unknown) {
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyetujui'), variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, onStatsRefresh, toast])
+  }, [fetchSubmissions, toast])
 
   const reject = useCallback(async (id: string) => {
     setActionLoading(id)
@@ -148,13 +146,12 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
       void fetchSubmissions(true) // silent — don't nuke the list with spinner
-      onStatsRefresh?.()
     } catch (err: unknown) {
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menolak'), variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, onStatsRefresh, toast])
+  }, [fetchSubmissions, toast])
 
   const deleteSubmission = useCallback(async (id: string) => {
     setActionLoading(id)
@@ -162,13 +159,12 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
       void fetchSubmissions(true) // silent — don't nuke the list with spinner
-      onStatsRefresh?.()
     } catch {
       toast({ title: 'Error', description: 'Gagal menghapus', variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, onStatsRefresh, toast])
+  }, [fetchSubmissions, toast])
 
   const retryPost = useCallback(async (id: string) => {
     setActionLoading(id)
@@ -180,13 +176,12 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
       }
       toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
       void fetchSubmissions(true) // silent — don't nuke the list with spinner
-      onStatsRefresh?.()
     } catch (err: unknown) {
       toast({ title: 'Gagal posting', description: getErrorMessage(err, 'Gagal posting ke X'), variant: 'destructive' })
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, onStatsRefresh, toast])
+  }, [fetchSubmissions, toast])
 
   const loadMore = useCallback(() => {
     if (hasMore && page < totalPages) {

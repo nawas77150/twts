@@ -7,13 +7,10 @@ import { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
 
-interface UseFilterSettingsParams {
-  adminToken: string
-  onStatsRefresh?: () => void
-}
-
-export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSettingsParams) {
+export function useFilterSettings() {
+  const { isAdmin } = useAdminAuth()
   const [autoApprove, setAutoApprove] = useState(false)
   const [blockedWordsText, setBlockedWordsText] = useState('')
   const [nsfwWordsText, setNsfwWordsText] = useState('')
@@ -54,7 +51,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
   const [geminiSaving, setGeminiSaving] = useState(false)
 
   const setGeminiEnabledState = useCallback(async (val: boolean) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     // Optimistic update
     setGeminiEnabled(val)
     setGeminiSaving(true)
@@ -62,7 +59,6 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
       const data = await apiClient.saveFilterSettings({ geminiEnabled: val })
       if (!data.error) {
         toast({ title: `Gemini AI Filter: ${val ? 'ON' : 'OFF'}` })
-        onStatsRefresh?.()
       } else {
         // Revert on failure
         setGeminiEnabled(!val)
@@ -74,43 +70,41 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     } finally {
       setGeminiSaving(false)
     }
-  }, [adminToken, onStatsRefresh, toast])
+  }, [isAdmin, toast])
 
   const saveGeminiKey = useCallback(async (key: string) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     try {
       const data = await apiClient.saveFilterSettings({ geminiApiKey: key.trim() })
       if (!data.error) {
         setGeminiApiKeyInput('')
         setGeminiApiKeySet(true)
         toast({ title: 'Gemini API key saved!' })
-        onStatsRefresh?.()
       } else {
         toast({ title: 'Failed', description: data.error, variant: 'destructive' })
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to save API key', variant: 'destructive' })
     }
-  }, [adminToken, onStatsRefresh, toast])
+  }, [isAdmin, toast])
 
   const saveGeminiModel = useCallback(async (model: string) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     try {
       const data = await apiClient.saveFilterSettings({ geminiModel: model.trim() })
       if (!data.error) {
         setGeminiModel(model.trim())
         toast({ title: 'Gemini model saved!', description: `Using ${model.trim()}` })
-        onStatsRefresh?.()
       } else {
         toast({ title: 'Failed', description: data.error, variant: 'destructive' })
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to save model', variant: 'destructive' })
     }
-  }, [adminToken, onStatsRefresh, toast])
+  }, [isAdmin, toast])
 
   const saveFilterSettings = useCallback(async () => {
-    if (!adminToken) return
+    if (!isAdmin) return
     setIsSaving(true)
     try {
       const words = blockedWordsText
@@ -140,7 +134,6 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
           title: 'Filter settings saved!',
           description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}, Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}`,
         })
-        onStatsRefresh?.()
       } else {
         toast({ title: 'Failed', description: data.error, variant: 'destructive' })
       }
@@ -149,7 +142,7 @@ export function useFilterSettings({ adminToken, onStatsRefresh }: UseFilterSetti
     } finally {
       setIsSaving(false)
     }
-  }, [adminToken, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, rateLimits, onStatsRefresh, toast])
+  }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, rateLimits, toast])
 
   // Reset state (used when admin logs out)
   const resetState = useCallback(() => {

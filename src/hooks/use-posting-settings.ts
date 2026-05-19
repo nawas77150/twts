@@ -5,11 +5,7 @@ import type { PostMethodSetting } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-
-interface UsePostingSettingsParams {
-  adminToken: string
-  onStatsRefresh?: () => void
-}
+import { useAdminAuth } from '@/contexts/admin-auth-context'
 
 const SETTING_LABELS: Record<string, string> = {
   x_cookie_string: 'Cookie String',
@@ -25,7 +21,8 @@ const SETTING_LABELS: Record<string, string> = {
   v2_login_enabled: 'V2 Login Fallback',
 }
 
-export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSettingsParams) {
+export function usePostingSettings() {
+  const { isAdmin } = useAdminAuth()
   // Direct posting (Cookie method)
   const [cookieString, setCookieString] = useState('')
   const [queryId, setQueryId] = useState('')
@@ -64,6 +61,7 @@ export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSet
   const { toast } = useToast()
 
   const saveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
+    if (!isAdmin) return
     setSavingKeys(prev => new Set(prev).add(key))
     try {
       const data = await apiClient.saveSetting(key, value)
@@ -80,7 +78,6 @@ export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSet
         toast({ title: `${SETTING_LABELS[key] || key} disimpan!`, description: desc })
       }
       onSuccess?.()
-      onStatsRefresh?.()
     } catch (err: unknown) {
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyimpan'), variant: 'destructive' })
       onFailure?.()
@@ -91,9 +88,10 @@ export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSet
         return next
       })
     }
-  }, [onStatsRefresh, toast])
+  }, [isAdmin, toast])
 
   const saveAllCredentials = useCallback(async () => {
+    if (!isAdmin) return
     setIsSavingAllCredentials(true)
     const fields: { key: string; value: string; label: string }[] = [
       { key: 'x_username', value: xUsername, label: 'Username' },
@@ -129,9 +127,8 @@ export function usePostingSettings({ adminToken, onStatsRefresh }: UsePostingSet
       })
     }
 
-    onStatsRefresh?.()
     setIsSavingAllCredentials(false)
-  }, [xUsername, xEmail, xPassword, xTotpSecret, onStatsRefresh, toast])
+  }, [xUsername, xEmail, xPassword, xTotpSecret, isAdmin, toast])
 
   const clearCache = useCallback(async () => {
     setIsClearingCache(true)

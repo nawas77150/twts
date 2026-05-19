@@ -4,12 +4,10 @@ import { useState, useCallback } from 'react'
 import type { SubmitterWithStats } from '@/types'
 import { apiClient, ApiError } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
 
-interface UseSubmittersParams {
-  adminToken: string
-}
-
-export function useSubmitters({ adminToken }: UseSubmittersParams) {
+export function useSubmitters() {
+  const { isAdmin } = useAdminAuth()
   const [submitters, setSubmitters] = useState<SubmitterWithStats[]>([])
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -17,7 +15,7 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
   const { toast } = useToast()
 
   const fetchSubmitters = useCallback(async () => {
-    if (!adminToken) return
+    if (!isAdmin) return
     setIsLoading(true)
     try {
       const data = await apiClient.getSubmitters()
@@ -27,10 +25,10 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
     } finally {
       setIsLoading(false)
     }
-  }, [adminToken])
+  }, [isAdmin])
 
   const block = useCallback(async (username: string) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     try {
       const data = await apiClient.blockUser(username)
       if (!data.error) {
@@ -43,10 +41,10 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
     } catch {
       toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
     }
-  }, [adminToken, fetchSubmitters, toast])
+  }, [isAdmin, fetchSubmitters, toast])
 
   const unblock = useCallback(async (username: string) => {
-    if (!adminToken) return
+    if (!isAdmin) return
     try {
       const data = await apiClient.unblockUser(username)
       if (!data.error) {
@@ -59,10 +57,10 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
     } catch {
       toast({ title: 'Gagal', description: 'Tidak dapat terhubung ke server', variant: 'destructive' })
     }
-  }, [adminToken, fetchSubmitters, toast])
+  }, [isAdmin, fetchSubmitters, toast])
 
   const setCustomLimits = useCallback(async (username: string, customLimits: Record<string, number | null> | null): Promise<boolean> => {
-    if (!adminToken) return false
+    if (!isAdmin) return false
     try {
       const data = await apiClient.setCustomLimits(username, customLimits)
       if (data.success) {
@@ -78,7 +76,7 @@ export function useSubmitters({ adminToken }: UseSubmittersParams) {
       toast({ title: 'Gagal', description: message, variant: 'destructive' })
       return false
     }
-  }, [adminToken, fetchSubmitters, toast])
+  }, [isAdmin, fetchSubmitters, toast])
 
   // Set blocked usernames from external source (e.g. stats response)
   const setBlockedUsernamesFromSource = useCallback((usernames: string[]) => {

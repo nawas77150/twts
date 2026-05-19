@@ -4,12 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { CircuitBreakerStatus } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
 
-interface UseCircuitBreakerParams {
-  adminToken: string
-}
-
-export function useCircuitBreaker({ adminToken }: UseCircuitBreakerParams) {
+export function useCircuitBreaker() {
+  const { isAdmin } = useAdminAuth()
   const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<CircuitBreakerStatus | null>(null)
   const [liveRemainingMinutes, setLiveRemainingMinutes] = useState(0)
   const { toast } = useToast()
@@ -63,7 +61,7 @@ export function useCircuitBreaker({ adminToken }: UseCircuitBreakerParams) {
   }, [])
 
   const reset = useCallback(async () => {
-    if (!adminToken) return
+    if (!isAdmin) return
     try {
       await apiClient.resetCircuitBreaker()
       setCircuitBreakerStatus((prev) => prev ? { ...prev, paused: false, failCount: 0, pausedUntil: null } : null)
@@ -75,7 +73,7 @@ export function useCircuitBreaker({ adminToken }: UseCircuitBreakerParams) {
         variant: 'destructive',
       })
     }
-  }, [adminToken, toast])
+  }, [isAdmin, toast])
 
   return {
     circuitBreakerStatus,

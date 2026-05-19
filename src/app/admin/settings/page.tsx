@@ -7,8 +7,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { usePostingSettings } from '@/hooks/use-posting-settings'
 import { useFilterSettings } from '@/hooks/use-filter-settings'
 import { useCircuitBreaker } from '@/hooks/use-circuit-breaker'
-import { useStatsSummary } from '@/hooks/use-stats-summary'
-import { useAdminAuth } from '@/contexts/admin-auth-context'
 import { useAdminStats } from '@/contexts/admin-stats-context'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
 import { ApiFallbackCard } from '@/components/settings/api-fallback-card'
@@ -36,109 +34,98 @@ function TabPanel({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdminSettingsPage() {
-  const { adminToken } = useAdminAuth()
   const [isLoadingCredits, setIsLoadingCredits] = useState(false)
 
   // Hooks — declared without cross-references to avoid circular deps
-  const posting = usePostingSettings({ adminToken })
-  const filterSettings = useFilterSettings({ adminToken })
-  const circuitBreaker = useCircuitBreaker({ adminToken })
-  const stats = useStatsSummary({ adminToken })
+  const posting = usePostingSettings()
+  const filterSettings = useFilterSettings()
+  const circuitBreaker = useCircuitBreaker()
 
-  // Admin stats context — for badge sync after mutations
-  const { refetch: refetchAdminStats } = useAdminStats()
+  // Stats from context — single source for both settings data and badge
+  const {
+    stats,
+    cookieStatus,
+    apiCredits,
+    apiLoginStatus,
+    refetch: refetchAdminStats,
+  } = useAdminStats()
 
   // Track whether initial settings load has happened
   // to prevent overwriting local state (toggles, text inputs) on every render
   const hasLoadedRef = useRef(false)
 
   // Sync stats → filter settings, circuit breaker, posting method
-  // Only runs on initial load (when stats first arrive) and when token changes
+  // Only runs on initial load (when stats first arrive)
   useEffect(() => {
-    if (!stats.stats) return
+    if (!stats) return
     if (hasLoadedRef.current) return
     hasLoadedRef.current = true
-    const s = stats.stats
-    if (s.filterSettings) {
-      filterSettings.loadFromFilterSettings(s.filterSettings)
+    if (stats.filterSettings) {
+      filterSettings.loadFromFilterSettings(stats.filterSettings)
     }
-    if (s.postMethodSetting) {
-      posting.setPostMethodSetting(s.postMethodSetting)
+    if (stats.postMethodSetting) {
+      posting.setPostMethodSetting(stats.postMethodSetting)
     }
-    if (s.apiLoginStatus?.v2LoginEnabled !== undefined) {
-      posting.setV2LoginEnabled(s.apiLoginStatus.v2LoginEnabled)
+    if (stats.apiLoginStatus?.v2LoginEnabled !== undefined) {
+      posting.setV2LoginEnabled(stats.apiLoginStatus.v2LoginEnabled)
     }
-    if (s.circuitBreaker) {
-      circuitBreaker.setStatus(s.circuitBreaker)
+    if (stats.circuitBreaker) {
+      circuitBreaker.setStatus(stats.circuitBreaker)
     }
-  }, [stats.stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting]) // deps include all used functions
+  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting]) // deps include all used functions
 
   // Always sync circuit breaker status (read-only display, safe to update)
   useEffect(() => {
-    if (!stats.stats?.circuitBreaker) return
+    if (!stats?.circuitBreaker) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
-    circuitBreaker.setStatus(stats.stats.circuitBreaker)
-  }, [stats.stats?.circuitBreaker, circuitBreaker.setStatus])
+    circuitBreaker.setStatus(stats.circuitBreaker)
+  }, [stats?.circuitBreaker, circuitBreaker.setStatus])
 
   // Sync blocklist/whitelist after mutations (display-only, safe to overwrite)
   // Unlike text inputs/toggles, these lists are never edited in-place —
-  // they change atomically via API calls that trigger stats.refetch().
+  // they change atomically via API calls that trigger refetchAdminStats().
   useEffect(() => {
-    if (!stats.stats?.filterSettings) return
+    if (!stats?.filterSettings) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
-    const { blockedUsernames, whitelistUsernames } = stats.stats.filterSettings
+    const { blockedUsernames, whitelistUsernames } = stats.filterSettings
     if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
     if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
-  }, [stats.stats?.filterSettings?.blockedUsernames, stats.stats?.filterSettings?.whitelistUsernames])
-
-  // Auto-load settings from stats on mount & when token changes
-  useEffect(() => {
-    if (adminToken) {
-      hasLoadedRef.current = false // reset so sync effect can run again
-      void stats.fetchStats()
-    }
-  }, [adminToken, stats.fetchStats])
+  }, [stats?.filterSettings?.blockedUsernames, stats?.filterSettings?.whitelistUsernames])
 
   // Wrapper actions that also refresh stats after save
-  // (temporary double-call: stats.refetch + refetchAdminStats — Batch 7 eliminates via Option B)
+  // Single-call pattern: only refetchAdminStats() — one API call refreshes both settings data + badge
   const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
     await posting.saveSetting(key, value, () => {
       onSuccess?.()
-      stats.refetch()
       refetchAdminStats()
     }, onFailure)
-  }, [posting, stats, refetchAdminStats])
+  }, [posting, refetchAdminStats])
 
   const postingClearCache = useCallback(async () => {
     await posting.clearCache()
-    stats.refetch()
-    refetchAdminStats()
-  }, [posting, stats, refetchAdminStats])
+    void refetchAdminStats()
+  }, [posting, refetchAdminStats])
 
   const postingSaveAllCredentials = useCallback(async () => {
     await posting.saveAllCredentials()
-    stats.refetch()
-    refetchAdminStats()
-  }, [posting, stats, refetchAdminStats])
+    void refetchAdminStats()
+  }, [posting, refetchAdminStats])
 
   const filterSaveFilterSettings = useCallback(async () => {
     await filterSettings.saveFilterSettings()
-    stats.refetch()
-    refetchAdminStats()
-  }, [filterSettings, stats, refetchAdminStats])
+    void refetchAdminStats()
+  }, [filterSettings, refetchAdminStats])
 
   const filterSaveGeminiKey = useCallback(async (key: string) => {
     await filterSettings.saveGeminiKey(key)
-    stats.refetch()
-    refetchAdminStats()
-  }, [filterSettings, stats, refetchAdminStats])
+    void refetchAdminStats()
+  }, [filterSettings, refetchAdminStats])
 
   const handleRefreshCredits = useCallback(async () => {
     setIsLoadingCredits(true)
-    await stats.refetch()
     await refetchAdminStats()
     setIsLoadingCredits(false)
-  }, [stats, refetchAdminStats])
+  }, [refetchAdminStats])
 
   return (
     <>
@@ -150,7 +137,7 @@ export default function AdminSettingsPage() {
 
       {/* Encryption Warning Banner */}
       <div className="mb-4">
-        <EncryptionBanner encryptionEnabled={stats.stats?.encryptionEnabled} />
+        <EncryptionBanner encryptionEnabled={stats?.encryptionEnabled} />
       </div>
 
       {/* Tab-based Settings Layout */}
@@ -210,7 +197,7 @@ export default function AdminSettingsPage() {
               isClearingCache={posting.isClearingCache}
               saveSetting={postingSaveSetting}
               clearCache={postingClearCache}
-              cookieStatus={stats.cookieStatus}
+              cookieStatus={cookieStatus}
             />
 
             <ApiFallbackCard
@@ -235,8 +222,8 @@ export default function AdminSettingsPage() {
               isSavingAllCredentials={posting.isSavingAllCredentials}
               saveSetting={postingSaveSetting}
               saveAllCredentials={postingSaveAllCredentials}
-              apiLoginStatus={stats.apiLoginStatus}
-              apiCredits={stats.apiCredits}
+              apiLoginStatus={apiLoginStatus}
+              apiCredits={apiCredits}
               onRefreshCredits={handleRefreshCredits}
               isLoadingCredits={isLoadingCredits}
             />
@@ -286,12 +273,12 @@ export default function AdminSettingsPage() {
           <TabPanel>
             <WhitelistCard
               whitelistUsernames={filterSettings.whitelistUsernames}
-              onWhitelistChange={() => { stats.refetch(); refetchAdminStats() }}
+              onWhitelistChange={() => { void refetchAdminStats() }}
             />
 
             <BlocklistCard
               blockedUsernames={filterSettings.blockedUsernames}
-              onBlocklistChange={() => { stats.refetch(); refetchAdminStats() }}
+              onBlocklistChange={() => { void refetchAdminStats() }}
             />
           </TabPanel>
         </TabsContent>

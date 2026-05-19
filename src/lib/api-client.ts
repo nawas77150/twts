@@ -146,10 +146,6 @@ class ApiClient {
     return this.request<Stats>('/api/admin/stats')
   }
 
-  async getSummary(): Promise<{ cookieAuthStatus: Stats['cookieAuthStatus']; apiCredits: Stats['apiCredits']; apiLoginStatus: Stats['apiLoginStatus']; postMethodSetting: string; filterSettings: Stats['filterSettings']; circuitBreaker: Stats['circuitBreaker'] }> {
-    return this.request('/api/admin/summary')
-  }
-
   async saveSetting(key: string, value: string): Promise<{
     parsed?: { auth_token: string; ct0: string; twid: string }
     autoLogin?: { attempted: boolean; success: boolean; error?: string }

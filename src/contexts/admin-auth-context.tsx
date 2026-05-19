@@ -13,8 +13,6 @@ interface AdminAuthState {
   setLoginPassword: (v: string) => void
   loginOpen: boolean
   setLoginOpen: (v: boolean) => void
-  /** @deprecated Use isAdmin instead — auth is via HttpOnly cookie */
-  adminToken: string
 }
 
 const AdminAuthContext = createContext<AdminAuthState | null>(null)
@@ -22,7 +20,6 @@ const AdminAuthContext = createContext<AdminAuthState | null>(null)
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isChecking, setIsChecking] = useState(true)
-  const [adminToken, setAdminToken] = useState('') // backward compat sentinel
   const [loginPassword, setLoginPassword] = useState('')
   const [loginOpen, setLoginOpen] = useState(false)
   const { toast } = useToast()
@@ -33,7 +30,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     initialCheckDone.current = true
     apiClient.checkSession().then(() => {
       setIsAdmin(true)
-      setAdminToken('session')
     }).catch(() => {
       // Not authenticated
     }).finally(() => {
@@ -45,7 +41,6 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     try {
       await apiClient.adminLogin(password)
       setIsAdmin(true)
-      setAdminToken('session')
       setLoginOpen(false)
       setLoginPassword('')
       toast({ title: 'Login berhasil!', description: 'Selamat datang, Admin.' })
@@ -60,12 +55,11 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try { await apiClient.adminLogout() } catch { /* best effort */ }
     setIsAdmin(false)
-    setAdminToken('')
     toast({ title: 'Logout berhasil' })
   }, [toast])
 
   return (
-    <AdminAuthContext.Provider value={{ isAdmin, isChecking, login, logout, loginPassword, setLoginPassword, loginOpen, setLoginOpen, adminToken }}>
+    <AdminAuthContext.Provider value={{ isAdmin, isChecking, login, logout, loginPassword, setLoginPassword, loginOpen, setLoginOpen }}>
       {children}
     </AdminAuthContext.Provider>
   )
