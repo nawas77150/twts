@@ -33,17 +33,23 @@ class ApiClient {
     options?: RequestInit & { silent?: boolean }
   ): Promise<T> {
     // Validate path is a relative internal API endpoint (SAST: prevent SSRF).
-    // Rejects absolute URLs (http://, https://) and drive letters (C:\).
-    if (!path.startsWith('/') || /:\/\/|^[a-zA-Z]:/.test(path)) {
-      throw new ApiError(400, 'Invalid API path: must be a relative path')
+    // URL constructor with a dummy base: relative paths keep the dummy origin,
+    // while absolute URLs override it. By checking the origin matches, we
+    // reject any external URL injected into the path parameter.
+    const DUMMY_BASE = 'http://self'
+    const parsed = new URL(path, DUMMY_BASE)
+    if (parsed.origin !== DUMMY_BASE || !parsed.pathname.startsWith('/api/')) {
+      throw new ApiError(400, 'Invalid API path: must be a relative /api/ path')
     }
+    // Use only the resolved relative path (pathname + search) — never the raw input
+    const safePath = parsed.pathname + parsed.search
 
     const headers: Record<string, string> = {}
     if (options?.body && typeof options.body === 'string') {
       headers['Content-Type'] = 'application/json'
     }
 
-    const res = await fetch(path, {
+    const res = await fetch(safePath, {
       ...options,
       headers: { ...headers, ...options?.headers as Record<string, string> },
     })

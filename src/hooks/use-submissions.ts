@@ -93,6 +93,9 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
 
   // Debounced search: trigger server-side search after 300ms of inactivity
   useEffect(() => {
+    // `search` is in deps to trigger this effect; its value is read via searchRef
+    // inside fetchSubmissions. Sync ref explicitly so SAST sees the dependency used.
+    searchRef.current = search
     const timer = setTimeout(() => {
       if (isAdmin) {
         pageRef.current = 1

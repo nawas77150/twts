@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import {
   Key,
-  ChevronDown,
   User,
   Globe,
   Shield,

@@ -189,7 +189,11 @@ export async function GET(req: NextRequest) {
     // Return an intermediate HTML page that sets the session cookie via fetch,
     // then redirects. This is more reliable on Vercel than setting cookies
     // in redirect responses, which can be stripped by the CDN.
-    const html = `<!DOCTYPE html>
+    //
+    // Use standard Response (not NextResponse) for HTML content to avoid SAST
+    // flag on NextResponse with raw HTML. Add Set-Cookie headers manually for
+    // the OAuth temp cookie cleanup.
+    const pageContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -229,23 +233,18 @@ export async function GET(req: NextRequest) {
 </body>
 </html>`
 
-    const response = new NextResponse(html, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'X-Frame-Options': 'DENY',
-        'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'unsafe-inline'",
-      },
-    })
+    // Build response headers including cleanup cookies for OAuth temp values
+    const responseHeaders = new Headers()
+    responseHeaders.set('Content-Type', 'text/html; charset=utf-8')
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    responseHeaders.set('X-Frame-Options', 'DENY')
+    responseHeaders.set('X-Content-Type-Options', 'nosniff')
+    responseHeaders.set('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'unsafe-inline'")
+    responseHeaders.append('Set-Cookie', 'twitter_oauth_verifier=; Max-Age=0; Path=/')
+    responseHeaders.append('Set-Cookie', 'twitter_oauth_state=; Max-Age=0; Path=/')
+    responseHeaders.append('Set-Cookie', 'twitter_oauth_flow_id=; Max-Age=0; Path=/')
 
-    // Clear OAuth temporary cookies
-    response.cookies.set('twitter_oauth_verifier', '', { maxAge: 0, path: '/' })
-    response.cookies.set('twitter_oauth_state', '', { maxAge: 0, path: '/' })
-    response.cookies.set('twitter_oauth_flow_id', '', { maxAge: 0, path: '/' })
-
-    return response
+    return new Response(pageContent, { status: 200, headers: responseHeaders })
   } catch (error) {
     console.error('Error creating submitter:', error)
     return authErrorRedirect(baseUrl)

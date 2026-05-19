@@ -21,13 +21,18 @@ interface LimitHitsData {
   windowLabel: string
 }
 
-const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  cooldown: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
-  daily_cap: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  pending_cap: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  global_cap: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
-  post_cap: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
-}
+// Map (not Record) avoids the "Generic Object Injection Sink" SAST warning:
+// plain objects have a prototype chain (__proto__, constructor) that SAST
+// flags on dynamic-key access. Map.get() has no prototype chain.
+const TYPE_COLORS = new Map<string, { bg: string; text: string; border: string }>([
+  ['cooldown', { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' }],
+  ['daily_cap', { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' }],
+  ['pending_cap', { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' }],
+  ['global_cap', { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }],
+  ['post_cap', { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' }],
+])
+
+const DEFAULT_COLORS = { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' }
 
 export function LimitHealthCard() {
   const [data, setData] = useState<LimitHitsData | null>(null)
@@ -79,7 +84,7 @@ export function LimitHealthCard() {
           {/* Summary grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {data.summary.map((item) => {
-              const colors = TYPE_COLORS[item.limitType] || TYPE_COLORS.cooldown
+              const colors = TYPE_COLORS.get(item.limitType) ?? DEFAULT_COLORS
               const isHot = item.totalHits >= 20
               return (
                 <div key={item.limitType} className={`rounded-lg border p-2 ${colors.bg} ${colors.border}`}>
