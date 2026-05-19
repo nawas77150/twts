@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { useAdminAuth } from '@/hooks/use-admin-auth'
-import { useStats } from '@/hooks/use-stats'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
+import { useAdminStats } from '@/contexts/admin-stats-context'
 import { useSubmissions } from '@/hooks/use-submissions'
 import { useSubmitters } from '@/hooks/use-submitters'
 import { StatsGrid } from '@/components/dashboard/stats-grid'
@@ -19,7 +19,7 @@ export default function AdminDashboardPage() {
   const { isAdmin, adminToken } = useAdminAuth()
   const [usersDialogOpen, setUsersDialogOpen] = useState(false)
 
-  // Stats hook with callbacks for cross-hook communication
+  // Stats from context (AdminStatsProvider handles fetch + 15s auto-refresh)
   const {
     stats,
     cookieStatus,
@@ -28,7 +28,7 @@ export default function AdminDashboardPage() {
     apiLoginStatus,
     fetchStats,
     refetch: refetchStats,
-  } = useStats({ adminToken })
+  } = useAdminStats()
 
   // Submissions hook
   const {
@@ -70,25 +70,6 @@ export default function AdminDashboardPage() {
       setBlockedUsernames(stats.filterSettings.blockedUsernames)
     }
   }, [stats?.filterSettings?.blockedUsernames, setBlockedUsernames])
-
-  // Dispatch stats-update event so the layout header badge stays in sync
-  useEffect(() => {
-    if (stats) {
-      window.dispatchEvent(new CustomEvent('stats-update', { detail: { pending: stats.pending } }))
-    }
-  }, [stats])
-
-  // Auto-refresh stats every 15s
-  useEffect(() => {
-    if (isAdmin) {
-      void fetchStats()
-      const interval = setInterval(() => {
-        void fetchStats()
-      }, 15000)
-      return () => { clearInterval(interval) }
-    }
-    return undefined
-  }, [isAdmin, fetchStats])
 
   const handleRefresh = useCallback(() => {
     void fetchSubmissions()

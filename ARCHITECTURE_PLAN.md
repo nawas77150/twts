@@ -624,9 +624,12 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
 
   const refetch = useCallback(async () => { await fetchStats() }, [fetchStats])
 
-  // Fetch on auth change
+  // Fetch on auth change + 15s auto-refresh (keeps pendingCount badge fresh on all pages)
   useEffect(() => {
-    if (isAdmin) void fetchStats()
+    if (!isAdmin) return
+    void fetchStats()
+    const interval = setInterval(() => { void fetchStats() }, 15000)
+    return () => { clearInterval(interval) }
   }, [isAdmin, fetchStats])
 
   return (
@@ -681,14 +684,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 const { isAdmin, adminToken } = useAdminAuth()
 const { stats, cookieStatus, ... } = useStats({ adminToken })
 
-// After:
-const { isAdmin } = useAdminAuth()
+// After (Batch 6 intermediate — adminToken still needed for hooks that haven't been updated yet):
+const { isAdmin, adminToken } = useAdminAuth()
 const { stats, cookieStatus, postMethodStats, apiCredits, apiLoginStatus, fetchStats, refetch: refetchStats } = useAdminStats()
 ```
 
+**Note:** `adminToken` is kept in the destructure for Batch 6 because `useSubmissions` and `useSubmitters` still need it (Batch 7 removes it). `useStats()` is fully replaced by `useAdminStats()` though — `adminToken` is no longer passed to a stats hook.
+
 **Remove:** `useStats()` import — replaced by `useAdminStats()`.
 **Remove:** `window.dispatchEvent(new CustomEvent('stats-update', ...))` — no longer needed.
-**Remove:** Separate 15s auto-refresh (move to AdminStatsProvider or keep here with `fetchStats` from context).
+**Remove:** Separate 15s auto-refresh on dashboard — moved into `AdminStatsProvider` so all pages benefit.
 
 ### 6E. Update `src/app/admin/settings/page.tsx`
 
@@ -698,19 +703,44 @@ const { adminToken } = useAdminAuth()
 const stats = useStatsSummary({ adminToken })
 
 // After:
-const { adminToken } = useAdminAuth()  // temporarily still needed for hooks
+const { adminToken } = useAdminAuth()  // temporarily still needed for hooks (Batch 7 removes it)
 const stats = useStatsSummary({ adminToken })
+const { refetch: refetchAdminStats } = useAdminStats()  // for badge sync
 ```
 
-**Badge fix:** The layout now gets `pendingCount` from `AdminStatsProvider`, which fetches on auth change. Settings page mutations can call `useAdminStats().refetch()` to update the badge.
+**Badge fix (temporary double-call — eliminated in Batch 7):** The layout now gets `pendingCount` from `AdminStatsProvider`, which auto-refreshes every 15s. For immediate badge updates after settings mutations, call `refetchAdminStats()` alongside `stats.refetch()` in the wrapper callbacks. This creates a temporary double API call per save (`getSummary()` + `getStats()`), which is acceptable as an intermediate state — Batch 7 eliminates it by replacing `useStatsSummary()` with `useAdminStats()` (Option B, single stats source).
+
+```tsx
+// Example — update all wrapper actions to also refresh admin stats:
+const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
+  await posting.saveSetting(key, value, () => {
+    onSuccess?.()
+    stats.refetch()
+    refetchAdminStats()  // ← keeps badge in sync immediately (temporary, Batch 7 removes this double-call)
+  }, onFailure)
+}, [posting, stats, refetchAdminStats])
+```
+
+Apply the same `refetchAdminStats()` addition to all wrapper callbacks: `postingClearCache`, `postingSaveAllCredentials`, `filterSaveFilterSettings`, `filterSaveGeminiKey`, `handleRefreshCredits`.
+
+**Bug fix — `useStatsSummary` drops `encryptionEnabled`:** The `buildStatsFromSummary()` helper in `use-stats-summary.ts` doesn't include `encryptionEnabled` in its return, even though the summary API returns it. This means `stats.stats?.encryptionEnabled` on the settings page is always `undefined` → the `EncryptionBanner` never shows. Fix by adding to `buildStatsFromSummary`:
+
+```ts
+// In buildStatsFromSummary(), add to the return object:
+encryptionEnabled: data.encryptionEnabled ?? prev?.encryptionEnabled ?? undefined,
+```
+
+And add `'encryptionEnabled'` to the `Pick<Stats, ...>` in the `SummaryData` type.
 
 ### Batch 6 Verification Checklist
 - [ ] Admin login/logout works via context
 - [ ] Dashboard page shows stats from context
 - [ ] Layout header badge shows pendingCount from context (no separate fetch)
-- [ ] Settings page badge stays in sync after mutations (call refetch)
+- [ ] Settings page badge stays in sync after mutations (refetchAdminStats alongside stats.refetch — temporary double-call, Batch 7 eliminates)
 - [ ] No `window.dispatchEvent('stats-update', ...)` anywhere
 - [ ] No separate `apiClient.getStats()` in layout.tsx
+- [ ] AdminStatsProvider has 15s auto-refresh interval
+- [ ] `encryptionEnabled` flows through `buildStatsFromSummary` (EncryptionBanner shows on settings page)
 - [ ] `bun run lint` passes
 
 ### Commit Message
@@ -718,11 +748,12 @@ const stats = useStatsSummary({ adminToken })
 feat: add AdminAuthContext + AdminStatsContext
 
 - AdminAuthProvider: session check, login/logout, isAdmin state
-- AdminStatsProvider: shared stats, pendingCount, fetchStats/refetch
+- AdminStatsProvider: shared stats, pendingCount, fetchStats/refetch + 15s auto-refresh
 - Layout: use pendingCount from context instead of separate fetch
 - Dashboard: use useAdminStats() instead of useStats({ adminToken })
+- Settings: add refetchAdminStats() after mutations for badge sync (temporary double-call, Batch 7 eliminates via Option B)
 - Remove stats-update custom event pattern (replaced by context)
-- Fix settings page badge staleness (context refetch on mutation)
+- Fix encryptionEnabled missing from buildStatsFromSummary
 ```
 
 ---
@@ -749,7 +780,6 @@ export function useFoo({ adminToken, onStatsRefresh }: UseFooParams) {
 // After:
 export function useFoo() {
   const { isAdmin } = useAdminAuth()
-  const { refetch } = useAdminStats()
   const fetchFoo = useCallback(async () => {
     if (!isAdmin) return
     // ...
@@ -757,15 +787,27 @@ export function useFoo() {
 }
 ```
 
-**Files to update (7 hooks):**
+**⚠️ Design decision — `onStatsRefresh` replacement + single stats source (Option B):**
+
+Hooks do NOT call `useAdminStats().refetch()` internally — that would cause double API calls. Instead, pages call `useAdminStats().refetch()` explicitly where needed.
+
+The settings page previously used `useStatsSummary()` (lightweight `getSummary()`) alongside `useAdminStats()` (heavy `getStats()`), which caused double API calls on every save. This is eliminated by adopting **Option B**: the settings page reads from `useAdminStats()` only, making it the single source of truth for all stats. This means:
+- `useStatsSummary()` is deleted (not updated) — no second stats source
+- `apiClient.getSummary()` has zero client-side consumers after this
+- `/api/admin/summary/route.ts` can optionally be deleted (server-side endpoint, no clients)
+- Every save triggers exactly 1 API call (`refetchAdminStats()` → `getStats()`) instead of 2
+- The "heavier data" concern is a red herring: `getStats()` only adds ~5ms of cheap SQL queries (submission GROUP BY, post method GROUP BY, submitter count) on top of what `getSummary()` already fetches. The expensive parts (`getCookieAuthStatus`, `getApiLoginStatus`, `getFilterSettings`) are identical in both endpoints.
+- Badge is instantly synced — no stale badge or 15s delay
+
+**Files to update (5 hooks) + 2 deletions:**
 
 | Hook | adminToken uses | onStatsRefresh uses | Change |
 |------|----------------|--------------------|----|
-| `use-stats.ts` | 1 guard | 0 | Remove param, use `isAdmin` from context |
-| `use-stats-summary.ts` | 1 guard | 0 | Remove param, use `isAdmin` from context |
-| `use-submissions.ts` | 2 guards (line 43, 98 dual) | 4 calls | Remove param, use `isAdmin`, replace `onStatsRefresh` with `refetch` from stats context |
-| `use-filter-settings.ts` | 5 guards | 4 calls | Remove param, use `isAdmin`, replace `onStatsRefresh` with `refetch` |
-| `use-posting-settings.ts` | 0 guards (uses it indirectly) | 3 calls | Remove param, replace `onStatsRefresh` with `refetch` |
+| `use-stats.ts` | 1 guard | 0 | **DELETE** — replaced by AdminStatsContext |
+| `use-stats-summary.ts` | 1 guard | 0 | **DELETE** — replaced by AdminStatsContext (Option B) |
+| `use-submissions.ts` | 2 guards (lines 43, 99) | 4 calls (lines 137, 151, 165, 183) | Remove param, use `isAdmin`, remove `onStatsRefresh` (dashboard page handles refresh) |
+| `use-filter-settings.ts` | 4 guards (lines 57, 80, 97, 113) | 4 calls (lines 65, 87, 103, 143) | Remove param, use `isAdmin`, remove `onStatsRefresh` (settings page handles refresh) |
+| `use-posting-settings.ts` | 0 guards (`adminToken` is destructured but unused) | 2 calls (lines 83, 132) | Remove param, remove `onStatsRefresh` (settings page handles refresh) |
 | `use-circuit-breaker.ts` | 1 guard | 0 | Remove param, use `isAdmin` |
 | `use-submitters.ts` | 4 guards | 0 | Remove param, use `isAdmin` |
 
@@ -794,7 +836,17 @@ const { ... } = useSubmissions({ isAdmin })
 const { ... } = useSubmitters()
 ```
 
-**`admin/settings/page.tsx`:**
+**Dashboard `onStatsRefresh` replacement:** `useSubmissions` no longer calls `onStatsRefresh` after approve/reject/delete/retry. The dashboard must call `refetchStats()` (from `useAdminStats()`) explicitly after these actions. The easiest approach: wrap the action callbacks at the page level:
+
+```tsx
+const { approve: rawApprove, reject: rawReject, delete: rawDelete, retryPost: rawRetryPost } = useSubmissions({ isAdmin })
+const approve = useCallback(async (id: string) => { await rawApprove(id); refetchStats() }, [rawApprove, refetchStats])
+const reject = useCallback(async (id: string) => { await rawReject(id); refetchStats() }, [rawReject, refetchStats])
+const deleteSubmission = useCallback(async (id: string) => { await rawDelete(id); refetchStats() }, [rawDelete, refetchStats])
+const retryPost = useCallback(async (id: string) => { await rawRetryPost(id); refetchStats() }, [rawRetryPost, refetchStats])
+```
+
+**`admin/settings/page.tsx` (Option B — single stats source):**
 ```ts
 // Before:
 const { adminToken } = useAdminAuth()
@@ -803,41 +855,107 @@ const filterSettings = useFilterSettings({ adminToken })
 const circuitBreaker = useCircuitBreaker({ adminToken })
 const stats = useStatsSummary({ adminToken })
 
-// After:
+// After (Option B — useAdminStats() replaces useStatsSummary() entirely):
 const posting = usePostingSettings()
 const filterSettings = useFilterSettings()
 const circuitBreaker = useCircuitBreaker()
-const stats = useStatsSummary()
+const { stats, cookieStatus, apiCredits, apiLoginStatus, refetch: refetchAdminStats } = useAdminStats()
 ```
 
-**`onStatsRefresh` replacement in settings page:**
-The settings page currently wraps save actions with `stats.refetch()`. After this batch, `useAdminStats().refetch()` is available in every hook via context. So the page-level wrappers can be simplified.
+**Single-call save pattern (no double API calls):**
+The settings page no longer uses `useStatsSummary()`. All stats come from `useAdminStats()`. Every save action calls only `refetchAdminStats()` — one API call (`getStats()`) that refreshes both the settings page data AND the layout badge `pendingCount`.
 
-### 7C. Delete `use-stats.ts`
+The hooks themselves no longer call `onStatsRefresh?.()` — they simply remove it.
 
-After AdminStatsContext is in place and `use-stats.ts` has zero consumers:
-- `admin/page.tsx` now uses `useAdminStats()` from context
-- No other file imports `use-stats`
+```tsx
+const { stats, cookieStatus, apiCredits, apiLoginStatus, refetch: refetchAdminStats } = useAdminStats()
 
-Delete the file and verify nothing breaks.
+// In each wrapper callback — single call, handles both settings data + badge:
+const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
+  await posting.saveSetting(key, value, () => {
+    onSuccess?.()
+    refetchAdminStats()    // single call — refreshes settings + badge
+  }, onFailure)
+}, [posting, refetchAdminStats])
+```
+
+Apply this pattern to all wrapper callbacks: `postingSaveSetting`, `postingClearCache`, `postingSaveAllCredentials`, `filterSaveFilterSettings`, `filterSaveGeminiKey`, `handleRefreshCredits`.
+
+**Settings page useEffect adjustments:**
+Since `useStatsSummary()` returns `{ stats, cookieStatus, ... }` and `useAdminStats()` returns the same shape (`{ stats, cookieStatus, ... }`), the destructuring changes from:
+```ts
+// Before: stats is the hook object, stats.stats is the Stats value
+const stats = useStatsSummary({ adminToken })
+if (!stats.stats) return
+
+// After: stats is the Stats value directly from context
+const { stats, cookieStatus, ... } = useAdminStats()
+if (!stats) return
+```
+All `stats.stats` references become `stats`, `stats.cookieStatus` becomes `cookieStatus`, etc.
+
+### 7C. Remove `adminToken` from `AdminAuthContext`
+
+After all hooks stop using `adminToken`, remove it from the context entirely:
+
+```tsx
+// In admin-auth-context.tsx:
+interface AdminAuthState {
+  isAdmin: boolean
+  isChecking: boolean
+  login: (password: string) => Promise<boolean>
+  logout: () => Promise<void>
+  loginPassword: string
+  setLoginPassword: (v: string) => void
+  loginOpen: boolean
+  setLoginOpen: (v: boolean) => void
+  // adminToken removed — no longer needed by any consumer
+}
+```
+
+Remove `adminToken` state, `setAdminToken('session')` calls, and the `adminToken` prop from the Provider value. The `login` and `logout` callbacks no longer need to set it.
+
+### 7D. Delete `use-stats.ts` + `use-stats-summary.ts`
+
+After AdminStatsContext is in place and both stats hooks have zero consumers:
+- `admin/page.tsx` uses `useAdminStats()` from context (Batch 6)
+- `admin/settings/page.tsx` uses `useAdminStats()` from context (this batch, Option B)
+- No other file imports `use-stats` or `use-stats-summary`
+
+**Delete:**
+- `src/hooks/use-stats.ts`
+- `src/hooks/use-stats-summary.ts`
+
+**Optionally delete (no more client-side consumers):**
+- `src/app/api/admin/summary/route.ts` — the lightweight summary endpoint has no callers after `useStatsSummary` is removed. Can be deleted or kept as a dead endpoint for future use. Recommend deleting to avoid maintenance burden.
+- `apiClient.getSummary()` method — no longer called by any client code
+
+Verify nothing breaks after deletion.
 
 ### Batch 7 Verification Checklist
 - [ ] `grep -rn "adminToken" src/hooks/` returns 0 results (all removed)
-- [ ] `grep -rn "onStatsRefresh" src/` returns 0 results (all replaced with context refetch)
-- [ ] Dashboard: approve/reject/delete/retry still triggers stats refresh
-- [ ] Settings: save still triggers stats refresh
+- [ ] `grep -rn "onStatsRefresh" src/` returns 0 results (all removed from hooks)
+- [ ] `grep -rn "adminToken" src/contexts/` returns 0 results (removed from AdminAuthContext)
+- [ ] Dashboard: approve/reject/delete/retry still triggers stats refresh (page-level wrappers call refetchStats)
+- [ ] Settings: save triggers single `refetchAdminStats()` call (no double API calls)
 - [ ] Settings page badge updates after mutations
 - [ ] `use-stats.ts` is deleted
+- [ ] `use-stats-summary.ts` is deleted
+- [ ] No remaining imports of `useStatsSummary` or `useStats` anywhere in `src/`
+- [ ] No remaining calls to `apiClient.getSummary()` in client code
 - [ ] `bun run lint` passes
 
 ### Commit Message
 ```
 refactor: remove adminToken prop drilling, replace with auth context
 
-- All 7 hooks: remove adminToken param, use useAdminAuth().isAdmin
-- All 7 hooks: remove onStatsRefresh param, use useAdminStats().refetch()
+- 5 hooks: remove adminToken param, use useAdminAuth().isAdmin
+- 5 hooks: remove onStatsRefresh param (pages call useAdminStats().refetch() explicitly)
+- Remove adminToken from AdminAuthContext (no longer needed)
 - Collapse use-submissions dual guard to single isAdmin check
 - Delete use-stats.ts (replaced by AdminStatsContext)
+- Delete use-stats-summary.ts (Option B: single stats source via useAdminStats)
+- Settings page: replace useStatsSummary() with useAdminStats() — no double API calls
 - Update admin/page.tsx and admin/settings/page.tsx call sites
 ```
 

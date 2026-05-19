@@ -13,7 +13,7 @@ import { apiClient } from '@/lib/api-client'
 // ============================================================
 
 type SummaryData = Partial<
-  Pick<Stats, 'cookieAuthStatus' | 'apiCredits' | 'apiLoginStatus' | 'filterSettings' | 'circuitBreaker'>
+  Pick<Stats, 'cookieAuthStatus' | 'apiCredits' | 'apiLoginStatus' | 'filterSettings' | 'circuitBreaker' | 'encryptionEnabled'>
 > & { postMethodSetting?: string }
 
 function buildStatsFromSummary(prev: Stats | null, data: SummaryData): Stats {
@@ -36,6 +36,7 @@ function buildStatsFromSummary(prev: Stats | null, data: SummaryData): Stats {
     postMethodSetting: (data.postMethodSetting ?? prev?.postMethodSetting ?? 'auto') as PostMethodSetting,
     filterSettings: data.filterSettings ?? prev?.filterSettings ?? null,
     circuitBreaker: data.circuitBreaker ?? prev?.circuitBreaker ?? null,
+    encryptionEnabled: data.encryptionEnabled ?? prev?.encryptionEnabled ?? undefined,
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Shield, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,39 +14,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { useAdminAuth } from '@/hooks/use-admin-auth'
+import { AdminAuthProvider, useAdminAuth } from '@/contexts/admin-auth-context'
+import { AdminStatsProvider, useAdminStats } from '@/contexts/admin-stats-context'
 import { AdminHeader } from '@/components/layout/admin-header'
-import { apiClient } from '@/lib/api-client'
 import { APP_VERSION } from '@/lib/constants'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminAuthProvider>
+      <AdminStatsProvider>
+        <AdminLayoutInner>{children}</AdminLayoutInner>
+      </AdminStatsProvider>
+    </AdminAuthProvider>
+  )
+}
+
+function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { isAdmin, isChecking, login, logout, loginPassword, setLoginPassword, loginOpen, setLoginOpen } = useAdminAuth()
+  const { pendingCount } = useAdminStats()
   const [isLoggingIn, setIsLoggingIn] = useState(false)
-  const [pendingCount, setPendingCount] = useState(0)
-
-  // Fetch pending count for the header badge (initial load only)
-  useEffect(() => {
-    if (!isAdmin) return
-    const fetchPending = async () => {
-      try {
-        const stats = await apiClient.getStats()
-        setPendingCount(stats.pending)
-      } catch {
-        // silently fail
-      }
-    }
-    void fetchPending()
-  }, [isAdmin])
-
-  // Listen for stats updates dispatched by the dashboard page
-  useEffect(() => {
-    if (!isAdmin) return
-    const handleStatsUpdate = (e: CustomEvent) => {
-      setPendingCount(e.detail.pending ?? 0)
-    }
-    window.addEventListener('stats-update', handleStatsUpdate as EventListener)
-    return () => { window.removeEventListener('stats-update', handleStatsUpdate as EventListener) }
-  }, [isAdmin])
 
   const handleLogin = async () => {
     setIsLoggingIn(true)

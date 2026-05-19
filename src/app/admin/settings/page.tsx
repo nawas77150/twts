@@ -8,7 +8,8 @@ import { usePostingSettings } from '@/hooks/use-posting-settings'
 import { useFilterSettings } from '@/hooks/use-filter-settings'
 import { useCircuitBreaker } from '@/hooks/use-circuit-breaker'
 import { useStatsSummary } from '@/hooks/use-stats-summary'
-import { useAdminAuth } from '@/hooks/use-admin-auth'
+import { useAdminAuth } from '@/contexts/admin-auth-context'
+import { useAdminStats } from '@/contexts/admin-stats-context'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
 import { ApiFallbackCard } from '@/components/settings/api-fallback-card'
 import { FilterCard } from '@/components/settings/filter-card'
@@ -43,6 +44,9 @@ export default function AdminSettingsPage() {
   const filterSettings = useFilterSettings({ adminToken })
   const circuitBreaker = useCircuitBreaker({ adminToken })
   const stats = useStatsSummary({ adminToken })
+
+  // Admin stats context — for badge sync after mutations
+  const { refetch: refetchAdminStats } = useAdminStats()
 
   // Track whether initial settings load has happened
   // to prevent overwriting local state (toggles, text inputs) on every render
@@ -96,38 +100,45 @@ export default function AdminSettingsPage() {
   }, [adminToken, stats.fetchStats])
 
   // Wrapper actions that also refresh stats after save
+  // (temporary double-call: stats.refetch + refetchAdminStats — Batch 7 eliminates via Option B)
   const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
     await posting.saveSetting(key, value, () => {
       onSuccess?.()
       stats.refetch()
+      refetchAdminStats()
     }, onFailure)
-  }, [posting, stats])
+  }, [posting, stats, refetchAdminStats])
 
   const postingClearCache = useCallback(async () => {
     await posting.clearCache()
     stats.refetch()
-  }, [posting, stats])
+    refetchAdminStats()
+  }, [posting, stats, refetchAdminStats])
 
   const postingSaveAllCredentials = useCallback(async () => {
     await posting.saveAllCredentials()
     stats.refetch()
-  }, [posting, stats])
+    refetchAdminStats()
+  }, [posting, stats, refetchAdminStats])
 
   const filterSaveFilterSettings = useCallback(async () => {
     await filterSettings.saveFilterSettings()
     stats.refetch()
-  }, [filterSettings, stats])
+    refetchAdminStats()
+  }, [filterSettings, stats, refetchAdminStats])
 
   const filterSaveGeminiKey = useCallback(async (key: string) => {
     await filterSettings.saveGeminiKey(key)
     stats.refetch()
-  }, [filterSettings, stats])
+    refetchAdminStats()
+  }, [filterSettings, stats, refetchAdminStats])
 
   const handleRefreshCredits = useCallback(async () => {
     setIsLoadingCredits(true)
     await stats.refetch()
+    await refetchAdminStats()
     setIsLoadingCredits(false)
-  }, [stats])
+  }, [stats, refetchAdminStats])
 
   return (
     <>
@@ -275,12 +286,12 @@ export default function AdminSettingsPage() {
           <TabPanel>
             <WhitelistCard
               whitelistUsernames={filterSettings.whitelistUsernames}
-              onWhitelistChange={() => { stats.refetch() }}
+              onWhitelistChange={() => { stats.refetch(); refetchAdminStats() }}
             />
 
             <BlocklistCard
               blockedUsernames={filterSettings.blockedUsernames}
-              onBlocklistChange={() => { stats.refetch() }}
+              onBlocklistChange={() => { stats.refetch(); refetchAdminStats() }}
             />
           </TabPanel>
         </TabsContent>
