@@ -50,5 +50,4 @@ export {
   runContentFilter,
   hasAlwaysOnReason,
   getRejectionMessage,
-  getFilterReasonColor,
 } from './content-filter-engine'

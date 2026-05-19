@@ -211,23 +211,3 @@ export async function getFilterSettings(): Promise<{
   cachedSettings = { data: result, ts: Date.now() }
   return result
 }
-
-/**
- * Get the actual Gemini API key (for server-side use only).
- * Returns null if not configured.
- * @deprecated Use getFilterSettings() instead — geminiApiKey is now included (cache-aware)
- */
-export async function getGeminiApiKey(): Promise<string | null> {
-  const settings = await getFilterSettings()
-  return settings.geminiApiKey
-}
-
-/**
- * Get the configured Gemini model name (for server-side use only).
- * Falls back to DEFAULT_GEMINI_MODEL if not configured.
- * @deprecated Use getFilterSettings() instead — geminiModel is already included (cache-aware)
- */
-export async function getGeminiModel(): Promise<string> {
-  const settings = await getFilterSettings()
-  return settings.geminiModel
-}

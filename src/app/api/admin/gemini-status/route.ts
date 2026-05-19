@@ -1,8 +1,6 @@
 import { isEncryptionEnabled } from '@/lib/encrypt'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
-import { getGeminiModel } from '@/lib/filter-settings'
-import { db } from '@/lib/db'
-import { decryptSetting } from '@/lib/encrypt'
+import { getFilterSettings } from '@/lib/filter-settings'
 import { getErrorMessage } from '@/lib/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -10,15 +8,13 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
 
-  const model = await getGeminiModel()
+  const { geminiApiKey, geminiModel: model } = await getFilterSettings()
 
-  // Get the Gemini API key
-  const setting = await db.setting.findUnique({ where: { key: 'gemini_api_key' } })
-  if (!setting?.value) {
+  if (!geminiApiKey) {
     return NextResponse.json({ healthy: false, model, encryptionEnabled: isEncryptionEnabled(), error: 'No API key configured' })
   }
 
-  const apiKey = decryptSetting(setting.value).trim()
+  const apiKey = geminiApiKey.trim()
   if (!apiKey) {
     return NextResponse.json({ healthy: false, model, encryptionEnabled: isEncryptionEnabled(), error: 'API key is empty' })
   }

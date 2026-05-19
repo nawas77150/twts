@@ -8,7 +8,6 @@
 //   - runContentFilter() — main entry point
 //   - hasAlwaysOnReason() — rejection classification
 //   - getRejectionMessage() — user-facing error messages
-//   - getFilterReasonColor() — UI color mapping
 //
 // Imports from: content-filter-blocked, content-filter-checks
 // ============================================================
@@ -231,16 +230,4 @@ export function getRejectionMessage(reasons: string[]): string {
   }
 
   return messages.join(' ')
-}
-
-// NOTE: getFilterReasonLabel is defined in src/types/index.ts (for UI components).
-// getFilterReasonColor is defined here — export retained for backward compatibility.
-export function getFilterReasonColor(reason: string): string {
-  if (reason.startsWith('blocked_word:') || reason === 'contains_phone_number') {
-    return 'destructive' // red
-  }
-  if (reason.startsWith('nsfw_word:') || reason.startsWith('jualan:') || reason === 'contains_url') {
-    return 'warning' // orange/yellow
-  }
-  return 'secondary' // gray
 }
