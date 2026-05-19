@@ -64,7 +64,7 @@ export function useSubmitterAuth() {
         }
       }
       const timer = setTimeout(() => { void tryAuth() }, 300)
-      return () => clearTimeout(timer)
+      return () => { clearTimeout(timer) }
     }
   }, [checkAuth, toast])
 
@@ -100,7 +100,7 @@ export function useSubmitterAuth() {
     }
   }
 
-  const setBlocked = (val: boolean) => setIsBlocked(val)
+  const setBlocked = (val: boolean) => { setIsBlocked(val) }
 
   return { submitter, isChecking, authError, isBlocked, setBlocked, logout, checkAuth }
 }

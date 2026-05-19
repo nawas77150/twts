@@ -197,7 +197,7 @@ export function ApiFallbackCard({
                   <Input
                     placeholder="X username"
                     value={xUsername}
-                    onChange={(e) => setXUsername(e.target.value)}
+                    onChange={(e) => { setXUsername(e.target.value) }}
                     className="border-[#EFF3F4] text-xs"
                   />
 
@@ -206,7 +206,7 @@ export function ApiFallbackCard({
                     placeholder="X email"
                     type="email"
                     value={xEmail}
-                    onChange={(e) => setXEmail(e.target.value)}
+                    onChange={(e) => { setXEmail(e.target.value) }}
                     className="border-[#EFF3F4] text-xs"
                   />
 
@@ -216,14 +216,14 @@ export function ApiFallbackCard({
                       placeholder="X password"
                       type={showPassword ? 'text' : 'password'}
                       value={xPassword}
-                      onChange={(e) => setXPassword(e.target.value)}
+                      onChange={(e) => { setXPassword(e.target.value) }}
                       className="border-[#EFF3F4] text-xs pr-8"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 p-0"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => { setShowPassword(!showPassword) }}
                     >
                       {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </Button>
@@ -235,14 +235,14 @@ export function ApiFallbackCard({
                       placeholder="2FA secret (TOTP base32 seed)"
                       type={showTotpSecret ? 'text' : 'password'}
                       value={xTotpSecret}
-                      onChange={(e) => setXTotpSecret(e.target.value)}
+                      onChange={(e) => { setXTotpSecret(e.target.value) }}
                       className="border-[#EFF3F4] text-xs pr-8"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 p-0"
-                      onClick={() => setShowTotpSecret(!showTotpSecret)}
+                      onClick={() => { setShowTotpSecret(!showTotpSecret) }}
                     >
                       {showTotpSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </Button>
@@ -274,11 +274,11 @@ export function ApiFallbackCard({
                 <Input
                   placeholder='["key1","key2","key3"]'
                   value={apiKeys}
-                  onChange={(e) => setApiKeys(e.target.value)}
+                  onChange={(e) => { setApiKeys(e.target.value) }}
                   className="border-[#EFF3F4] text-xs"
                 />
                 <Button
-                  onClick={() => saveSetting('twitterapi_keys', apiKeys, () => setApiKeys(''))}
+                  onClick={() => { saveSetting('twitterapi_keys', apiKeys, () => setApiKeys('')) }}
                   disabled={!!isSavingSetting || !apiKeys.trim()}
                   className="bg-purple-500 hover:bg-purple-600 shrink-0"
                 >
@@ -299,11 +299,11 @@ export function ApiFallbackCard({
                 <Input
                   placeholder="http://user:pass@ip:port"
                   value={apiProxy}
-                  onChange={(e) => setApiProxy(e.target.value)}
+                  onChange={(e) => { setApiProxy(e.target.value) }}
                   className="border-[#EFF3F4] text-xs"
                 />
                 <Button
-                  onClick={() => saveSetting('twitterapi_proxy', apiProxy, () => setApiProxy(''))}
+                  onClick={() => { saveSetting('twitterapi_proxy', apiProxy, () => setApiProxy('')) }}
                   disabled={!!isSavingSetting || !apiProxy.trim()}
                   variant="outline"
                   className="border-purple-200 text-purple-700 hover:bg-purple-50 shrink-0"

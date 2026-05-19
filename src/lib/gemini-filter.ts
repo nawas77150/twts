@@ -69,7 +69,7 @@ export async function runGeminiFilter(
     debug('[gemini-filter] Running AI filter on message:', message.length, 'chars')
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    const timeoutId = setTimeout(() => { controller.abort() }, TIMEOUT_MS)
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
     const response = await fetch(apiUrl, {

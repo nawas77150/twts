@@ -39,7 +39,7 @@ export function SubmissionFilters({
           <button
             type="button"
             key={status}
-            onClick={() => setFilter(status)}
+            onClick={() => { setFilter(status) }}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
               filterStatus === status
                 ? 'bg-[#0F1419] text-white'
@@ -65,14 +65,15 @@ export function SubmissionFilters({
         <Input
           placeholder="Cari pesan atau username..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value) }}
           className="pl-7 h-7 text-xs w-32 sm:w-44 border-[#EFF3F4]"
         />
         <Filter className="w-3 h-3 text-[#71767B] absolute left-2 top-1/2 -translate-y-1/2" />
         {search && (
           <button
+            type="button"
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419] text-xs leading-none"
-            onClick={() => setSearch('')}
+            onClick={() => { setSearch('') }}
           >
             ×
           </button>

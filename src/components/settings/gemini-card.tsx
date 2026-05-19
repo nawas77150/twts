@@ -114,7 +114,7 @@ export function GeminiCard({
               </label>
               <Switch
                 checked={geminiEnabled}
-                onCheckedChange={() => setGeminiEnabled(!geminiEnabled)}
+                onCheckedChange={() => { setGeminiEnabled(!geminiEnabled) }}
                 disabled={geminiSaving}
                 aria-label="Toggle Gemini AI Filter"
               />
@@ -141,14 +141,14 @@ export function GeminiCard({
                     type={showGeminiKey ? 'text' : 'password'}
                     placeholder={geminiApiKeySet ? 'Key is set — enter new key to replace' : 'AIzaSy...'}
                     value={geminiApiKeyInput}
-                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                    onChange={(e) => { setGeminiApiKeyInput(e.target.value) }}
                     className="pr-10 border-[#EFF3F4] text-xs"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     className="absolute right-1 top-1 h-6 w-6 p-0"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    onClick={() => { setShowGeminiKey(!showGeminiKey) }}
                   >
                     {showGeminiKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                   </Button>
@@ -158,7 +158,7 @@ export function GeminiCard({
                   size="sm"
                   className="text-xs border-[#EFF3F4] h-8"
                   disabled={!geminiApiKeyInput.trim()}
-                  onClick={() => saveGeminiKey(geminiApiKeyInput.trim())}
+                  onClick={() => { saveGeminiKey(geminiApiKeyInput.trim()) }}
                 >
                   Save Key
                 </Button>
@@ -180,7 +180,7 @@ export function GeminiCard({
                   type="text"
                   placeholder="gemini-3.1-flash-lite"
                   value={geminiModel}
-                  onChange={(e) => setGeminiModel(e.target.value)}
+                  onChange={(e) => { setGeminiModel(e.target.value) }}
                   className="border-[#EFF3F4] text-xs"
                 />
                 <Button
@@ -188,7 +188,7 @@ export function GeminiCard({
                   size="sm"
                   className="text-xs border-[#EFF3F4] h-8 shrink-0"
                   disabled={!geminiModel.trim()}
-                  onClick={() => saveGeminiModel(geminiModel)}
+                  onClick={() => { saveGeminiModel(geminiModel) }}
                 >
                   Save
                 </Button>

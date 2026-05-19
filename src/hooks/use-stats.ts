@@ -32,7 +32,7 @@ export function useStats({ adminToken }: { adminToken: string }) {
     }
   }, [adminToken])
 
-  const refetch = useCallback(async () => fetchStats(), [fetchStats])
+  const refetch = useCallback(async () => { await fetchStats() }, [fetchStats])
 
   return {
     stats,

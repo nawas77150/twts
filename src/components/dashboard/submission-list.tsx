@@ -77,7 +77,7 @@ export function SubmissionList({
           <Button
             variant="link"
             className="text-xs text-[#71767B] mt-1"
-            onClick={() => setSearch('')}
+            onClick={() => { setSearch('') }}
           >
             Hapus pencarian
           </Button>
@@ -111,7 +111,7 @@ export function SubmissionList({
             size="sm"
             className="h-7 w-7 p-0 text-xs"
             disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
+            onClick={() => { onPageChange(page - 1) }}
           >
             ‹
           </Button>
@@ -143,7 +143,7 @@ export function SubmissionList({
                   className={`h-7 w-7 p-0 text-xs ${
                     p === page ? 'bg-[#0F1419] hover:bg-[#272c30]' : ''
                   }`}
-                  onClick={() => onPageChange(p)}
+                  onClick={() => { onPageChange(p) }}
                 >
                   {p}
                 </Button>
@@ -155,7 +155,7 @@ export function SubmissionList({
             size="sm"
             className="h-7 w-7 p-0 text-xs"
             disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
+            onClick={() => { onPageChange(page + 1) }}
           >
             ›
           </Button>

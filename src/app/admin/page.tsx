@@ -85,7 +85,7 @@ export default function AdminDashboardPage() {
       const interval = setInterval(() => {
         void fetchStats()
       }, 15000)
-      return () => clearInterval(interval)
+      return () => { clearInterval(interval) }
     }
   }, [isAdmin, fetchStats])
 

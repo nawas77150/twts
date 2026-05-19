@@ -277,12 +277,12 @@ export default function AdminSettingsPage() {
           >
             <WhitelistCard
               whitelistUsernames={filterSettings.whitelistUsernames}
-              onWhitelistChange={() => stats.refetch()}
+              onWhitelistChange={() => { stats.refetch() }}
             />
 
             <BlocklistCard
               blockedUsernames={filterSettings.blockedUsernames}
-              onBlocklistChange={() => stats.refetch()}
+              onBlocklistChange={() => { stats.refetch() }}
             />
           </motion.div>
         </TabsContent>

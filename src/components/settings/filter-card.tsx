@@ -128,7 +128,7 @@ export function FilterCard({
                   variant="ghost"
                   size="sm"
                   className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
-                  onClick={() => setBlockedWordsText(defaultBlockedWords.join(', '))}
+                  onClick={() => { setBlockedWordsText(defaultBlockedWords.join(', ')) }}
                 >
                   <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
                 </Button>
@@ -136,7 +136,7 @@ export function FilterCard({
               <Textarea
                 placeholder="kontol, memek, ngentot, wts, wtb, ..."
                 value={blockedWordsText}
-                onChange={(e) => setBlockedWordsText(e.target.value)}
+                onChange={(e) => { setBlockedWordsText(e.target.value) }}
                 className="min-h-[100px] resize-y border-[#EFF3F4] text-xs"
               />
               <p className="text-[10px] text-[#71767B]">
@@ -154,7 +154,7 @@ export function FilterCard({
                   variant="ghost"
                   size="sm"
                   className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
-                  onClick={() => setNsfwWordsText(defaultNsfwWords.join(', '))}
+                  onClick={() => { setNsfwWordsText(defaultNsfwWords.join(', ')) }}
                 >
                   <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
                 </Button>
@@ -162,7 +162,7 @@ export function FilterCard({
               <Textarea
                 placeholder="bokep, telanjang, milf, ..."
                 value={nsfwWordsText}
-                onChange={(e) => setNsfwWordsText(e.target.value)}
+                onChange={(e) => { setNsfwWordsText(e.target.value) }}
                 className="min-h-[80px] resize-y border-[#EFF3F4] text-xs"
               />
               <p className="text-[10px] text-[#71767B]">
@@ -185,7 +185,7 @@ export function FilterCard({
                     </div>
                     <Switch
                       checked={filterRules[rule.key]}
-                      onCheckedChange={() => toggleRule(rule.key)}
+                      onCheckedChange={() => { toggleRule(rule.key) }}
                       aria-label={`Toggle ${rule.label}`}
                     />
                   </div>

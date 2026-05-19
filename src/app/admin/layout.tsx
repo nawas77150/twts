@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setPendingCount(e.detail.pending ?? 0)
     }
     window.addEventListener('stats-update', handleStatsUpdate as EventListener)
-    return () => window.removeEventListener('stats-update', handleStatsUpdate as EventListener)
+    return () => { window.removeEventListener('stats-update', handleStatsUpdate as EventListener) }
   }, [isAdmin])
 
   const handleLogin = async () => {

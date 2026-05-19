@@ -87,7 +87,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
     if (isAdmin) {
       void fetchSubmissions() // initial load — shows spinner
       const interval = setInterval(() => { void fetchSubmissions(true) }, 15000)
-      return () => clearInterval(interval)
+      return () => { clearInterval(interval) }
     }
   }, [isAdmin, filterStatus, fetchSubmissions])
 
@@ -99,7 +99,7 @@ export function useSubmissions({ isAdmin, adminToken, onStatsRefresh }: UseSubmi
         void fetchSubmissions()
       }
     }, 300)
-    return () => clearTimeout(timer)
+    return () => { clearTimeout(timer) }
   }, [search, isAdmin, adminToken, fetchSubmissions])
 
   // Reset page when filter changes

@@ -28,7 +28,7 @@ export function useCircuitBreaker({ adminToken }: UseCircuitBreakerParams) {
     }
 
     const compute = () => {
-      const remaining = circuitBreakerStatus.pausedUntil! - Date.now()
+      const remaining = (circuitBreakerStatus.pausedUntil ?? 0) - Date.now()
       if (remaining <= 0) {
         setLiveRemainingMinutes(0)
         // Auto-clear paused state when timer expires

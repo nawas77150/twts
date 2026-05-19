@@ -103,20 +103,20 @@ export function DirectPostingCard({
                     type={showCookieValue ? 'text' : 'password'}
                     placeholder="auth_token=...; ct0=...; twid=...; ..."
                     value={cookieString}
-                    onChange={(e) => setCookieString(e.target.value)}
+                    onChange={(e) => { setCookieString(e.target.value) }}
                     className="pr-10 border-[#EFF3F4]"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     className="absolute right-1 top-1 h-7 w-7 p-0"
-                    onClick={() => setShowCookieValue(!showCookieValue)}
+                    onClick={() => { setShowCookieValue(!showCookieValue) }}
                   >
                     {showCookieValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
                 <Button
-                  onClick={() => saveSetting('x_cookie_string', cookieString, () => setCookieString(''))}
+                  onClick={() => { saveSetting('x_cookie_string', cookieString, () => setCookieString('')) }}
                   disabled={!!isSavingSetting || !cookieString.trim()}
                   className="bg-[#0F1419] hover:bg-[#272c30]"
                 >
@@ -125,7 +125,7 @@ export function DirectPostingCard({
               </div>
               <button
                 type="button"
-                onClick={() => setShowCookieGuide(!showCookieGuide)}
+                onClick={() => { setShowCookieGuide(!showCookieGuide) }}
                 className="text-xs text-[#536471] hover:underline flex items-center gap-1"
               >
                 <ChevronDown className={`w-3 h-3 transition-transform ${showCookieGuide ? 'rotate-180' : ''}`} />
@@ -171,20 +171,20 @@ export function DirectPostingCard({
                     type={showBearerValue ? 'text' : 'password'}
                     placeholder="AAAAAAAAAAAAAAAAAAAAANRILg..."
                     value={bearerToken}
-                    onChange={(e) => setBearerToken(e.target.value)}
+                    onChange={(e) => { setBearerToken(e.target.value) }}
                     className="pr-10 border-[#EFF3F4]"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     className="absolute right-1 top-1 h-7 w-7 p-0"
-                    onClick={() => setShowBearerValue(!showBearerValue)}
+                    onClick={() => { setShowBearerValue(!showBearerValue) }}
                   >
                     {showBearerValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </Button>
                 </div>
                 <Button
-                  onClick={() => saveSetting('x_bearer_token', bearerToken, () => setBearerToken(''))}
+                  onClick={() => { saveSetting('x_bearer_token', bearerToken, () => setBearerToken('')) }}
                   disabled={!!isSavingSetting || !bearerToken.trim()}
                   className="bg-[#0F1419] hover:bg-[#272c30]"
                 >
@@ -192,7 +192,8 @@ export function DirectPostingCard({
                 </Button>
               </div>
               <button
-                onClick={() => setShowBearerGuide(!showBearerGuide)}
+                type="button"
+                onClick={() => { setShowBearerGuide(!showBearerGuide) }}
                 className="text-xs text-[#536471] hover:underline flex items-center gap-1"
               >
                 <ChevronDown className={`w-3 h-3 transition-transform ${showBearerGuide ? 'rotate-180' : ''}`} />
@@ -233,12 +234,12 @@ export function DirectPostingCard({
                   type="text"
                   placeholder="Manual fallback (optional)"
                   value={queryId}
-                  onChange={(e) => setQueryId(e.target.value)}
+                  onChange={(e) => { setQueryId(e.target.value) }}
                   className="border-[#EFF3F4]"
                 />
                 <div className="flex gap-1">
                   <Button
-                    onClick={() => saveSetting('x_query_id', queryId, () => setQueryId(''))}
+                    onClick={() => { saveSetting('x_query_id', queryId, () => setQueryId('')) }}
                     disabled={!!isSavingSetting || !queryId.trim()}
                     className="bg-[#0F1419] hover:bg-[#272c30]"
                   >
@@ -247,7 +248,7 @@ export function DirectPostingCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => saveSetting('x_query_id', '', () => setQueryId(''))}
+                    onClick={() => { saveSetting('x_query_id', '', () => setQueryId('')) }}
                     disabled={!!isSavingSetting}
                     className="border-[#EFF3F4] text-[#536471]"
                     title="Clear saved Query ID"
@@ -257,7 +258,7 @@ export function DirectPostingCard({
                 </div>
               </div>
               <button
-                onClick={() => setShowQueryIdGuide(!showQueryIdGuide)}
+                onClick={() => { setShowQueryIdGuide(!showQueryIdGuide) }}
                 className="text-xs text-[#536471] hover:underline flex items-center gap-1"
               >
                 <ChevronDown className={`w-3 h-3 transition-transform ${showQueryIdGuide ? 'rotate-180' : ''}`} />

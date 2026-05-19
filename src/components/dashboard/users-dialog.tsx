@@ -132,7 +132,7 @@ export function UsersDialog({
           <Input
             placeholder="Cari username..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value) }}
             className="pl-8 h-8 text-xs border-[#EFF3F4]"
           />
           <Filter className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -140,7 +140,7 @@ export function UsersDialog({
             <button
               type="button"
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[#71767B] hover:text-[#0F1419]"
-              onClick={() => setSearch('')}
+              onClick={() => { setSearch('') }}
             >
               ×
             </button>
@@ -186,7 +186,7 @@ export function UsersDialog({
                         variant="outline"
                         size="sm"
                         className="text-[10px] h-6 px-2 ml-auto text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
-                        onClick={() => onUnblock(username)}
+                        onClick={() => { onUnblock(username) }}
                       >
                         Unblock
                       </Button>
@@ -256,7 +256,7 @@ export function UsersDialog({
                         <Button
                           variant="link"
                           className="text-xs text-[#71767B] mt-1"
-                          onClick={() => setSearch('')}
+                          onClick={() => { setSearch('') }}
                         >
                           Hapus pencarian
                         </Button>
@@ -330,7 +330,7 @@ export function UsersDialog({
                                     ? 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200'
                                     : 'text-[#536471] hover:text-purple-600 hover:bg-purple-50 border-[#EFF3F4]'
                                 }`}
-                                onClick={() => isEditing ? setEditingUsername(null) : startEditing(s)}
+                                onClick={() => { if (isEditing) { setEditingUsername(null) } else { startEditing(s) } }}
                               >
                                 <Settings2 className="w-3 h-3 mr-0.5" />
                                 {isEditing ? 'Tutup' : 'Limits'}
@@ -341,7 +341,7 @@ export function UsersDialog({
                                 variant="outline"
                                 size="sm"
                                 className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                onClick={() => onBlock(s.username)}
+                                onClick={() => { onBlock(s.username) }}
                               >
                                 <Ban className="w-3 h-3 mr-1" /> Block
                               </Button>
@@ -350,7 +350,7 @@ export function UsersDialog({
                                 variant="outline"
                                 size="sm"
                                 className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                                onClick={() => onUnblock(s.username)}
+                                onClick={() => { onUnblock(s.username) }}
                               >
                                 Unblock
                               </Button>
@@ -378,7 +378,7 @@ export function UsersDialog({
                                     min="0"
                                     placeholder={globalRateLimits ? String(globalRateLimits[key]) : '—'}
                                     value={editValues[key] || ''}
-                                    onChange={(e) => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                                    onChange={(e) => { setEditValues(prev => ({ ...prev, [key]: e.target.value })) }}
                                     className="h-7 text-xs border-[#EFF3F4]"
                                   />
                                 </div>
@@ -388,7 +388,7 @@ export function UsersDialog({
                               <Button
                                 size="sm"
                                 className="text-[10px] h-6 px-3 bg-purple-600 hover:bg-purple-700 text-white"
-                                onClick={() => handleSaveLimits(s.username)}
+                                onClick={() => { handleSaveLimits(s.username) }}
                                 disabled={isSaving}
                               >
                                 {isSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
@@ -399,7 +399,7 @@ export function UsersDialog({
                                   variant="outline"
                                   size="sm"
                                   className="text-[10px] h-6 px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
-                                  onClick={() => handleClearLimits(s.username)}
+                                  onClick={() => { handleClearLimits(s.username) }}
                                   disabled={isSaving}
                                 >
                                   Reset ke Default
@@ -409,7 +409,7 @@ export function UsersDialog({
                                 variant="ghost"
                                 size="sm"
                                 className="text-[10px] h-6 px-2 ml-auto text-[#71767B]"
-                                onClick={() => setEditingUsername(null)}
+                                onClick={() => { setEditingUsername(null) }}
                               >
                                 <X className="w-3 h-3" />
                               </Button>

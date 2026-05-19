@@ -70,7 +70,7 @@ export function useStatsSummary({ adminToken }: { adminToken: string }) {
     }
   }, [adminToken])
 
-  const refetch = useCallback(async () => fetchStats(), [fetchStats])
+  const refetch = useCallback(async () => { await fetchStats() }, [fetchStats])
 
   return {
     stats,

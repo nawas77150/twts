@@ -64,7 +64,7 @@ export function ConfessionForm({
           <Textarea
             placeholder="Tulis pesan anonimmu di sini..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => { setMessage(e.target.value) }}
             className="min-h-[120px] resize-none border-[#EFF3F4]"
             maxLength={280}
           />
@@ -79,7 +79,7 @@ export function ConfessionForm({
           <Input
             placeholder="Kategori (opsional, contoh: curhat, confes, dll)"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => { setCategory(e.target.value) }}
             className="border-[#EFF3F4]"
             maxLength={30}
           />

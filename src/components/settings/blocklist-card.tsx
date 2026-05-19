@@ -95,7 +95,7 @@ export function BlocklistCard({
             <div className="flex gap-2">
               <Input
                 value={addInput}
-                onChange={(e) => setAddInput(e.target.value)}
+                onChange={(e) => { setAddInput(e.target.value) }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
                 placeholder="username"
                 className="text-xs h-8 font-mono border-[#EFF3F4]"
@@ -127,7 +127,7 @@ export function BlocklistCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleRemove(username)}
+                      onClick={() => { handleRemove(username) }}
                       disabled={removingUser === username}
                       className="h-6 w-6 p-0 text-[#71767B] hover:text-green-600 hover:bg-green-50"
                     >
