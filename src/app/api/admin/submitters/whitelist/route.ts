@@ -3,6 +3,7 @@
 // no practical benefit. The PostgreSQL ::jsonb cast used for atomic add/remove operations
 // requires plaintext values. Do NOT apply encrypt() to these settings.
 
+import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, checkUserInList } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
@@ -15,14 +16,19 @@ export async function POST(req: NextRequest) {
     if (parsed instanceof NextResponse) return parsed
     const { normalizedUsername } = parsed
 
-    // Atomic append to whitelist_usernames JSON array using PostgreSQL jsonb.
-    // Prevents read-modify-write race condition.
-    // If the key doesn't exist yet, creates it with [username].
-    // If the username is already in the array, leaves it unchanged (no duplicates).
-    await atomicJsonbAppend('whitelist_usernames', normalizedUsername)
+    // Wrap both mutations in a transaction to prevent partial state
+    // (whitelist updated but blocked_usernames not yet removed).
+    await db.$transaction(async (tx) => {
+      // Atomic append to whitelist_usernames JSON array using PostgreSQL jsonb.
+      // Prevents read-modify-write race condition.
+      // If the key doesn't exist yet, creates it with [username].
+      // If the username is already in the array, leaves it unchanged (no duplicates).
+      await atomicJsonbAppend('whitelist_usernames', normalizedUsername, tx)
 
-    // Also remove from blocked list if present (whitelist takes priority)
-    await atomicJsonbRemove('blocked_usernames', normalizedUsername)
+      // Also remove from blocked list if present (whitelist takes priority)
+      await atomicJsonbRemove('blocked_usernames', normalizedUsername, tx)
+    })
+
     invalidateFilterSettingsCache()
 
     return NextResponse.json({ success: true, whitelisted: normalizedUsername })

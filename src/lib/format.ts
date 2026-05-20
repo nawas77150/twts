@@ -46,6 +46,11 @@ export function getFilterReasonLabel(reason: string): string {
     return `Marketplace (${tag})`
   }
 
+  // Bare key handlers — used when server strips the :value suffix for privacy
+  // (e.g. "blocked_word:kontol" → "blocked_word" before sending to client)
+  if (reason === 'blocked_word') return 'Blocked word'
+  if (reason === 'nsfw_word') return 'NSFW word'
+
   if (reason === 'contains_url') return 'Link'
   if (reason.startsWith('contains_mention')) return '@Mention'
   if (reason === 'contains_phone_number') return 'No. HP'

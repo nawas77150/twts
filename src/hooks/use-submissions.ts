@@ -22,11 +22,13 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Use refs for page and search to avoid infinite loop from useCallback + useEffect dep chain
+  // Use refs for page, search, and filterStatus to avoid infinite loop from useCallback + useEffect dep chain
   const pageRef = useRef(page)
   pageRef.current = page
   const searchRef = useRef(search)
   searchRef.current = search
+  const filterStatusRef = useRef(filterStatus)
+  filterStatusRef.current = filterStatus
 
   // Request ID counter to discard stale responses when filter changes
   const requestIdRef = useRef(0)
@@ -41,6 +43,9 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     if (!isAdmin) return
     const p = targetPage ?? pageRef.current
     const q = searchRef.current
+    // Read filterStatus from ref (not closure) so the callback identity stays stable
+    // when filterStatus changes — this prevents the double-fetch on filter change.
+    const currentFilter = filterStatusRef.current
     if (!silent) {
       setIsLoading(true)
       outstandingLoadingRef.current = true
@@ -51,7 +56,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
 
     try {
       const data = await apiClient.getSubmissions({
-        status: (filterStatus === 'all' ? 'all' : filterStatus) as SubmissionStatus | 'all',
+        status: (currentFilter === 'all' ? 'all' : currentFilter) as SubmissionStatus | 'all',
         page: p,
         limit: 50,
         search: q || undefined,
@@ -79,7 +84,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
         outstandingLoadingRef.current = false
       }
     }
-  }, [isAdmin, filterStatus, toast])
+  }, [isAdmin, toast])
 
   // Auto-refresh every 15s when admin is active
   useEffect(() => {
@@ -105,11 +110,16 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     return () => { clearTimeout(timer) }
   }, [search, isAdmin, fetchSubmissions])
 
-  // Reset page when filter changes
+  // Reset page when filter changes — also trigger fetch directly so the
+  // auto-refresh effect doesn't fire a redundant second fetch.
   const setFilter = useCallback((status: string) => {
     setFilterStatus(status)
     setPage(1)
-  }, [])
+    // Sync the ref immediately so the fetch sees the new value
+    filterStatusRef.current = status
+    pageRef.current = 1
+    void fetchSubmissions(false, 1)
+  }, [fetchSubmissions])
 
   // Wrapper for setSearch (also resets page)
   const updateSearch = useCallback((value: string) => {

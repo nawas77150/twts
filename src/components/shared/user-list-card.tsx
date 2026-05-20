@@ -41,7 +41,9 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
   const { toast } = useToast()
 
   const handleAdd = useCallback(async () => {
-    const username = addInput.trim().toLowerCase()
+    // Strip leading @ — admin often pastes "@alice"; API also strips, but do it here
+    // so the duplicate check works against the canonical form stored in the DB.
+    const username = addInput.trim().toLowerCase().replace(/^@/, '')
     if (!username) return
 
     if (usernames.includes(username)) {

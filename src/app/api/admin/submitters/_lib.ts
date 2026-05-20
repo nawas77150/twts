@@ -2,6 +2,7 @@
 // Extracts duplicated auth+validate+normalize patterns and SQL operations.
 
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -18,16 +19,22 @@ export async function parseUsernameRequest(req: NextRequest): Promise<{ normaliz
     return NextResponse.json({ error: 'Username wajib diisi' }, { status: 400 })
   }
 
-  return { normalizedUsername: username.toLowerCase().trim() }
+  // Strip leading @ before normalizing — Twitter OAuth returns bare usernames ("alice"),
+  // but admins often paste "@alice". Without stripping, the includes() check in
+  // _rate-limits.ts silently fails: ['@alice'].includes('alice') → false.
+  return { normalizedUsername: username.toLowerCase().trim().replace(/^@/, '') }
 }
 
 // --- Helper 2: Atomic JSONB append ---
 // Uses tagged template literal for safe parameterization.
 // ${settingKey} becomes $1, $2 etc. — identical SQL to current inline code.
-export async function atomicJsonbAppend(settingKey: string, username: string): Promise<void> {
+// Optional `tx` param: when inside a $transaction, pass the transaction client
+// so all operations share the same transaction. Falls back to `db` if omitted.
+export async function atomicJsonbAppend(settingKey: string, username: string, tx?: Prisma.TransactionClient): Promise<void> {
+  const client = tx ?? db
   try {
     const usernameArr = JSON.stringify([username])
-    await db.$executeRaw`
+    await client.$executeRaw`
       INSERT INTO "Setting" (id, key, value, "updatedAt")
       VALUES (
         ${settingKey},
@@ -53,9 +60,11 @@ export async function atomicJsonbAppend(settingKey: string, username: string): P
 // --- Helper 3: Atomic JSONB remove ---
 // Without the AND guard — functionally correct: UPDATE is a no-op if
 // username isn't in the array (only updatedAt changes).
-export async function atomicJsonbRemove(settingKey: string, username: string): Promise<void> {
+// Optional `tx` param: when inside a $transaction, pass the transaction client.
+export async function atomicJsonbRemove(settingKey: string, username: string, tx?: Prisma.TransactionClient): Promise<void> {
+  const client = tx ?? db
   try {
-    await db.$executeRaw`
+    await client.$executeRaw`
       UPDATE "Setting"
       SET "value" = COALESCE(
         (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("Setting"."value"::jsonb) AS elem WHERE elem != ${username}),

@@ -48,17 +48,25 @@ export function useSubmitterAuth() {
     const authResult = params.get('auth')
     if (authResult !== 'success') return undefined
 
+    // Track ALL scheduled timeouts (initial + recursive retries) so unmount
+    // cleans up every one of them — not just the initial 300ms timer.
+    const pendingTimeouts: ReturnType<typeof setTimeout>[] = []
+
+    let cancelled = false
     let attempts = 0
     const maxAttempts = 4
 
     async function tryAuth() {
+      if (cancelled) return
       const ok = await checkAuth()
+      if (cancelled) return
       if (ok) {
         toast({ title: 'Login berhasil!', description: 'Selamat datang!' })
         window.history.replaceState({}, '', '/')
       } else if (attempts < maxAttempts) {
         attempts++
-        setTimeout(() => { void tryAuth() }, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
+        const id = setTimeout(() => { void tryAuth() }, 500 * attempts) // 500ms, 1000ms, 1500ms, 2000ms
+        pendingTimeouts.push(id)
       } else {
         // All retries exhausted — auth could not be confirmed
         toast({ title: 'Login gagal', description: 'Gagal memverifikasi sesi. Coba login ulang.', variant: 'destructive' })
@@ -66,8 +74,12 @@ export function useSubmitterAuth() {
       }
     }
 
-    const timer = setTimeout(() => { void tryAuth() }, 300)
-    return () => { clearTimeout(timer) }
+    const initialId = setTimeout(() => { void tryAuth() }, 300)
+    pendingTimeouts.push(initialId)
+    return () => {
+      cancelled = true
+      for (const id of pendingTimeouts) clearTimeout(id)
+    }
   }, [checkAuth, toast])
 
   // Handle non-success auth callback params (denied / error)

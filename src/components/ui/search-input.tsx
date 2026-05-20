@@ -1,4 +1,4 @@
-import { Filter } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 interface SearchInputProps {
@@ -18,7 +18,7 @@ export function SearchInput({ value, onChange, placeholder, className, inputClas
         onChange={(e) => { onChange(e.target.value) }}
         className={`text-xs border-[#EFF3F4] ${inputClassName ?? 'pl-8 h-8'}`}
       />
-      <Filter className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
+      <Search className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
       {value && (
         <button
           type="button"

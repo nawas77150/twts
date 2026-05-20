@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { executePostAndRecord, createCooldownWindowChecks } from '@/lib/execute-post'
+import type { PerUserCheck } from '@/lib/execute-post'
 import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
 import { debug } from '@/lib/debug'
 import { normalizeText, decodeHtmlEntities, DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS, DEFAULT_FILTER_RULES } from '@/lib/content-filter'
@@ -251,12 +252,20 @@ export async function POST(req: NextRequest) {
     })
 
     // Delegated: lock → under-lock checks → CAS → post → record → release
+    // Pass per-user post cap info so the authoritative check runs under lock,
+    // closing the race window between the pre-lock check and lock acquisition.
+    const perUserCheck: PerUserCheck = {
+      submitterId: submitter.id,
+      username: submitter.username,
+      effectivePostCap,
+      isWhitelisted,
+    }
     const postResult = await executePostAndRecord({
       submissionId: submission.id,
       message: decodeHtmlEntities(trimmedMessage),
       rateLimits: filterSettings.rateLimits,
       casStatuses: ['pending'],
-      extraUnderLockChecks: createCooldownWindowChecks(filterSettings.rateLimits, 'submit'),
+      extraUnderLockChecks: createCooldownWindowChecks(filterSettings.rateLimits, 'submit', perUserCheck),
     })
 
     // Map result to HTTP response (File 1 returns soft 201 for lock-busy / cap-exceeded)

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     // Lightweight health check — fetch model info, not generateContent
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}`,
-      { headers: { 'x-goog-api-key': geminiApiKey!.trim() }, signal: AbortSignal.timeout(5000) }
+      { headers: { 'x-goog-api-key': geminiApiKey?.trim() }, signal: AbortSignal.timeout(5000) }
     )
     return NextResponse.json({
       healthy: resp.ok,

@@ -263,6 +263,22 @@ export async function withErrorBoundary(
 }
 
 /**
+ * Optional per-user post cap check to run under the posting lock.
+ * When provided, `createCooldownWindowChecks` will re-check the user's daily
+ * post count authoritatively (under lock) to close the race window between
+ * the pre-lock check and lock acquisition.
+ *
+ * Only used by File 1 (POST /api/submissions). File 4 (autopost) has no
+ * per-user context — it picks any eligible submission.
+ */
+export interface PerUserCheck {
+  submitterId: string
+  username: string
+  effectivePostCap: number
+  isWhitelisted: boolean
+}
+
+/**
  * Creates the cooldown + window-cap under-lock checks used by Files 1 & 4.
  * Both callers run the same logic — only the debug log prefix differs.
  *
@@ -271,10 +287,12 @@ export async function withErrorBoundary(
  * executePostAndRecord, so this only covers:
  *   - autoPostCooldown (seconds since last posted submission)
  *   - autoPostWindowCap + autoPostWindowMinutes (sliding window rate)
+ *   - perUserCheck (optional, only File 1 — authoritative under-lock user post cap)
  */
 export function createCooldownWindowChecks(
   rateLimits: RateLimitSettings,
   logPrefix: string,
+  perUserCheck?: PerUserCheck,
 ): () => Promise<ExecutePostResult | null> {
   return async () => {
     // Re-check auto-post cooldown (authoritative under lock)
@@ -311,6 +329,26 @@ export function createCooldownWindowChecks(
     }
 
     // globalPostDailyCap is handled by executePostAndRecord's built-in check
+
+    // Per-user post daily cap — authoritative under-lock re-check.
+    // The pre-lock check in submissions/route.ts is a fast-path for user-friendly
+    // error messages (includes the count). This under-lock check is the
+    // authoritative one that closes the race window.
+    if (perUserCheck && !perUserCheck.isWhitelisted && perUserCheck.effectivePostCap > 0) {
+      const startOfToday = getStartOfTodayWIB()
+      const userPostCount = await db.submission.count({
+        where: {
+          submitterId: perUserCheck.submitterId,
+          status: 'posted',
+          createdAt: { gte: startOfToday },
+        },
+      })
+      if (userPostCount >= perUserCheck.effectivePostCap) {
+        debug(logPrefix, 'User post daily cap reached (confirmed under lock):', userPostCount, 'for user', perUserCheck.username)
+        return { success: false, underLockAbortReason: 'user_post_cap_reached' }
+      }
+    }
+
     return null
   }
 }

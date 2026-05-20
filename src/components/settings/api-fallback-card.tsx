@@ -366,7 +366,11 @@ export function ApiFallbackCard({
             {apiCredits.map((credit) => (
               <div key={credit.apiKey} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#F7F9F9] rounded-lg p-2 border border-[#EFF3F4] gap-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-[#536471]">{credit.apiKey}</span>
+                  <span className="text-[10px] font-mono text-[#536471]">
+                    {credit.apiKey.length > 8
+                      ? `${credit.apiKey.slice(0, 4)}...${credit.apiKey.slice(-4)}`
+                      : '****'}
+                  </span>
                   {credit.error && (
                     <Badge variant="outline" className="text-[8px] px-1 bg-red-50 text-red-600 border-red-200">
                       {credit.error}

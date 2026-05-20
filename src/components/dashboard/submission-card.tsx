@@ -172,9 +172,10 @@ export function SubmissionCard({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => { onDelete(sub.id) }}
+                onClick={() => { if (window.confirm('Hapus pesan ini?')) onDelete(sub.id) }}
                 disabled={!!actionLoading}
                 className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
+                aria-label="Hapus pesan"
               >
                 {!!actionLoading ? (
                   <Loader2 className="w-3 h-3 animate-spin" />

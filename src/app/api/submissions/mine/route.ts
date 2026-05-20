@@ -116,8 +116,25 @@ export async function GET(req: NextRequest) {
       // If limits computation fails, return null — don't block the main response
     }
 
+    // Sanitize filterReasons — strip sensitive values after colon so users never see
+    // the actual blocked/NSFW word. E.g. "blocked_word:kontol" → "blocked_word",
+    // "nsfw_word:xxx" → "nsfw_word". The UI's getFilterReasonLabel() handles
+    // bare keys with generic labels; "jualan:WTS" is kept (marketplace tags aren't sensitive).
+    const sanitizedSubmissions = submissions.map((s) => ({
+      ...s,
+      filterReasons: s.filterReasons
+        ? JSON.stringify(
+            (JSON.parse(s.filterReasons) as string[]).map((r: string) =>
+              r.startsWith('blocked_word:') ? 'blocked_word'
+              : r.startsWith('nsfw_word:') ? 'nsfw_word'
+              : r,
+            ),
+          )
+        : s.filterReasons,
+    }))
+
     return NextResponse.json({
-      submissions,
+      submissions: sanitizedSubmissions,
       stats,
       limits: limitsData,
     })
