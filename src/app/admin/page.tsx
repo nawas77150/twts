@@ -27,7 +27,6 @@ export default function AdminDashboardPage() {
     apiLoginStatus,
     isStale,
     fetchStats,
-    refetch: refetchStats,
     adjustStatsForTransition,
     adjustStatsForDeletion,
   } = useAdminStats()
@@ -137,7 +136,7 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-[#EFF3F4] shadow-sm p-3 animate-pulse">
+            <div key={`stat-skeleton-${i}`} className="rounded-xl border border-[#EFF3F4] shadow-sm p-3 animate-pulse">
               <div className="flex items-center gap-1.5 mb-1">
                 <div className="w-5 h-5 rounded-md bg-gray-200" />
                 <div className="h-4 bg-gray-200 rounded w-6" />

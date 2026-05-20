@@ -21,14 +21,46 @@ interface AdminStatsState {
 
 const AdminStatsContext = createContext<AdminStatsState | null>(null)
 
-/** Maps SubmissionStatus values to their corresponding Stats field names. */
-const STATUS_TO_KEY: Record<SubmissionStatus, keyof Stats> = {
-  pending:     'pending',
-  censored:    'censored',
-  posting:     'posting',
-  post_failed: 'postFailed',
-  rejected:    'rejected',
-  posted:      'posted',
+/** Maps SubmissionStatus values to their corresponding Stats field names.
+ *  Uses Map (not Record) to avoid the "Generic Object Injection Sink" SAST warning:
+ *  plain objects have a prototype chain (__proto__, constructor) that SAST
+ *  flags on dynamic-key access. Map.get() has no prototype chain.
+ */
+const STATUS_TO_KEY = new Map<SubmissionStatus, keyof Stats>([
+  ['pending',     'pending'],
+  ['censored',    'censored'],
+  ['posting',     'posting'],
+  ['post_failed', 'postFailed'],
+  ['rejected',    'rejected'],
+  ['posted',      'posted'],
+])
+
+/** Explicit property read — avoids dynamic key access that SAST flags. */
+function getStatValue(stats: Stats, key: keyof Stats): number {
+  switch (key) {
+    case 'pending':     return stats.pending
+    case 'censored':    return stats.censored
+    case 'posting':     return stats.posting
+    case 'postFailed':  return stats.postFailed
+    case 'rejected':    return stats.rejected
+    case 'posted':      return stats.posted
+    case 'total':       return stats.total
+    default:            return 0
+  }
+}
+
+/** Explicit property set — avoids dynamic key assignment that SAST flags. */
+function setStatValue(stats: Stats, key: keyof Stats, value: number): Stats {
+  switch (key) {
+    case 'pending':     return { ...stats, pending: value }
+    case 'censored':    return { ...stats, censored: value }
+    case 'posting':     return { ...stats, posting: value }
+    case 'postFailed':  return { ...stats, postFailed: value }
+    case 'rejected':    return { ...stats, rejected: value }
+    case 'posted':      return { ...stats, posted: value }
+    case 'total':       return { ...stats, total: value }
+    default:            return stats
+  }
 }
 
 export function AdminStatsProvider({ children }: { children: ReactNode }) {
@@ -62,16 +94,13 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
 
   const adjustStatsForTransition = useCallback(
     (from: SubmissionStatus, to: SubmissionStatus) => {
+      const fromKey = STATUS_TO_KEY.get(from)
+      const toKey   = STATUS_TO_KEY.get(to)
+      if (!fromKey || !toKey) return
       setStats((prev) => {
         if (!prev) return prev
-        const next = { ...prev }
-        const fromKey = STATUS_TO_KEY[from]
-        const toKey   = STATUS_TO_KEY[to]
-        ;(next as unknown as Record<string, number>)[fromKey as string] =
-          Math.max(0, (prev[fromKey] as number) - 1)
-        ;(next as unknown as Record<string, number>)[toKey as string] =
-          ((prev[toKey] as number) || 0) + 1
-        return next
+        const next = setStatValue(prev, fromKey, Math.max(0, getStatValue(prev, fromKey) - 1))
+        return setStatValue(next, toKey, (getStatValue(prev, toKey) || 0) + 1)
       })
       if (from === 'pending' || to === 'pending') {
         setPendingCount((prev) => {
@@ -84,12 +113,11 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   )
 
   const adjustStatsForDeletion = useCallback((status: SubmissionStatus) => {
+    const key = STATUS_TO_KEY.get(status)
+    if (!key) return
     setStats((prev) => {
       if (!prev) return prev
-      const next = { ...prev }
-      const key = STATUS_TO_KEY[status]
-      ;(next as unknown as Record<string, number>)[key as string] =
-        Math.max(0, (prev[key] as number) - 1)
+      const next = setStatValue(prev, key, Math.max(0, getStatValue(prev, key) - 1))
       next.total = Math.max(0, prev.total - 1)
       return next
     })

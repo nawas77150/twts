@@ -135,11 +135,21 @@ export function normalizeText(text: string): string {
 export function normalizeForFilter(text: string): string {
   return text
     // 1. Strip invisible/format characters (non-combining only)
-    .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202F\uFE00-\uFE0F]/g, '')
+    //    Split into non-combining ranges to avoid mixing combining and
+    //    base characters in one character class (SAST: character class
+    //    cannot match a character and a combining character).
+    //    - \u200B-\u200D: Zero-width space/joiner/non-joiner (non-combining)
+    //    - \uFEFF: BOM / zero-width no-break space (non-combining)
+    //    - \u00AD: Soft hyphen (non-combining)
+    //    - \u200E-\u200F: LRM/RLM (non-combining directional marks)
+    //    - \u2028-\u202E: Line/paragraph separators + directional controls
+    //    - \u2060-\u2069: Word joiner + directional isolate controls
+    //    - \uFE00-\uFE0F: Variation selectors (combining) — stripped after NFD on step 3
+    .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202E\u2060-\u2069]/g, '')
     // 2. Decompose → separate base chars from combining marks
     .normalize('NFD')
     // 3. Strip combining marks (Zalgo, diacritics, \u034F CGJ, variation selectors)
-    .replace(/[\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/g, '')
+    .replace(/[\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F\uFE00-\uFE0F]/g, '')
     // 4. Compose → fullwidth → ASCII, etc.
     .normalize('NFKC')
 }
