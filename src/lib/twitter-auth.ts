@@ -83,6 +83,7 @@ export async function exchangeCodeForToken(
         Authorization: `Basic ${basicAuth}`,
       },
       body: params.toString(),
+      signal: AbortSignal.timeout(15_000),
     })
 
     if (!res.ok) {
@@ -128,6 +129,7 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: AbortSignal.timeout(15_000),
     })
 
     // Read body ONCE as text to avoid "body already consumed" TypeError

@@ -62,7 +62,7 @@ async function fetchPairs(): Promise<PairDict[]> {
   }
 
   debug('pair-dict', 'Fetching pair.json from GitHub CDN')
-  const resp = await fetch(PAIR_URL)
+  const resp = await fetch(PAIR_URL, { signal: AbortSignal.timeout(10_000) })
   if (!resp.ok) {
     throw new Error(`Failed to fetch pair.json: ${resp.status}`)
   }

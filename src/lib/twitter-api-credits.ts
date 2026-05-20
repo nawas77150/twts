@@ -26,6 +26,7 @@ export async function getKeyCredits(apiKey: string): Promise<KeyCredits> {
   try {
     const response = await fetch(`${TWITTERAPI_BASE}/oapi/my/info`, {
       headers: { 'x-api-key': apiKey },
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!response.ok) {
