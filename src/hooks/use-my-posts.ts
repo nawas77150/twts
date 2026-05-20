@@ -48,6 +48,20 @@ export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
     }
   }, [submitter, isAnonUser, fetchMyPosts])
 
+  const hasNonTerminalPosts = myPosts.some(
+    (p) => p.status === 'pending' || p.status === 'censored' || p.status === 'posting'
+  )
+
+  useEffect(() => {
+    if (!submitter || isAnonUser || !hasNonTerminalPosts) return
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        void fetchMyPosts()
+      }
+    }, 30000)
+    return () => { clearInterval(interval) }
+  }, [submitter, isAnonUser, hasNonTerminalPosts, fetchMyPosts])
+
   const refetch = useCallback(async () => {
     return fetchMyPosts()
   }, [fetchMyPosts])

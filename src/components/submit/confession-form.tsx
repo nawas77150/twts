@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Send, Loader2, MessageSquare, Zap, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Image from 'next/image'
 import type { SubmissionLimitsData } from '@/types'
+import { useCountdown } from '@/hooks/use-countdown'
 
 interface ConfessionFormProps {
   submitterUsername: string
@@ -16,6 +17,7 @@ interface ConfessionFormProps {
   isSubmitting: boolean
   limits: SubmissionLimitsData | null
   autoApprove?: boolean
+  onCooldownExpired?: () => void
 }
 
 export function ConfessionForm({
@@ -25,6 +27,7 @@ export function ConfessionForm({
   isSubmitting,
   limits,
   autoApprove = false,
+  onCooldownExpired,
 }: ConfessionFormProps) {
   const [message, setMessage] = useState('')
   const [category, setCategory] = useState('')
@@ -40,6 +43,17 @@ export function ConfessionForm({
   const remainingDaily = limits ? Math.max(0, limits.dailyCap - limits.dailyUsed) : null
   const isCustom = limits?.isCustom ?? false
   const pendingOverCap = limits ? limits.pendingUsed > limits.pendingCap : false
+
+  const cooldownRemaining = useCountdown(limits?.cooldownSeconds ?? 0)
+
+  const wasCountingRef = useRef(false)
+  useEffect(() => {
+    if (cooldownRemaining > 0) { wasCountingRef.current = true; return }
+    if (wasCountingRef.current) {
+      wasCountingRef.current = false
+      onCooldownExpired?.()
+    }
+  }, [cooldownRemaining, onCooldownExpired])
 
   return (
     <Card className="max-w-lg mx-auto shadow-lg border-[#EFF3F4]">
@@ -121,8 +135,8 @@ export function ConfessionForm({
             </span>
             <span className={isCustom ? 'text-purple-400' : 'text-[#71767B]'}>&middot;</span>
             <span className={isCustom ? 'text-purple-700' : 'text-[#536471]'}>
-              {limits.cooldownSeconds > 0
-                ? `cooldown ${limits.cooldownSeconds < 60 ? `${limits.cooldownSeconds}s` : `${Math.ceil(limits.cooldownSeconds / 60)}m`}`
+              {cooldownRemaining > 0
+                ? `cooldown ${cooldownRemaining < 60 ? `${cooldownRemaining}s` : `${Math.floor(cooldownRemaining / 60)}:${String(cooldownRemaining % 60).padStart(2, '0')}`}`
                 : 'siap kirim'}
             </span>
             {remainingDaily === 0 && (

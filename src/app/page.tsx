@@ -106,6 +106,7 @@ export default function HomePage() {
               isSubmitting={isSubmitting}
               limits={limits}
               autoApprove={limits?.autoApprove ?? false}
+              onCooldownExpired={refetchMyPosts}
             />
           </AuthGate>
 
