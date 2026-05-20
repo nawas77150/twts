@@ -1,4 +1,5 @@
 import { clearAllCaches } from '@/lib/twitter-post-cookie'
+import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -10,9 +11,10 @@ export async function POST(req: NextRequest) {
   if (!auth.authorized) return auth.response
 
   clearAllCaches()
+  invalidateFilterSettingsCache()
 
   return NextResponse.json({
     success: true,
-    message: 'All caches cleared (queryId, transaction ID, HTML)',
+    message: 'All caches cleared (queryId, transaction ID, HTML, filter settings)',
   })
 }

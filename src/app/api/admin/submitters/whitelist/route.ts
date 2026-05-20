@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, checkUserInList } from '../_lib'
+import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/whitelist — Add a user to the whitelist
 // Uses atomic PostgreSQL jsonb append to prevent race conditions.
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     // Also remove from blocked list if present (whitelist takes priority)
     await atomicJsonbRemove('blocked_usernames', normalizedUsername)
+    invalidateFilterSettingsCache()
 
     return NextResponse.json({ success: true, whitelisted: normalizedUsername })
   } catch (error) {
@@ -44,6 +46,7 @@ export async function DELETE(req: NextRequest) {
 
     // Atomic removal from whitelist_usernames JSON array using PostgreSQL jsonb.
     await atomicJsonbRemove('whitelist_usernames', normalizedUsername)
+    invalidateFilterSettingsCache()
 
     return NextResponse.json({ success: true, removed: normalizedUsername })
   } catch (error) {

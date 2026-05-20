@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { parseUsernameRequest, atomicJsonbRemove, checkUserInList } from '../_lib'
+import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/unblock — Unblock a user
 // Uses atomic PostgreSQL jsonb removal to prevent race conditions
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     // jsonb_agg filters out the username, and returns NULL if the array
     // becomes empty (which we convert back to an empty array).
     await atomicJsonbRemove('blocked_usernames', normalizedUsername)
+    invalidateFilterSettingsCache()
 
     return NextResponse.json({ success: true, unblocked: normalizedUsername })
   } catch (error) {

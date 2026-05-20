@@ -27,25 +27,31 @@ export class ApiError extends Error {
   }
 }
 
+const API_PREFIX_WHITELIST: readonly string[] = [
+  '/api/auth/', '/api/submissions', '/api/admin/',
+]
+
+/** Validate path against allowed API route prefixes (SAST: prevent SSRF). */
+function validateApiPath(path: string): string {
+  if (!API_PREFIX_WHITELIST.some(p => path.startsWith(p))) {
+    throw new ApiError(400, 'Invalid API path: must be a relative /api/ path')
+  }
+  return path
+}
+
 class ApiClient {
   private async request<T>(
     path: string,
     options?: RequestInit & { silent?: boolean }
   ): Promise<T> {
-    // Validate path against allowed API route prefixes (SAST: prevent SSRF).
-    const API_PREFIX_WHITELIST: readonly string[] = [
-      '/api/auth/', '/api/submissions', '/api/admin/',
-    ]
-    if (!API_PREFIX_WHITELIST.some(p => path.startsWith(p))) {
-      throw new ApiError(400, 'Invalid API path: must be a relative /api/ path')
-    }
+    const safePath = validateApiPath(path)
 
     const headers: Record<string, string> = {}
     if (options?.body && typeof options.body === 'string') {
       headers['Content-Type'] = 'application/json'
     }
 
-    const res = await fetch(path, {
+    const res = await fetch(safePath, { // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
       ...options,
       headers: { ...headers, ...options?.headers as Record<string, string> },
     })

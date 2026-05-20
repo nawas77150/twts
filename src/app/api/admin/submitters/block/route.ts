@@ -6,6 +6,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove } from '../_lib'
+import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/block — Block a user from submitting
 // Uses atomic PostgreSQL jsonb append to prevent race conditions
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
     // COALESCE ensures empty array becomes '[]' instead of NULL
     // (jsonb_agg returns NULL when no rows remain after filtering)
     await atomicJsonbRemove('whitelist_usernames', normalizedUsername)
+    invalidateFilterSettingsCache()
 
     // Auto-reject all queued submissions from this blocked user.
     // Keeps the queue clean so the cron autopost never encounters
