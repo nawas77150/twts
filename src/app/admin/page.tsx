@@ -9,7 +9,6 @@ import { useSubmitters } from '@/hooks/use-submitters'
 import { StatsGrid } from '@/components/dashboard/stats-grid'
 import { ConnectionBanner } from '@/components/dashboard/connection-banner'
 import { PostMethodRates } from '@/components/dashboard/post-method-rates'
-import { ApiCredits } from '@/components/dashboard/api-credits'
 import { SubmissionFilters } from '@/components/dashboard/submission-filters'
 import { SubmissionList } from '@/components/dashboard/submission-list'
 import { UsersDialog } from '@/components/dashboard/users-dialog'
@@ -24,7 +23,6 @@ export default function AdminDashboardPage() {
     stats,
     cookieStatus,
     postMethodStats,
-    apiCredits,
     apiLoginStatus,
     fetchStats,
     refetch: refetchStats,
@@ -129,11 +127,6 @@ export default function AdminDashboardPage() {
       {/* Post Method Rate */}
       {postMethodStats && postMethodStats.total > 0 && (
         <PostMethodRates postMethodStats={postMethodStats} />
-      )}
-
-      {/* API Credits */}
-      {apiCredits.length > 0 && (
-        <ApiCredits apiCredits={apiCredits} onRefresh={refetchStats} />
       )}
 
       {/* Filter Bar + Submission List */}

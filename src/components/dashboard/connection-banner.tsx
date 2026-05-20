@@ -13,8 +13,8 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
   // Show loading skeleton while data is still being fetched
   if (cookieStatus === null) {
     return (
-      <Card className="shadow-sm border-[#EFF3F4]">
-        <CardContent className="p-3">
+      <Card className="py-0 gap-0 shadow-sm border-[#EFF3F4]">
+        <CardContent className="p-2.5">
           <div className="animate-pulse flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-gray-200" />
             <div className="h-3 bg-gray-200 rounded w-24" />
@@ -25,16 +25,16 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
   }
 
   return (
-    <Card className="shadow-sm border-[#EFF3F4]">
-      <CardContent className="p-3">
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-x-4 sm:gap-y-2 text-xs">
+    <Card className="py-0 gap-0 shadow-sm border-[#EFF3F4]">
+      <CardContent className="p-2.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 sm:gap-x-3 sm:gap-y-1.5 text-xs">
           <span className="font-medium text-[#536471] flex items-center gap-1.5">
-            <Wifi className="w-3.5 h-3.5" /> Connection
+            <Wifi className="w-3 h-3" /> Connection
           </span>
           {/* Direct (Cookie) Status */}
           <span className="flex items-center gap-1.5">
             <CircleDot
-              className={`w-3 h-3 ${
+              className={`w-2.5 h-2.5 ${
                 cookieStatus?.configured
                   ? 'text-green-500 fill-green-500'
                   : 'text-red-500 fill-red-500'
@@ -61,7 +61,7 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
             <span className="flex items-center gap-2">
               <span className="text-[#71767B] hidden sm:inline">|</span>
               <div className="animate-pulse flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-gray-200" />
+                <div className="w-2.5 h-2.5 rounded-full bg-gray-200" />
                 <div className="h-3 bg-gray-200 rounded w-20" />
               </div>
             </span>
@@ -70,7 +70,7 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
               <span className="text-[#71767B] hidden sm:inline">|</span>
               {/* Cookie API Status (Layer 2) */}
               <span className="flex items-center gap-1.5">
-                <Cookie className="w-3 h-3 text-[#536471]" />
+                <Cookie className="w-2.5 h-2.5 text-[#536471]" />
                 <span
                   className={
                     apiLoginStatus.cookieApiReady
@@ -84,7 +84,7 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
               <span className="text-[#71767B] hidden sm:inline">|</span>
               {/* V2 Login Status (Layer 3) */}
               <span className="flex items-center gap-1.5">
-                <Shield className="w-3 h-3 text-[#536471]" />
+                <Shield className="w-2.5 h-2.5 text-[#536471]" />
                 <span
                   className={
                     !apiLoginStatus.v2LoginEnabled
@@ -126,7 +126,7 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
               <>
                 <span className="text-[#71767B] hidden sm:inline">|</span>
                 <span className="text-red-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
+                  <AlertTriangle className="w-2.5 h-2.5" />
                   Missing:{' '}
                   {cookieStatus.missing
                     .filter((k) => k !== 'x_query_id')

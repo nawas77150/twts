@@ -37,25 +37,25 @@ export function SubmissionCard({
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className="shadow-sm border-[#EFF3F4] hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <Card className="py-0 gap-0 shadow-sm border-[#EFF3F4] hover:shadow-md transition-shadow">
+        <CardContent className="p-3">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
                 {sub.submitter.profileImage ? (
                   <Image
                     src={sub.submitter.profileImage}
                     alt=""
                     width={24}
                     height={24}
-                    className="w-6 h-6 rounded-full border border-[#EFF3F4]"
+                    className="w-5 h-5 rounded-full border border-[#EFF3F4]"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-[#272c30] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                  <div className="w-5 h-5 rounded-full bg-[#272c30] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
                     {sub.submitter.username.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="text-xs font-medium text-[#536471]">
+                <span className="text-[11px] font-medium text-[#536471]">
                   @{sub.submitter.username}
                 </span>
                 {sub.submitter.twitterId && (
@@ -63,9 +63,9 @@ export function SubmissionCard({
                     href={`https://x.com/i/user/${sub.submitter.twitterId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[#536471] hover:underline flex items-center gap-0.5"
+                    className="text-[11px] text-[#536471] hover:underline flex items-center gap-0.5"
                   >
-                    <XLogo className="w-3 h-3" />
+                    <XLogo className="w-2.5 h-2.5" />
                   </a>
                 )}
                 <StatusBadge status={sub.status} />
@@ -96,7 +96,7 @@ export function SubmissionCard({
                 {sub.message}
               </p>
               {sub.category && (
-                <span className="inline-block text-xs text-[#71767B] mt-1">
+                <span className="inline-block text-[11px] text-[#71767B] mt-0.5">
                   #{sub.category}
                 </span>
               )}
@@ -109,19 +109,21 @@ export function SubmissionCard({
                   </span>
                 </div>
               )}
-              <p className="text-[10px] text-[#71767B] mt-1">
-                {formatDate(sub.createdAt)}
-              </p>
-              {sub.tweetId && (
-                <a
-                  href={`https://x.com/i/status/${sub.tweetId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-[#536471] hover:underline mt-0.5 inline-flex items-center gap-0.5"
-                >
-                  Lihat tweet <ExternalLink className="w-2.5 h-2.5" />
-                </a>
-              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[10px] text-[#71767B]">
+                  {formatDate(sub.createdAt)}
+                </p>
+                {sub.tweetId && (
+                  <a
+                    href={`https://x.com/i/status/${sub.tweetId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-[#536471] hover:underline inline-flex items-center gap-0.5"
+                  >
+                    Lihat tweet <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Action buttons */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { Activity } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import type { PostMethodStats } from '@/types'
 
 interface PostMethodRatesProps {
@@ -11,78 +11,50 @@ interface PostMethodRatesProps {
 export function PostMethodRates({ postMethodStats }: PostMethodRatesProps) {
   if (postMethodStats.total === 0) return null
 
+  const { directRate, retryRate, fallbackRate, direct, retry, fallback, total } = postMethodStats
+
   return (
-    <Card className="shadow-sm border-[#EFF3F4]">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#536471]" /> Post Method Rate
-          <span className="text-[10px] text-[#71767B] font-normal">
-            {postMethodStats.total} post terakhir
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Direct */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[#536471] flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              Normal POST
-            </span>
-            <span className="text-xs font-bold text-[#0F1419]">
-              {postMethodStats.directRate}%
-            </span>
-          </div>
-          <div className="w-full bg-[#F7F9F9] rounded-full h-2">
-            <div
-              className="bg-green-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${postMethodStats.directRate}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-[#71767B]">
-            {postMethodStats.direct}/{postMethodStats.total} via direct cookie
-          </span>
+    <Card className="py-0 gap-0 shadow-sm border-[#EFF3F4]">
+      <CardContent className="p-2.5">
+        {/* Title */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <Activity className="w-3 h-3 text-[#536471]" />
+          <span className="text-xs font-medium text-[#0F1419]">Post Method Rate</span>
+          <span className="text-[10px] text-[#71767B]">{total} post terakhir</span>
         </div>
-        {/* Retry */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[#536471] flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              Retry (226/empty)
-            </span>
-            <span className="text-xs font-bold text-[#0F1419]">
-              {postMethodStats.retryRate}%
-            </span>
-          </div>
-          <div className="w-full bg-[#F7F9F9] rounded-full h-2">
-            <div
-              className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${postMethodStats.retryRate}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-[#71767B]">
-            {postMethodStats.retry}/{postMethodStats.total} setelah retry
-          </span>
+
+        {/* Stacked bar */}
+        <div className="flex w-full h-2.5 rounded-full bg-[#F7F9F9] overflow-hidden mb-2">
+          <div
+            className="bg-green-500 transition-all duration-500"
+            style={{ width: `${directRate}%` }}
+          />
+          <div
+            className="bg-amber-500 transition-all duration-500"
+            style={{ width: `${retryRate}%` }}
+          />
+          <div
+            className="bg-purple-500 transition-all duration-500"
+            style={{ width: `${fallbackRate}%` }}
+          />
         </div>
-        {/* Fallback */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[#536471] flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-purple-500" />
-              API Fallback
-            </span>
-            <span className="text-xs font-bold text-[#0F1419]">
-              {postMethodStats.fallbackRate}%
-            </span>
-          </div>
-          <div className="w-full bg-[#F7F9F9] rounded-full h-2">
-            <div
-              className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${postMethodStats.fallbackRate}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-[#71767B]">
-            {postMethodStats.fallback}/{postMethodStats.total} via twitterapi.io
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="text-[#536471]">Normal <span className="font-medium text-[#0F1419]">{directRate}%</span></span>
+            <span className="text-[#71767B]">({direct}/{total})</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span className="text-[#536471]">Retry <span className="font-medium text-[#0F1419]">{retryRate}%</span></span>
+            <span className="text-[#71767B]">({retry}/{total})</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <span className="text-[#536471]">Fallback <span className="font-medium text-[#0F1419]">{fallbackRate}%</span></span>
+            <span className="text-[#71767B]">({fallback}/{total})</span>
           </span>
         </div>
       </CardContent>

@@ -36,9 +36,9 @@ export function StatsGrid({ stats, onPenggunaClick }: StatsGridProps) {
                 <div className={`w-5 h-5 md:w-6 md:h-6 rounded-md ${stat.color} flex items-center justify-center shrink-0`}>
                   <stat.icon className="w-2.5 h-2.5 md:w-3 md:h-3" />
                 </div>
-                <span className="text-[10px] md:text-xs text-[#536471] truncate">{stat.label}</span>
+                <p className="text-sm md:text-lg font-bold text-[#0F1419] leading-none">{stat.value}</p>
               </div>
-              <p className="text-sm md:text-lg font-bold text-[#0F1419]">{stat.value}</p>
+              <span className="text-[10px] md:text-xs text-[#536471] truncate">{stat.label}</span>
             </CardContent>
           </Card>
         )
