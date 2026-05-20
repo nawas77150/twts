@@ -57,7 +57,6 @@ export function useSubmitterAuth() {
     const maxAttempts = 4
 
     async function tryAuth() {
-      if (cancelled) return
       const ok = await checkAuth()
       if (cancelled) return
       if (ok) {
