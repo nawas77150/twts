@@ -33,7 +33,7 @@ model Submission {
   normalizedMessage String @default("") // Normalized fingerprint for duplicate detection (strips zero-width chars, normalizes Unicode)
   status      String    @default("pending") // pending, censored, posting, post_failed, rejected, posted
   tweetId     String?   // X tweet ID after posting
-  postMethod  String?   // "direct" | "retry" | "fallback" — which method posted this tweet
+  postMethod  String?   // "direct" | "retry" | "fallback_cookie" | "fallback_login" — which method posted this tweet
   postError   String?   // Error message from last failed post attempt (cleared on success)
   category      String?   // optional category/tag
   filterReasons String?   // JSON array of filter reasons e.g. ["blocked_word:kontol","contains_mention"]

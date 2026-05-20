@@ -152,6 +152,9 @@ export async function checkDuplicate24h(
 ): Promise<DuplicateCheckResult> {
   const twentyFourHoursAgo = new Date(Date.now() - MS_24H)
   const normalized = normalizeText(message)
+  // Empty string can't be a meaningful duplicate fingerprint — skip the query
+  // to avoid false-positive matches against legacy rows with @default("")
+  if (!normalized) return { isDuplicate: false }
   const existing = await db.submission.findFirst({
     where: {
       submitterId,
