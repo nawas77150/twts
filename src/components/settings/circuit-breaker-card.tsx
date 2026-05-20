@@ -60,7 +60,7 @@ interface CircuitBreakerCardProps {
   setRateLimits: React.Dispatch<React.SetStateAction<RateLimitSettings>>
   reset: () => void
   isSaving: boolean
-  saveFilterSettings: () => void
+  saveRateLimits: () => void
 }
 
 export function CircuitBreakerCard({
@@ -70,7 +70,7 @@ export function CircuitBreakerCard({
   setRateLimits,
   reset,
   isSaving,
-  saveFilterSettings,
+  saveRateLimits,
 }: CircuitBreakerCardProps) {
   const badges = (
     <CircuitBreakerStatusDisplay
@@ -158,7 +158,7 @@ export function CircuitBreakerCard({
       </div>
 
       <Button
-        onClick={saveFilterSettings}
+        onClick={saveRateLimits}
         disabled={isSaving}
         className="w-full bg-[#0F1419] hover:bg-[#272c30]"
       >

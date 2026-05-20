@@ -49,10 +49,15 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { fetchStatsRef.current = fetchStats }, [fetchStats])
 
   // Fetch on auth change + 15s auto-refresh (keeps pendingCount badge fresh on all pages)
+  // Pause when tab is hidden to avoid wasting serverless invocations
   useEffect(() => {
     if (!isAdmin) return
     void fetchStatsRef.current()
-    const interval = setInterval(() => { void fetchStatsRef.current() }, 15000)
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        void fetchStatsRef.current()
+      }
+    }, 15000)
     return () => { clearInterval(interval) }
   }, [isAdmin])
 

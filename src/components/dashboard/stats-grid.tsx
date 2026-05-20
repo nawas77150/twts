@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, Clock, ShieldOff, Loader2, AlertCircle, Ban, CheckCircle, Users } from 'lucide-react'
+import { BarChart3, Clock, ShieldOff, Send, AlertCircle, Ban, CheckCircle, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Stats } from '@/types'
 
@@ -14,7 +14,7 @@ export function StatsGrid({ stats, onPenggunaClick }: StatsGridProps) {
     { label: 'Total', value: stats.total, icon: BarChart3, color: 'bg-[#F7F9F9] text-[#3D4145]' },
     { label: 'Menunggu', value: stats.pending, icon: Clock, color: stats.pending > 0 ? 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-300' : 'bg-yellow-50 text-yellow-700' },
     { label: 'Disensor', value: stats.censored, icon: ShieldOff, color: stats.censored > 0 ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-300' : 'bg-orange-50 text-orange-700' },
-    { label: 'Posting', value: stats.posting, icon: Loader2, color: 'bg-blue-50 text-blue-700' },
+    { label: 'Posting', value: stats.posting, icon: Send, color: 'bg-blue-50 text-blue-700' },
     { label: 'Gagal', value: stats.postFailed, icon: AlertCircle, color: stats.postFailed > 0 ? 'bg-red-50 text-red-700 ring-1 ring-red-300' : 'bg-red-50 text-red-700' },
     { label: 'Ditolak', value: stats.rejected, icon: Ban, color: 'bg-gray-50 text-gray-600' },
     { label: 'Diposting', value: stats.posted, icon: CheckCircle, color: 'bg-green-50 text-green-700' },

@@ -70,7 +70,6 @@ export function SubmissionFilters({
       />
       <Button
         variant="ghost"
-        size="sm"
         onClick={onRefresh}
         className="ml-auto shrink-0 text-[#71767B] h-7 w-7 p-0"
       >

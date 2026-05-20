@@ -27,7 +27,6 @@ export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
           {showRefresh && (
             <Button
               variant="ghost"
-              size="sm"
               onClick={onRefresh}
               disabled={isLoading}
               className="h-6 w-6 p-0 text-[#71767B]"

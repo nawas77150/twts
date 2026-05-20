@@ -355,7 +355,6 @@ export function ApiFallbackCard({
             <BarChart3 className="w-3 h-3" /> Credit Status
             <Button
               variant="ghost"
-              size="sm"
               className="h-5 w-5 p-0 ml-1"
               onClick={onRefreshCredits}
             >

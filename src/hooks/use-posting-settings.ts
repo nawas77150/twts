@@ -103,30 +103,38 @@ export function usePostingSettings() {
       { key: 'x_totp_secret', value: xTotpSecret, label: '2FA Secret' },
     ]
 
-    let savedCount = 0
-    const failedFields: string[] = []
+    const nonEmptyFields = fields.filter((f) => f.value.trim())
+    const results = await Promise.allSettled(
+      nonEmptyFields.map(async (field) => {
+        await apiClient.saveSetting(field.key, field.value)
+        return field.label
+      }),
+    )
 
-    for (const field of fields) {
-      if (field.value.trim()) {
-        try {
-          await apiClient.saveSetting(field.key, field.value)
-          savedCount++
-        } catch {
-          failedFields.push(field.label)
-        }
-      }
-    }
+    const savedLabels = results
+      .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+      .map((r) => r.value)
 
-    if (failedFields.length > 0) {
+    // Deduce which field labels failed by diffing
+    const failedLabels = nonEmptyFields
+      .filter((f) => !savedLabels.includes(f.label))
+      .map((f) => f.label)
+
+    if (failedLabels.length > 0) {
       toast({
         title: 'Sebagian gagal disimpan',
-        description: `Gagal: ${failedFields.join(', ')}. Berhasil: ${savedCount} field.`,
+        description: `Gagal: ${failedLabels.join(', ')}. Berhasil: ${savedLabels.length} field.`,
         variant: 'destructive',
       })
     } else {
+      // Clear credential fields after successful save
+      setXUsername('')
+      setXEmail('')
+      setXPassword('')
+      setXTotpSecret('')
       toast({
         title: 'Semua kredensial disimpan!',
-        description: `${savedCount} field berhasil disimpan.`,
+        description: `${savedLabels.length} field berhasil disimpan.`,
       })
     }
 

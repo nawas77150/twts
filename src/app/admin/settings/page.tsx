@@ -90,6 +90,11 @@ export default function AdminSettingsPage() {
     void refetchAdminStats()
   }, [filterSettings, refetchAdminStats])
 
+  const filterSaveRateLimits = useCallback(async () => {
+    await filterSettings.saveRateLimits()
+    void refetchAdminStats()
+  }, [filterSettings, refetchAdminStats])
+
   const filterSaveGeminiKey = useCallback(async (key: string) => {
     await filterSettings.saveGeminiKey(key)
     void refetchAdminStats()
@@ -242,7 +247,7 @@ export default function AdminSettingsPage() {
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
               isSaving={filterSettings.isSaving}
-              saveFilterSettings={filterSaveFilterSettings}
+              saveRateLimits={filterSaveRateLimits}
             />
 
             <CircuitBreakerCard
@@ -252,7 +257,7 @@ export default function AdminSettingsPage() {
               setRateLimits={filterSettings.setRateLimits}
               reset={circuitBreaker.reset}
               isSaving={filterSettings.isSaving}
-              saveFilterSettings={filterSaveFilterSettings}
+              saveRateLimits={filterSaveRateLimits}
             />
           </TabPanel>
         </TabsContent>

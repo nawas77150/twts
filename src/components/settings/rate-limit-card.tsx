@@ -11,7 +11,7 @@ interface RateLimitCardProps {
   rateLimits: RateLimitSettings
   setRateLimits: React.Dispatch<React.SetStateAction<RateLimitSettings>>
   isSaving: boolean
-  saveFilterSettings: () => void
+  saveRateLimits: () => void
 }
 
 interface RateField {
@@ -90,7 +90,7 @@ export function RateLimitCard({
   rateLimits,
   setRateLimits,
   isSaving,
-  saveFilterSettings,
+  saveRateLimits,
 }: RateLimitCardProps) {
   const badges = (
     <Badge variant="outline" className="text-[9px] px-1 py-0 bg-[#F7F9F9] text-[#536471] border-[#EFF3F4]">
@@ -151,7 +151,7 @@ export function RateLimitCard({
         </ul>
       </div>
       <Button
-        onClick={saveFilterSettings}
+        onClick={saveRateLimits}
         disabled={isSaving}
         className="w-full bg-[#0F1419] hover:bg-[#272c30]"
       >

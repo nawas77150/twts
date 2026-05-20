@@ -30,13 +30,14 @@ const RATE_LIMIT_DEFS = [
 
 /**
  * Upsert rate-limit settings using the definition table.
- * Replaces 12 identical typeof→clamp→upsert→push blocks.
+ * Wrapped in a transaction so partial failures don't leave the DB
+ * in an inconsistent state (some limits updated, others not).
  */
 async function upsertRateLimits(
   rateLimits: Record<string, number | undefined>,
   results: { key: string; updated: boolean }[],
 ): Promise<void> {
-  try {
+  await db.$transaction(async (tx) => {
     for (const def of RATE_LIMIT_DEFS) {
       const raw = rateLimits[def.field]
       if (typeof raw === 'number') {
@@ -44,23 +45,15 @@ async function upsertRateLimits(
           ? Math.min(def.max, Math.max(def.min, raw))
           : Math.max(def.min, raw)
         const val = clamped.toString()
-        try {
-          await db.setting.upsert({
-            where: { key: def.key },
-            update: { value: val },
-            create: { key: def.key, value: val },
-          })
-          results.push({ key: def.key, updated: true })
-        } catch (e) {
-          console.error(`[filter-settings] Failed to upsert ${def.key}:`, e)
-          results.push({ key: def.key, updated: false })
-        }
+        await tx.setting.upsert({
+          where: { key: def.key },
+          update: { value: val },
+          create: { key: def.key, value: val },
+        })
+        results.push({ key: def.key, updated: true })
       }
     }
-  } catch (error) {
-    console.error('[filter-settings] upsertRateLimits unexpected error:', error)
-    throw error
-  }
+  })
 }
 
 // GET /api/admin/filter-settings — Return filter settings

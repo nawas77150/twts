@@ -111,7 +111,6 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
         <Button
           onClick={handleAdd}
           disabled={isAdding || !addInput.trim()}
-          size="sm"
           className={`h-8 shrink-0 ${config.addButtonClass}`}
         >
           {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
@@ -131,7 +130,6 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
               <span className={`text-xs font-mono ${config.usernameClass}`}>@{username}</span>
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => { void handleRemove(username) }}
                 disabled={removingUser === username}
                 className={`h-6 w-6 p-0 text-[#71767B] ${config.removeButtonHoverClass}`}

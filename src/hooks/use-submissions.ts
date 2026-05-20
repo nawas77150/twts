@@ -87,10 +87,15 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   }, [isAdmin, toast])
 
   // Auto-refresh every 15s when admin is active
+  // Pause when tab is hidden to avoid wasting serverless invocations
   useEffect(() => {
     if (isAdmin) {
       void fetchSubmissions() // initial load — shows spinner
-      const interval = setInterval(() => { void fetchSubmissions(true) }, 15000)
+      const interval = setInterval(() => {
+        if (!document.hidden) {
+          void fetchSubmissions(true)
+        }
+      }, 15000)
       return () => { clearInterval(interval) }
     }
     return undefined

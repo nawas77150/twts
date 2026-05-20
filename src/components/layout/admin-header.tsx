@@ -66,9 +66,9 @@ export function AdminHeader({ onLogout, pendingCount = 0 }: AdminHeaderProps) {
             </Badge>
             <Button
               variant="ghost"
-              size="sm"
               onClick={onLogout}
               className="text-[#71767B] h-7 w-7 p-0"
+              aria-label="Logout"
             >
               <LogOut className="w-3.5 h-3.5" />
             </Button>

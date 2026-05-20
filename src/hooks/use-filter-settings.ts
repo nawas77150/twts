@@ -124,16 +124,12 @@ export function useFilterSettings() {
         nsfwWords: nsfwWords,
         filterRules,
         geminiEnabled,
-        rateLimits,
-        // whitelistUsernames is NOT saved here — the whitelist/unwhitelist routes
-        // manage it atomically via SQL. Sending it here would overwrite
-        // the whitelist with stale data if another admin modified it
-        // since this page loaded.
+        // rateLimits is NOT sent here — use saveRateLimits() for that
       })
       if (!data.error) {
         toast({
           title: 'Filter settings saved!',
-          description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}, Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}`,
+          description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}`,
         })
       } else {
         toast({ title: 'Failed', description: data.error, variant: 'destructive' })
@@ -143,7 +139,28 @@ export function useFilterSettings() {
     } finally {
       setIsSaving(false)
     }
-  }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, rateLimits, toast])
+  }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, toast])
+
+  /** Save only rate-limit + circuit-breaker fields (no filter/Gemini side-effects) */
+  const saveRateLimits = useCallback(async () => {
+    if (!isAdmin) return
+    setIsSaving(true)
+    try {
+      const data = await apiClient.saveFilterSettings({ rateLimits })
+      if (!data.error) {
+        toast({
+          title: 'Rate limits saved!',
+          description: `Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}`,
+        })
+      } else {
+        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save rate limits', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
+    }
+  }, [isAdmin, rateLimits, toast])
 
   // Reset state (used when admin logs out)
   const resetState = useCallback(() => {
@@ -192,6 +209,7 @@ export function useFilterSettings() {
     saveGeminiKey,
     saveGeminiModel,
     saveFilterSettings,
+    saveRateLimits,
     loadFromFilterSettings,
     resetState,
   }

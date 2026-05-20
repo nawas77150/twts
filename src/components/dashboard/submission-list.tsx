@@ -11,6 +11,7 @@ interface SubmissionListProps {
   submissions: Submission[]
   search: string
   setSearch: (search: string) => void
+  filterStatus: string
   isLoading: boolean
   actionLoading: string | null
   page: number
@@ -26,6 +27,7 @@ export function SubmissionList({
   submissions,
   search,
   setSearch,
+  filterStatus,
   isLoading,
   actionLoading,
   page,
@@ -46,17 +48,25 @@ export function SubmissionList({
     )
   }
 
-  // No results at all (no search active)
+  // No results — filter-aware empty state
   if (submissions.length === 0 && !search) {
+    const isFiltered = filterStatus !== 'all'
+    const statusLabel = isFiltered ? `"${filterStatus}"` : null
     return (
       <Card className="py-12">
         <CardContent className="text-center">
           <div className="w-12 h-12 rounded-xl bg-[#F7F9F9] flex items-center justify-center mx-auto mb-3">
             <MessageSquare className="w-6 h-6 text-[#71767B]" />
           </div>
-          <p className="text-[#536471]">Belum ada pesan</p>
+          <p className="text-[#536471]">
+            {isFiltered
+              ? `Tidak ada pesan dengan status ${statusLabel}`
+              : 'Belum ada pesan'}
+          </p>
           <p className="text-xs text-[#71767B] mt-1">
-            Pesan yang masuk akan muncul di sini
+            {isFiltered
+              ? 'Coba ganti filter atau hapus filter'
+              : 'Pesan yang masuk akan muncul di sini'}
           </p>
         </CardContent>
       </Card>
@@ -108,7 +118,6 @@ export function SubmissionList({
         <div className="flex items-center justify-center gap-1 py-3">
           <Button
             variant="outline"
-            size="sm"
             className="h-7 w-7 p-0 text-xs"
             disabled={page <= 1}
             onClick={() => { onPageChange(page - 1) }}
@@ -139,7 +148,6 @@ export function SubmissionList({
                 <Button
                   key={p}
                   variant={p === page ? 'default' : 'outline'}
-                  size="sm"
                   className={`h-7 w-7 p-0 text-xs ${
                     p === page ? 'bg-[#0F1419] hover:bg-[#272c30]' : ''
                   }`}
@@ -152,7 +160,6 @@ export function SubmissionList({
           })()}
           <Button
             variant="outline"
-            size="sm"
             className="h-7 w-7 p-0 text-xs"
             disabled={page >= totalPages}
             onClick={() => { onPageChange(page + 1) }}

@@ -145,6 +145,7 @@ export default function AdminDashboardPage() {
           submissions={submissions}
           search={search}
           setSearch={setSearch}
+          filterStatus={filterStatus}
           isLoading={isLoadingSubmissions}
           actionLoading={actionLoading}
           page={page}
