@@ -101,7 +101,7 @@ async function fetchLiveQueryId(): Promise<string | null> {
     // Step 2: extract queryId from the bundle JS
     const js = await fetch(
       `https://abs.twimg.com/responsive-web/client-web/${bundle}`,
-      { headers: { 'User-Agent': BROWSER_UA } }
+      { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(10_000) }
     ).then((r) => r.text())
 
     // Match pattern like: {queryId:"FtGeaqS11k1UG-kGv_YUVg",operationName:"CreateTweet"}
@@ -559,6 +559,7 @@ export async function postTweetViaCookie(
           features: CREATE_TWEET_FEATURES,
           fieldToggles: CREATE_TWEET_FIELD_TOGGLES,
         }),
+        signal: AbortSignal.timeout(15_000),
       })
 
       debug('direct', 'Attempt', attempt, '- X API response status:', response.status)

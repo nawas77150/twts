@@ -6,9 +6,18 @@ import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 30
+
+/** Timing-safe string comparison to prevent timing side-channel attacks. */
+function timingSafeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8')
+  const bufB = Buffer.from(b, 'utf8')
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
+}
 
 // GET /api/autopost — Cron endpoint for auto-posting queued submissions.
 // Called by external cron service (cron-job.org) every minute.
@@ -24,7 +33,7 @@ export async function GET(req: NextRequest) {
     }
 
     const authHeader = req.headers.get('authorization')
-    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${cronSecret}`)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -48,7 +57,10 @@ export async function GET(req: NextRequest) {
 
     // ── Gate: auto-approve must be ON ───────────────────────
     if (!filterSettings.autoApprove) {
-      return NextResponse.json({ processed: false, reason: 'auto_approve_off' })
+      return NextResponse.json(
+        { processed: false, reason: 'auto_approve_off' },
+        { headers: { 'Cache-Control': 'no-store' } }
+      )
     }
 
     // ── Gate: circuit breaker ───────────────────────────────
@@ -63,7 +75,7 @@ export async function GET(req: NextRequest) {
         reason: 'circuit_breaker_paused',
         pausedUntil: cbStatus.pausedUntil,
         remainingMinutes: cbStatus.remainingMinutes,
-      })
+      }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     // ── Find up to 5 candidate submissions (FIFO) ──────────

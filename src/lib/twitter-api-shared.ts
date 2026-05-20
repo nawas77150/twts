@@ -187,6 +187,7 @@ export async function callCreateTweetV2(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
   })
   const data = await response.json()
   debug(debugLabel, 'create_tweet_v2 response:', JSON.stringify(data))

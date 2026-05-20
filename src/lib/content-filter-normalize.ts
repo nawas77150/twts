@@ -132,6 +132,6 @@ export function normalizeText(text: string): string {
  */
 export function normalizeForFilter(text: string): string {
   return text
-    .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202F]/g, '')
+    .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202F\uFE00-\uFE0F]/g, '')
     .normalize('NFKC')
 }

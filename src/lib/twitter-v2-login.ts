@@ -127,6 +127,7 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
         totp_secret: settings.x_totp_secret,
         proxy: settings.twitterapi_proxy,
       }),
+      signal: AbortSignal.timeout(15_000),
     })
 
     const data = await response.json()

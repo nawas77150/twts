@@ -3,6 +3,7 @@ import { parseXCookies } from '@/lib/twitter-post-cookie'
 import { encrypt, decryptSetting, isEncryptionEnabled } from '@/lib/encrypt'
 import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_KEYS = [
@@ -98,6 +99,12 @@ export async function POST(req: NextRequest) {
 
   if (!key || typeof value !== 'string') {
     return NextResponse.json({ error: 'key and value are required' }, { status: 400 })
+  }
+
+  // Reject empty/whitespace-only values to prevent encrypted-empty bypass
+  // (encrypt('') produces non-empty ciphertext that passes { not: '' } filters)
+  if (!value.trim()) {
+    return NextResponse.json({ error: 'Value cannot be empty' }, { status: 400 })
   }
 
   // Validate known keys only
@@ -285,6 +292,11 @@ export async function DELETE(req: NextRequest) {
   // so the fallback module doesn't use stale auth
   if (LOGIN_TRIGGER_KEYS.includes(key)) {
     await db.setting.deleteMany({ where: { key: 'twitterapi_login_cookie' } })
+  }
+
+  // Invalidate credits cache when API keys are deleted so dashboard refreshes
+  if (key === 'twitterapi_keys') {
+    invalidateCreditsCache()
   }
 
   return NextResponse.json({ success: true })

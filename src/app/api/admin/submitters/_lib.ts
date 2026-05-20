@@ -39,7 +39,7 @@ export async function atomicJsonbAppend(settingKey: string, username: string): P
       SET "value" = (
         CASE WHEN "Setting"."value"::jsonb @> ${usernameArr}::jsonb
         THEN "Setting"."value"
-        ELSE ("Setting"."value"::jsonb || ${JSON.stringify(username)}::jsonb)::text
+        ELSE ("Setting"."value"::jsonb || ${usernameArr}::jsonb)::text
         END
       ),
       "updatedAt" = NOW()

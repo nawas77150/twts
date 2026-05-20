@@ -53,6 +53,8 @@ export const DEFAULT_NSFW_WORDS: string[] = [
  *   - Returns { matched, reasons } instead of string[]
  *
  * Single words: exact token match (word-boundary semantics via split(/[^\w]+/)).
+ * Also checks consecutive token pairs to catch punctuation-insertion bypasses
+ * (e.g. "kon.tol" → tokens ["kon","tol"] → pair "kontol" matches).
  * Multi-word terms: substring match in normalized text.
  */
 export function checkBlockedWords(
@@ -66,6 +68,15 @@ export function checkBlockedWords(
   // spaces, and @ — so splitting on non-word chars gives exact word tokens
   // equivalent to \b word-boundary matching, without needing RegExp constructor.
   const words = normalized.split(/[^\w]+/).filter(Boolean)
+
+  // Build a Set of tokens + consecutive token pairs for matching.
+  // Pairs catch punctuation-insertion bypasses like "kon.tol" → "kontol"
+  // without false positives on unrelated adjacent words like "ikon tol".
+  const tokenSet = new Set<string>(words)
+  for (let i = 0; i < words.length - 1; i++) {
+    tokenSet.add(words[i] + words[i + 1])
+  }
+
   const matched: string[] = []
   const reasons: string[] = []
 
@@ -82,12 +93,12 @@ export function checkBlockedWords(
       continue
     }
 
-    // Single word: match whole word only (exact token match)
+    // Single word: match against token set (exact tokens + consecutive pairs)
     // This replaces the previous RegExp constructor approach (Vercel CRITICAL:
     // "RegExp constructor with non-literal value") while preserving the same
     // word-boundary semantics. split(/[^\w]+/) produces the same word tokens
-    // that \b would delineate.
-    if (words.includes(blockedLower) && !matched.includes(blocked)) {
+    // that \b would delineate. Consecutive pairs catch punctuation bypasses.
+    if (tokenSet.has(blockedLower) && !matched.includes(blocked)) {
       matched.push(blocked)
       reasons.push(`${reasonPrefix}:${blocked}`)
     }

@@ -56,6 +56,7 @@ export async function fetchXcomHtml(): Promise<string> {
   }
   const resp = await fetch('https://x.com', {
     headers: { 'User-Agent': BROWSER_UA },
+    signal: AbortSignal.timeout(10_000),
   })
   if (!resp.ok) {
     throw new Error(`Failed to fetch x.com homepage: ${resp.status}`)
@@ -99,6 +100,7 @@ async function getTransactionIdConfig(): Promise<TransactionIdConfig> {
   const onDemandUrl = extractOnDemandFileUrl(html)
   const onDemandResp = await fetch(onDemandUrl, {
     headers: { 'User-Agent': BROWSER_UA },
+    signal: AbortSignal.timeout(10_000),
   })
   if (!onDemandResp.ok) {
     throw new Error(`Failed to fetch ondemand file: ${onDemandResp.status}`)
