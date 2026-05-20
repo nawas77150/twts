@@ -154,7 +154,7 @@ export function LimitHealthCard() {
           disabled={loading}
           className="text-[10px] h-7 px-2 text-[#71767B]"
         >
-          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin-reverse' : ''}`} />
           Refresh
         </Button>
       </div>

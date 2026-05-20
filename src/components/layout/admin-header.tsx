@@ -49,7 +49,7 @@ export function AdminHeader({ onLogout, pendingCount = 0 }: AdminHeaderProps) {
                 <link.icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{link.label}</span>
                 {link.label === 'Dashboard' && pendingCount > 0 && (
-                  <Badge className="bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0 h-5 min-w-[20px] flex items-center justify-center">
+                  <Badge className="bg-yellow-400 text-yellow-900 text-[10px] px-1.5 py-0 h-5 min-w-[20px] flex items-center justify-center ring-2 ring-yellow-300 ring-offset-1">
                     {pendingCount}
                   </Badge>
                 )}

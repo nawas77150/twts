@@ -73,7 +73,7 @@ export function SubmissionFilters({
         onClick={onRefresh}
         className="ml-auto shrink-0 text-[#71767B] h-7 w-7 p-0"
       >
-        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin-reverse' : ''}`} />
       </Button>
     </div>
   )

@@ -358,7 +358,7 @@ export function ApiFallbackCard({
               className="h-5 w-5 p-0 ml-1"
               onClick={onRefreshCredits}
             >
-              <RefreshCw className={`w-3 h-3 ${isLoadingCredits ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3 h-3 ${isLoadingCredits ? 'animate-spin-reverse' : ''}`} />
             </Button>
           </span>
           <div className="space-y-1.5">

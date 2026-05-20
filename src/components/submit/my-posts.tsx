@@ -31,7 +31,7 @@ export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
               disabled={isLoading}
               className="h-6 w-6 p-0 text-[#71767B]"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin-reverse' : ''}`} />
             </Button>
           )}
         </div>
