@@ -13,6 +13,7 @@ import { SubmissionFilters } from '@/components/dashboard/submission-filters'
 import { SubmissionList } from '@/components/dashboard/submission-list'
 import { UsersDialog } from '@/components/dashboard/users-dialog'
 import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default function AdminDashboardPage() {
   const { isAdmin } = useAdminAuth()
@@ -171,9 +172,20 @@ export default function AdminDashboardPage() {
       />
 
       {/* Post Method Rate */}
-      {postMethodStats && postMethodStats.total > 0 && (
+      {postMethodStats === null ? (
+        <Card className="py-0 gap-0 shadow-sm border-[#EFF3F4]">
+          <CardContent className="p-2.5">
+            <div className="animate-pulse flex items-center gap-1.5 mb-2">
+              <div className="w-3 h-3 rounded bg-gray-200" />
+              <div className="h-3 bg-gray-200 rounded w-24" />
+            </div>
+            <div className="animate-pulse h-2.5 rounded-full bg-gray-200 w-full mb-2" />
+            <div className="animate-pulse h-2.5 bg-gray-200 rounded w-1/2" />
+          </CardContent>
+        </Card>
+      ) : postMethodStats.total > 0 ? (
         <PostMethodRates postMethodStats={postMethodStats} />
-      )}
+      ) : null}
 
       {/* Filter Bar + Submission List */}
       <div className="space-y-3">

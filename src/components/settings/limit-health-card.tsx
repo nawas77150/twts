@@ -37,14 +37,16 @@ const DEFAULT_COLORS = { bg: 'bg-slate-50', text: 'text-slate-700', border: 'bor
 export function LimitHealthCard() {
   const [data, setData] = useState<LimitHitsData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchHits = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await apiClient.getLimitHits()
       setData(res)
     } catch {
-      // Silently fail — admin can retry
+      setError('Gagal memuat data limit.')
     } finally {
       setLoading(false)
     }
@@ -76,6 +78,21 @@ export function LimitHealthCard() {
       {loading && !data && (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="w-4 h-4 animate-spin text-[#71767B]" />
+        </div>
+      )}
+
+      {error && !data && (
+        <div className="flex flex-col items-center py-4 gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-400" />
+          <p className="text-xs text-amber-600">{error}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchHits}
+            className="text-[10px] h-7 px-2 text-[#71767B]"
+          >
+            Coba lagi
+          </Button>
         </div>
       )}
 

@@ -7,8 +7,18 @@ interface EncryptionBannerProps {
 }
 
 export function EncryptionBanner({ encryptionEnabled }: EncryptionBannerProps) {
-  // Don't show until we know the status (undefined = still loading)
-  if (encryptionEnabled === undefined || encryptionEnabled === true) return null
+  // Show shimmer while loading
+  if (encryptionEnabled === undefined) {
+    return (
+      <div className="rounded-lg border border-[#EFF3F4] bg-[#F7F9F9] p-3 animate-pulse">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gray-200 shrink-0" />
+          <div className="h-4 bg-gray-200 rounded w-40" />
+        </div>
+      </div>
+    )
+  }
+  if (encryptionEnabled === true) return null
 
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
