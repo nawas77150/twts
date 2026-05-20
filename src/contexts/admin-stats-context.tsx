@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import type { Stats, CookieAuthStatus, PostMethodStats, KeyCredits, ApiLoginStatus } from '@/types'
+import type { Stats, CookieAuthStatus, PostMethodStats, KeyCredits, ApiLoginStatus, SubmissionStatus } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { useAdminAuth } from './admin-auth-context'
 
@@ -12,11 +12,24 @@ interface AdminStatsState {
   apiCredits: KeyCredits[]
   apiLoginStatus: ApiLoginStatus | null
   pendingCount: number
+  isStale: boolean
   fetchStats: () => Promise<void>
   refetch: () => Promise<void>
+  adjustStatsForTransition: (from: SubmissionStatus, to: SubmissionStatus) => void
+  adjustStatsForDeletion: (status: SubmissionStatus) => void
 }
 
 const AdminStatsContext = createContext<AdminStatsState | null>(null)
+
+/** Maps SubmissionStatus values to their corresponding Stats field names. */
+const STATUS_TO_KEY: Record<SubmissionStatus, keyof Stats> = {
+  pending:     'pending',
+  censored:    'censored',
+  posting:     'posting',
+  post_failed: 'postFailed',
+  rejected:    'rejected',
+  posted:      'posted',
+}
 
 export function AdminStatsProvider({ children }: { children: ReactNode }) {
   const { isAdmin } = useAdminAuth()
@@ -26,6 +39,7 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   const [apiCredits, setApiCredits] = useState<KeyCredits[]>([])
   const [apiLoginStatus, setApiLoginStatus] = useState<ApiLoginStatus | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0)
 
   const fetchStats = useCallback(async () => {
     try {
@@ -36,12 +50,53 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
       if (data.apiCredits !== undefined) setApiCredits(data.apiCredits ?? [])
       if (data.apiLoginStatus !== undefined) setApiLoginStatus(data.apiLoginStatus)
       if (data.postMethodStats) setPostMethodStats(data.postMethodStats)
+      setConsecutiveFailures(0)
     } catch {
-      // silently fail — next fetch will retry
+      setConsecutiveFailures((prev) => prev + 1)
     }
   }, [])
 
   const refetch = useCallback(async () => { await fetchStats() }, [fetchStats])
+
+  const isStale = consecutiveFailures >= 3
+
+  const adjustStatsForTransition = useCallback(
+    (from: SubmissionStatus, to: SubmissionStatus) => {
+      setStats((prev) => {
+        if (!prev) return prev
+        const next = { ...prev }
+        const fromKey = STATUS_TO_KEY[from]
+        const toKey   = STATUS_TO_KEY[to]
+        ;(next as unknown as Record<string, number>)[fromKey as string] =
+          Math.max(0, (prev[fromKey] as number) - 1)
+        ;(next as unknown as Record<string, number>)[toKey as string] =
+          ((prev[toKey] as number) || 0) + 1
+        return next
+      })
+      if (from === 'pending' || to === 'pending') {
+        setPendingCount((prev) => {
+          const delta = (from === 'pending' ? -1 : 0) + (to === 'pending' ? 1 : 0)
+          return Math.max(0, prev + delta)
+        })
+      }
+    },
+    [],
+  )
+
+  const adjustStatsForDeletion = useCallback((status: SubmissionStatus) => {
+    setStats((prev) => {
+      if (!prev) return prev
+      const next = { ...prev }
+      const key = STATUS_TO_KEY[status]
+      ;(next as unknown as Record<string, number>)[key as string] =
+        Math.max(0, (prev[key] as number) - 1)
+      next.total = Math.max(0, prev.total - 1)
+      return next
+    })
+    if (status === 'pending') {
+      setPendingCount((prev) => Math.max(0, prev - 1))
+    }
+  }, [])
 
   // Keep a ref to fetchStats so the interval always calls the latest version
   // Updated in an effect to comply with react-hooks/refs rule.
@@ -62,7 +117,7 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   }, [isAdmin])
 
   return (
-    <AdminStatsContext.Provider value={{ stats, cookieStatus, postMethodStats, apiCredits, apiLoginStatus, pendingCount, fetchStats, refetch }}>
+    <AdminStatsContext.Provider value={{ stats, cookieStatus, postMethodStats, apiCredits, apiLoginStatus, pendingCount, isStale, fetchStats, refetch, adjustStatsForTransition, adjustStatsForDeletion }}>
       {children}
     </AdminStatsContext.Provider>
   )

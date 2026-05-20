@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Submission, SubmissionStatus } from '@/types'
+import type { Submission, SubmissionStatus, PostMethodResult } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -132,8 +132,15 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     setPage(1)
   }, [])
 
-  const approve = useCallback(async (id: string) => {
+  const approve = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
     setActionLoading(id)
+    // Capture only this submission's original state for targeted revert
+    const originalSub = submissions.find((s) => s.id === id)
+
+    // Optimistic: set to 'posting'
+    setSubmissions((prev) =>
+      prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus } : s)
+    )
     try {
       const data = await apiClient.approveSubmission(id)
       if (data.autoPosted) {
@@ -141,64 +148,122 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
         if (data.postMethod === 'retry') desc = data.description || 'Pesan diposting setelah retry.'
         else if (data.postMethod === 'fallback' || data.postMethod === 'fallback_cookie') desc = data.description || 'Pesan diposting via Cookie API (twitterapi.io).'
         else if (data.postMethod === 'fallback_login') desc = data.description || 'Pesan diposting via V2 Login API (twitterapi.io).'
+        // Refine to 'posted'
+        setSubmissions((prev) =>
+          prev.map((s) => s.id === id
+            ? { ...s, status: 'posted' as SubmissionStatus, postMethod: (data.postMethod as PostMethodResult) ?? null }
+            : s)
+        )
         toast({ title: 'Disetujui & diposting!', description: desc })
+        return 'posted'
       } else if (data.warning) {
         toast({ title: 'Disetujui', description: data.warning })
+        return 'posting'
       } else if (data.error) {
+        // Server accepted approval but posting failed — keep 'posting', poll corrects to 'post_failed'
         toast({ title: 'Disetujui, tapi gagal posting', description: data.error, variant: 'destructive' })
+        return 'posting'
       } else {
         toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
+        return 'posting'
       }
-      void fetchSubmissions(true) // silent — don't nuke the list with spinner
     } catch (err: unknown) {
+      // Revert only this card
+      if (originalSub) {
+        setSubmissions((prev) =>
+          prev.map((s) => s.id === id ? { ...originalSub } : s)
+        )
+      }
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyetujui'), variant: 'destructive' })
+      return null
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, toast])
+  }, [submissions, toast])
 
-  const reject = useCallback(async (id: string) => {
+  const reject = useCallback(async (id: string): Promise<boolean> => {
     setActionLoading(id)
+    const originalSub = submissions.find((s) => s.id === id)
+
+    // Optimistic: set to 'rejected'
+    setSubmissions((prev) =>
+      prev.map((s) => s.id === id ? { ...s, status: 'rejected' as SubmissionStatus } : s)
+    )
     try {
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
-      void fetchSubmissions(true) // silent — don't nuke the list with spinner
+      return true
     } catch (err: unknown) {
+      // Revert only this card
+      if (originalSub) {
+        setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
+      }
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menolak'), variant: 'destructive' })
+      return false
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, toast])
+  }, [submissions, toast])
 
-  const deleteSubmission = useCallback(async (id: string) => {
+  const deleteSubmission = useCallback(async (id: string): Promise<boolean> => {
     setActionLoading(id)
+    const originalSub = submissions.find((s) => s.id === id)
+
+    // Optimistic: remove immediately
+    setSubmissions((prev) => prev.filter((s) => s.id !== id))
     try {
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
-      void fetchSubmissions(true) // silent — don't nuke the list with spinner
+      return true
     } catch {
+      // Re-append at end; 15s poll restores correct order
+      if (originalSub) {
+        setSubmissions((prev) => [...prev, originalSub])
+      }
       toast({ title: 'Error', description: 'Gagal menghapus', variant: 'destructive' })
+      return false
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, toast])
+  }, [submissions, toast])
 
-  const retryPost = useCallback(async (id: string) => {
+  const retryPost = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
     setActionLoading(id)
+    const originalSub = submissions.find((s) => s.id === id)
+
+    // Optimistic: set to 'posting'
+    setSubmissions((prev) =>
+      prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus, postError: null } : s)
+    )
     try {
       const data = await apiClient.retryPost(id)
       if (data.error) {
+        // Revert — posting failed
+        if (originalSub) {
+          setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
+        }
         toast({ title: 'Gagal posting', description: data.error, variant: 'destructive' })
-        return
+        return null
       }
+      // Refine to 'posted'
+      setSubmissions((prev) =>
+        prev.map((s) => s.id === id
+          ? { ...s, status: 'posted' as SubmissionStatus, tweetId: data.tweetId ?? null }
+          : s)
+      )
       toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
-      void fetchSubmissions(true) // silent — don't nuke the list with spinner
+      return 'posted'
     } catch (err: unknown) {
+      // Revert only this card
+      if (originalSub) {
+        setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
+      }
       toast({ title: 'Gagal posting', description: getErrorMessage(err, 'Gagal posting ke X'), variant: 'destructive' })
+      return null
     } finally {
       setActionLoading(null)
     }
-  }, [fetchSubmissions, toast])
+  }, [submissions, toast])
 
   const loadMore = useCallback(() => {
     if (hasMore && page < totalPages) {

@@ -24,8 +24,11 @@ export default function AdminDashboardPage() {
     cookieStatus,
     postMethodStats,
     apiLoginStatus,
+    isStale,
     fetchStats,
     refetch: refetchStats,
+    adjustStatsForTransition,
+    adjustStatsForDeletion,
   } = useAdminStats()
 
   // Submissions hook
@@ -46,11 +49,34 @@ export default function AdminDashboardPage() {
     fetchSubmissions,
   } = useSubmissions({ isAdmin })
 
-  // Page-level stats refresh wrappers — call refetchStats after submission actions
-  const approve = useCallback(async (id: string) => { await rawApprove(id); void refetchStats() }, [rawApprove, refetchStats])
-  const reject = useCallback(async (id: string) => { await rawReject(id); void refetchStats() }, [rawReject, refetchStats])
-  const deleteSubmission = useCallback(async (id: string) => { await rawDelete(id); void refetchStats() }, [rawDelete, refetchStats])
-  const retryPost = useCallback(async (id: string) => { await rawRetryPost(id); void refetchStats() }, [rawRetryPost, refetchStats])
+  // Page-level wrappers — optimistically adjust stats on success
+  const approve = useCallback(async (id: string) => {
+    const sub = submissions.find((s) => s.id === id)
+    if (!sub) return
+    const finalStatus = await rawApprove(id)
+    if (finalStatus !== null) adjustStatsForTransition(sub.status, finalStatus)
+  }, [rawApprove, submissions, adjustStatsForTransition])
+
+  const reject = useCallback(async (id: string) => {
+    const sub = submissions.find((s) => s.id === id)
+    if (!sub) return
+    const success = await rawReject(id)
+    if (success) adjustStatsForTransition(sub.status, 'rejected')
+  }, [rawReject, submissions, adjustStatsForTransition])
+
+  const deleteSubmission = useCallback(async (id: string) => {
+    const sub = submissions.find((s) => s.id === id)
+    if (!sub) return
+    const success = await rawDelete(id)
+    if (success) adjustStatsForDeletion(sub.status)
+  }, [rawDelete, submissions, adjustStatsForDeletion])
+
+  const retryPost = useCallback(async (id: string) => {
+    const sub = submissions.find((s) => s.id === id)
+    if (!sub) return
+    const finalStatus = await rawRetryPost(id)
+    if (finalStatus !== null) adjustStatsForTransition(sub.status, finalStatus)
+  }, [rawRetryPost, submissions, adjustStatsForTransition])
 
   // Submitters hook
   const {
@@ -90,8 +116,16 @@ export default function AdminDashboardPage() {
       transition={{ duration: 0.2 }}
       className="space-y-6"
     >
+      {/* Stale data warning */}
+      {isStale && (
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          Koneksi ke server bermasalah — data mungkin tidak terkini
+        </div>
+      )}
+
       {/* Stats Grid */}
-      {stats && (
+      {stats ? (
         <StatsGrid
           stats={stats}
           onPenggunaClick={() => {
@@ -99,6 +133,18 @@ export default function AdminDashboardPage() {
             void fetchSubmitters()
           }}
         />
+      ) : (
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-[#EFF3F4] shadow-sm p-3 animate-pulse">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-5 h-5 rounded-md bg-gray-200" />
+                <div className="h-4 bg-gray-200 rounded w-6" />
+              </div>
+              <div className="h-3 bg-gray-200 rounded w-12" />
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Encryption Warning Banner */}

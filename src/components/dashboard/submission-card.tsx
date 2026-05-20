@@ -132,10 +132,10 @@ export function SubmissionCard({
                 <>
                   <Button
                     onClick={() => { onApprove(sub.id) }}
-                    disabled={!!actionLoading}
+                    disabled={actionLoading === sub.id}
                     className="h-7 px-2 text-xs bg-green-500 hover:bg-green-600 text-white"
                   >
-                    {!!actionLoading ? (
+                    {actionLoading === sub.id ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -145,7 +145,7 @@ export function SubmissionCard({
                   <Button
                     variant="destructive"
                     onClick={() => { onReject(sub.id) }}
-                    disabled={!!actionLoading}
+                    disabled={actionLoading === sub.id}
                     className="h-7 px-2 text-xs"
                   >
                     Tolak
@@ -155,10 +155,10 @@ export function SubmissionCard({
               {sub.status === 'post_failed' && (
                 <Button
                   onClick={() => { onRetryPost(sub.id) }}
-                  disabled={!!actionLoading}
+                  disabled={actionLoading === sub.id}
                   className="h-7 px-2 text-xs bg-[#0F1419] hover:bg-[#272c30] text-white"
                 >
-                  {!!actionLoading ? (
+                  {actionLoading === sub.id ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <XLogo className="w-3 h-3 mr-1" />
@@ -169,11 +169,11 @@ export function SubmissionCard({
               <Button
                 variant="ghost"
                 onClick={() => { if (window.confirm('Hapus pesan ini?')) onDelete(sub.id) }}
-                disabled={!!actionLoading}
+                disabled={actionLoading === sub.id}
                 className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
                 aria-label="Hapus pesan"
               >
-                {!!actionLoading ? (
+                {actionLoading === sub.id ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 ) : (
                   <span className="text-xs">&times;</span>
