@@ -14,16 +14,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ healthy: false, model, encryptionEnabled: isEncryptionEnabled(), error: 'No API key configured' })
   }
 
-  const apiKey = geminiApiKey.trim()
-  if (!apiKey) {
-    return NextResponse.json({ healthy: false, model, encryptionEnabled: isEncryptionEnabled(), error: 'API key is empty' })
-  }
-
   try {
     // Lightweight health check — fetch model info, not generateContent
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${apiKey}`,
-      { signal: AbortSignal.timeout(5000) }
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}`,
+      { headers: { 'x-goog-api-key': geminiApiKey!.trim() }, signal: AbortSignal.timeout(5000) }
     )
     return NextResponse.json({
       healthy: resp.ok,

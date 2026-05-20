@@ -193,7 +193,10 @@ async function ensureLoginCookie(settings: Record<string, string>): Promise<stri
       method: 'fallback_login',
     }
   }
-  return loginResult.loginCookie!
+  if (!loginResult.loginCookie) {
+    return { success: false, error: 'Auto-login succeeded but login_cookie was missing from response', method: 'fallback_login' as const }
+  }
+  return loginResult.loginCookie
 }
 
 /**
@@ -224,7 +227,10 @@ async function retryWithNewLogin(opts: {
     }
   }
 
-  const newCookie = loginResult.loginCookie!
+  const newCookie = loginResult.loginCookie
+  if (!newCookie) {
+    return { success: false, error: 'Re-login succeeded but login_cookie was missing from response', method: 'fallback_login' as const }
+  }
   // Retry with new login_cookie using same API key
   const retryBody: Record<string, string> = {
     login_cookies: newCookie,

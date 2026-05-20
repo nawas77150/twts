@@ -30,6 +30,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error('[auth/me] Error:', error)
-    return NextResponse.json({ authenticated: false })
+    return NextResponse.json({ authenticated: false, error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

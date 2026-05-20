@@ -103,7 +103,9 @@ function checkPhoneNumbers(message: string): string[] {
 
 function checkCapsSpam(message: string): string[] {
   const reasons: string[] = []
-  const alphaChars = message.replace(/[^a-zA-Z]/g, '')
+  // Normalize to convert fullwidth Ａ → A and strip invisible chars
+  const normalized = normalizeForFilter(message)
+  const alphaChars = normalized.replace(/[^a-zA-Z]/g, '')
   if (alphaChars.length > 10) {
     const upperChars = alphaChars.replace(/[^A-Z]/g, '')
     const ratio = upperChars.length / alphaChars.length
@@ -118,8 +120,10 @@ function checkCapsSpam(message: string): string[] {
 
 function checkRepeatedChars(message: string): string[] {
   const reasons: string[] = []
+  // Normalize to strip zero-width chars that break consecutive char detection
+  const normalized = normalizeForFilter(message)
   // 6+ consecutive identical characters
-  if (/(.)\1{5,}/.test(message)) {
+  if (/(.)\1{5,}/.test(normalized)) {
     reasons.push('repeated_characters')
   }
   return reasons

@@ -123,15 +123,23 @@ export function normalizeText(text: string): string {
 // --- Light Normalization (for regex-based checks) ---
 
 /**
- * Strip invisible/zero-width characters and normalize full-width characters
- * to prevent filter bypass via unicode tricks (e.g. zero-width chars between
- * phone number digits, full-width ＠ for mentions).
+ * Strip invisible/zero-width characters, combining marks, and normalize
+ * full-width characters to prevent filter bypass via unicode tricks
+ * (e.g. zero-width chars between phone number digits, full-width ＠ for
+ * mentions, combining grapheme joiner \u034F between characters).
  *
  * Lighter than normalizeText() — preserves case and structure for regex matching.
- * Used by checkUrls, checkMentions, checkPhoneNumbers.
+ * Used by checkUrls, checkMentions, checkPhoneNumbers, checkCapsSpam,
+ * checkRepeatedChars.
  */
 export function normalizeForFilter(text: string): string {
   return text
+    // 1. Strip invisible/format characters (non-combining only)
     .replace(/[\u200B-\u200D\uFEFF\u00AD\u200E-\u200F\u2028-\u202F\uFE00-\uFE0F]/g, '')
+    // 2. Decompose → separate base chars from combining marks
+    .normalize('NFD')
+    // 3. Strip combining marks (Zalgo, diacritics, \u034F CGJ, variation selectors)
+    .replace(/[\u0300-\u036F\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/g, '')
+    // 4. Compose → fullwidth → ASCII, etc.
     .normalize('NFKC')
 }

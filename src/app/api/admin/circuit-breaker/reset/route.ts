@@ -7,7 +7,11 @@ export async function POST(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
 
-  await resetCircuitBreaker()
-
-  return NextResponse.json({ success: true, message: 'Circuit breaker reset' })
+  try {
+    await resetCircuitBreaker()
+    return NextResponse.json({ success: true, message: 'Circuit breaker reset' })
+  } catch (error) {
+    console.error('[circuit-breaker/reset] Error:', error)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }

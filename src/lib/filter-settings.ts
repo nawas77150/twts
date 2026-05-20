@@ -209,5 +209,5 @@ export async function getFilterSettings(): Promise<{
   }
 
   cachedSettings = { data: result, ts: Date.now() }
-  return result
+  return structuredClone(result)
 }
