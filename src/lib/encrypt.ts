@@ -1,5 +1,15 @@
 import crypto from "crypto";
 
+// Server-only guard — this module must never be bundled into the client.
+// If a future import chain accidentally pulls this into a 'use client' component,
+// this will throw immediately instead of silently bundling crypto-browserify.
+if (typeof window !== 'undefined') {
+  throw new Error(
+    'encrypt.ts must only be imported on the server. ' +
+    'A client component is importing it via a transitive dependency — check your import chain.'
+  )
+}
+
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;

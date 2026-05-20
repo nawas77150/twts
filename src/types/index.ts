@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { FilterRules } from '@/lib/content-filter-engine'
+import type { RateLimitSettings } from '@/lib/rate-limit-defaults'
 
 // --- Status ---
 
@@ -77,20 +78,7 @@ export interface CookieAuthStatus {
 
 export type { FilterRules }
 
-export interface RateLimitSettings {
-  submissionCooldown: number
-  submissionDailyCap: number
-  autoPostCooldown: number
-  autoPostWindowCap: number
-  autoPostWindowMinutes: number
-  globalPostDailyCap: number
-  userPostDailyCap: number
-  userPendingCap: number
-  globalSubmissionDailyCap: number
-  circuitBreakerThreshold: number
-  circuitBreakerCooldownMinutes: number
-  circuitBreakerFailureWindowMinutes: number
-}
+export type { RateLimitSettings } from '@/lib/rate-limit-defaults'
 
 export interface FilterSettings {
   autoApprove: boolean
@@ -103,6 +91,8 @@ export interface FilterSettings {
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
   blockedUsernames: string[]
+  defaultBlockedWords?: string[]
+  defaultNsfwWords?: string[]
 }
 
 // --- Stats ---
@@ -248,8 +238,7 @@ export interface AdminLoginResponse {
 
 export { DEFAULT_FILTER_RULES } from '@/lib/content-filter-engine'
 
-// Re-exported from @/lib/filter-settings for backward compatibility
-export { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
+export { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 
 // --- UI Helpers (re-exported from @/lib/format) ---
 

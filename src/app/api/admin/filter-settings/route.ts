@@ -7,7 +7,8 @@ import {
   DEFAULT_FILTER_RULES,
   type FilterRules,
 } from '@/lib/content-filter'
-import { getFilterSettings, DEFAULT_RATE_LIMITS, invalidateFilterSettingsCache } from '@/lib/filter-settings'
+import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
+import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 

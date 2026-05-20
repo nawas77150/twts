@@ -5,6 +5,7 @@ import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
+import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — multiple DB queries + external API calls
@@ -69,7 +70,11 @@ export async function GET(req: NextRequest) {
     apiCredits,
     apiLoginStatus,
     postMethodSetting,
-    filterSettings: safeFilterSettings,
+    filterSettings: {
+      ...safeFilterSettings,
+      defaultBlockedWords: DEFAULT_BLOCKED_WORDS,
+      defaultNsfwWords: DEFAULT_NSFW_WORDS,
+    },
     circuitBreaker,
     encryptionEnabled: isEncryptionEnabled(),
   })

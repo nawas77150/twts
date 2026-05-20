@@ -22,7 +22,7 @@ import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
-import type { RateLimitSettings } from '@/lib/filter-settings'
+import type { RateLimitSettings } from '@/lib/rate-limit-defaults'
 import { NextResponse } from 'next/server'
 
 // ── Input ──────────────────────────────────────────────

@@ -1,5 +1,16 @@
 # Tweetfess Fix Implementation Worklog
 
+<!-- ============================================================
+     GENERAL EDITING RULES
+     ============================================================
+     1. NEVER edit code without explicit permission from the owner.
+     2. No backward-compat shims — when editing a file, remove any
+        backward-compat aliases/re-exports that exist in that file.
+        Update all consumers to import from the canonical source instead.
+     3. Clean up if needed — when editing a file, remove dead code,
+        unused imports, stale comments, and leftover artifacts in that file.
+     ============================================================ -->
+
 ---
 Task ID: 1.3
 Agent: main
@@ -640,3 +651,26 @@ Stage Summary:
 - Build failure fixed: FilterRules now both imported locally AND re-exported from types/index.ts
 - Key lesson: `export type { X } from 'module'` does NOT create a local binding — need separate `import type { X }` if the file itself uses X
 - PostMethod shim removal added to ARCHITECTURE_PLAN.md as FINAL CLEANUP step (after all batches)
+
+---
+Task ID: bundle-leak-cleanup
+Agent: main
+Task: Remove backward-compat shims and fix client bundle leak issues (Phase 1 cleanup + Phase 3)
+
+Work Log:
+- Removed backward-compat re-export from filter-settings.ts (lines 64-66)
+- Fixed execute-post.ts: import RateLimitSettings from rate-limit-defaults, not filter-settings
+- Fixed gemini-filter.ts: import DEFAULT_GEMINI_MODEL from rate-limit-defaults, not filter-settings
+- Removed dead isSaving backward-compat alias from use-filter-settings.ts
+- Phase 3: Removed package.json import from constants.ts
+- Replaced with process.env.NEXT_PUBLIC_APP_VERSION in constants.ts
+- Added readFileSync package.json read in next.config.ts to set NEXT_PUBLIC_APP_VERSION at build time
+- Verification: bun run ci passes (tsc --noEmit + eslint clean)
+
+Stage Summary:
+- 5 files changed, 0 new files, 0 new bugs
+- filter-settings.ts no longer re-exports from rate-limit-defaults (dead shim removed)
+- All imports of extracted constants now point directly to rate-limit-defaults
+- package.json no longer importable from client code (Bug #3 fixed)
+- isSaving dead alias removed from use-filter-settings.ts
+- Bun CI: typecheck + lint pass

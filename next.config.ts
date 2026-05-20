@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { readFileSync } from "fs";
+
+// Read version from package.json at build time so it can be exposed as NEXT_PUBLIC_ env
+// without bundling package.json into the client.
+const appVersion = JSON.parse(readFileSync("./package.json", "utf8")).version as string;
 
 // --- Security Headers ---
 // Applied to all routes. These are defense-in-depth measures that make
@@ -42,6 +47,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: appVersion,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "pbs.twimg.com" },

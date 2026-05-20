@@ -9,7 +9,7 @@
 
 import { debug } from './debug'
 import { getErrorMessage } from './utils'
-import { DEFAULT_GEMINI_MODEL } from './filter-settings'
+import { DEFAULT_GEMINI_MODEL } from './rate-limit-defaults'
 
 const TIMEOUT_MS = 8000 // 8 second timeout — don't block submissions too long
 

@@ -1,9 +1,8 @@
 /** Milliseconds in 24 hours — used for content filter duplicate checks etc. */
 export const MS_24H = 24 * 60 * 60 * 1000
 
-/** App version — read from package.json at build time */
-import { version } from '../../package.json'
-export const APP_VERSION = version
+/** App version — inlined by Next.js at build time via NEXT_PUBLIC_APP_VERSION (see next.config.ts) */
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'
 
 /**
  * Returns the Date for 00:00:00 WIB (Asia/Jakarta, GMT+7) of the current day.

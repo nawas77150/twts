@@ -3,8 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { FilterRules, RateLimitSettings, FilterSettings } from '@/types'
 import { DEFAULT_FILTER_RULES } from '@/types'
-import { DEFAULT_RATE_LIMITS } from '@/lib/filter-settings'
-import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
+import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { apiClient } from '@/lib/api-client'
 import { safeAccess } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -26,6 +25,8 @@ export function useFilterSettings() {
   const [rateLimits, setRateLimits] = useState<RateLimitSettings>({ ...DEFAULT_RATE_LIMITS })
   const [whitelistUsernames, setWhitelistUsernames] = useState<string[]>([])
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([])
+  const [defaultBlockedWords, setDefaultBlockedWords] = useState<string[]>([])
+  const [defaultNsfwWords, setDefaultNsfwWords] = useState<string[]>([])
   const { toast } = useToast()
 
   // Load filter settings from stats response
@@ -40,6 +41,8 @@ export function useFilterSettings() {
     if (settings.rateLimits) setRateLimits(settings.rateLimits)
     if (settings.whitelistUsernames) setWhitelistUsernames(settings.whitelistUsernames)
     if (settings.blockedUsernames) setBlockedUsernames(settings.blockedUsernames)
+    if (settings.defaultBlockedWords) setDefaultBlockedWords(settings.defaultBlockedWords)
+    if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
   }, [])
 
   const toggleAutoApprove = useCallback(() => {
@@ -176,6 +179,8 @@ export function useFilterSettings() {
     setRateLimits({ ...DEFAULT_RATE_LIMITS })
     setWhitelistUsernames([])
     setBlockedUsernames([])
+    setDefaultBlockedWords([])
+    setDefaultNsfwWords([])
   }, [])
 
   return {
@@ -185,7 +190,6 @@ export function useFilterSettings() {
     filterRules,
     isSavingFilter,
     isSavingRateLimits,
-    isSaving: isSavingFilter || isSavingRateLimits,  // backward-compat alias
     geminiEnabled,
     geminiSaving,
     geminiApiKeyInput,
@@ -195,8 +199,8 @@ export function useFilterSettings() {
     rateLimits,
     whitelistUsernames,
     blockedUsernames,
-    DEFAULT_BLOCKED_WORDS,
-    DEFAULT_NSFW_WORDS,
+    defaultBlockedWords,
+    defaultNsfwWords,
     toggleAutoApprove,
     setBlockedWordsText,
     setNsfwWordsText,

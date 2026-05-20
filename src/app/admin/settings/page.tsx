@@ -19,7 +19,6 @@ import { WhitelistCard } from '@/components/settings/whitelist-card'
 import { BlocklistCard } from '@/components/settings/blocklist-card'
 import { LimitHealthCard } from '@/components/settings/limit-health-card'
 import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
-import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 
 function TabPanel({ children }: { children: React.ReactNode }) {
   return (
@@ -202,8 +201,8 @@ export default function AdminSettingsPage() {
               geminiApiKeySet={filterSettings.geminiApiKeySet}
               isSaving={filterSettings.isSavingFilter}
               saveFilterSettings={filterSaveFilterSettings}
-              defaultBlockedWords={DEFAULT_BLOCKED_WORDS}
-              defaultNsfwWords={DEFAULT_NSFW_WORDS}
+              defaultBlockedWords={filterSettings.defaultBlockedWords}
+              defaultNsfwWords={filterSettings.defaultNsfwWords}
             />
 
             <GeminiCard
