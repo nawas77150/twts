@@ -16,7 +16,8 @@ export function useFilterSettings() {
   const [blockedWordsText, setBlockedWordsText] = useState('')
   const [nsfwWordsText, setNsfwWordsText] = useState('')
   const [filterRules, setFilterRules] = useState<FilterRules>({ ...DEFAULT_FILTER_RULES })
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSavingFilter, setIsSavingFilter] = useState(false)
+  const [isSavingRateLimits, setIsSavingRateLimits] = useState(false)
   const [geminiEnabled, setGeminiEnabled] = useState(false)
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
   const [geminiApiKeySet, setGeminiApiKeySet] = useState(false)
@@ -106,7 +107,7 @@ export function useFilterSettings() {
 
   const saveFilterSettings = useCallback(async () => {
     if (!isAdmin) return
-    setIsSaving(true)
+    setIsSavingFilter(true)
     try {
       const words = blockedWordsText
         .split(/[,\n]+/)
@@ -137,14 +138,14 @@ export function useFilterSettings() {
     } catch {
       toast({ title: 'Error', description: 'Failed to save filter settings', variant: 'destructive' })
     } finally {
-      setIsSaving(false)
+      setIsSavingFilter(false)
     }
   }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, toast])
 
   /** Save only rate-limit + circuit-breaker fields (no filter/Gemini side-effects) */
   const saveRateLimits = useCallback(async () => {
     if (!isAdmin) return
-    setIsSaving(true)
+    setIsSavingRateLimits(true)
     try {
       const data = await apiClient.saveFilterSettings({ rateLimits })
       if (!data.error) {
@@ -158,7 +159,7 @@ export function useFilterSettings() {
     } catch {
       toast({ title: 'Error', description: 'Failed to save rate limits', variant: 'destructive' })
     } finally {
-      setIsSaving(false)
+      setIsSavingRateLimits(false)
     }
   }, [isAdmin, rateLimits, toast])
 
@@ -182,7 +183,9 @@ export function useFilterSettings() {
     blockedWordsText,
     nsfwWordsText,
     filterRules,
-    isSaving,
+    isSavingFilter,
+    isSavingRateLimits,
+    isSaving: isSavingFilter || isSavingRateLimits,  // backward-compat alias
     geminiEnabled,
     geminiSaving,
     geminiApiKeyInput,

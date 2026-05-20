@@ -200,7 +200,7 @@ export default function AdminSettingsPage() {
               toggleRule={filterSettings.toggleRule}
               geminiEnabled={filterSettings.geminiEnabled}
               geminiApiKeySet={filterSettings.geminiApiKeySet}
-              isSaving={filterSettings.isSaving}
+              isSaving={filterSettings.isSavingFilter}
               saveFilterSettings={filterSaveFilterSettings}
               defaultBlockedWords={DEFAULT_BLOCKED_WORDS}
               defaultNsfwWords={DEFAULT_NSFW_WORDS}
@@ -246,7 +246,7 @@ export default function AdminSettingsPage() {
             <RateLimitCard
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
-              isSaving={filterSettings.isSaving}
+              isSaving={filterSettings.isSavingRateLimits}
               saveRateLimits={filterSaveRateLimits}
             />
 
@@ -256,7 +256,7 @@ export default function AdminSettingsPage() {
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
               reset={circuitBreaker.reset}
-              isSaving={filterSettings.isSaving}
+              isSaving={filterSettings.isSavingRateLimits}
               saveRateLimits={filterSaveRateLimits}
             />
           </TabPanel>
