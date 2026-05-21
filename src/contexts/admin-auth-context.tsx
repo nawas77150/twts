@@ -27,17 +27,25 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
   const initialCheckDone = useRef(false)
   const resetCallbacks = useRef<Set<() => void>>(new Set())
+  const handled401Ref = useRef(false)
 
   // Register 401 interceptor — auto-logout on session expiry
+  // Dedup: if multiple requests fail with 401 simultaneously, only show one toast
   useEffect(() => {
     const unsub = onUnauthorized(() => {
-      if (isAdmin) {
+      if (isAdmin && !handled401Ref.current) {
+        handled401Ref.current = true
         setIsAdmin(false)
         toast({ title: 'Sesi kadaluarsa', description: 'Sesi admin telah berakhir. Silakan login ulang.', variant: 'destructive' })
       }
     })
     return unsub
   }, [isAdmin, toast])
+
+  // Reset 401 dedup guard when user successfully logs back in
+  useEffect(() => {
+    if (isAdmin) handled401Ref.current = false
+  }, [isAdmin])
 
   useEffect(() => {
     if (initialCheckDone.current) return

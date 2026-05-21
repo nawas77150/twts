@@ -19,18 +19,25 @@ export const maxDuration = 30
 // GET /api/submissions - List submissions (admin only, includes submitter info)
 // Supports pagination via ?page=1&limit=50 (defaults: page=1, limit=50)
 // Supports search via ?search=query (searches message, username, displayName)
+
+const VALID_STATUSES = ['pending', 'censored', 'posting', 'post_failed', 'rejected', 'posted'] as const
+
 export async function GET(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
 
   try {
     const { searchParams } = new URL(req.url)
-    const status = searchParams.get('status')
+    const rawStatus = searchParams.get('status')
+    if (rawStatus && rawStatus !== 'all' && !VALID_STATUSES.includes(rawStatus as any)) {
+      return NextResponse.json({ error: `Status tidak valid: ${rawStatus}. Valid: ${VALID_STATUSES.join(', ')}` }, { status: 400 })
+    }
+    const status = rawStatus && rawStatus !== 'all' ? rawStatus : null
     const search = searchParams.get('search')?.trim() || ''
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50))
 
-    const where: Prisma.SubmissionWhereInput = status && status !== 'all' ? { status } : {}
+    const where: Prisma.SubmissionWhereInput = status ? { status } : {}
 
     // Server-side search: case-insensitive search across message, username, displayName
     if (search) {

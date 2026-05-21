@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FilterRules, RateLimitSettings, FilterSettings, SaveFilterSettingsRequest } from '@/types'
 import { DEFAULT_FILTER_RULES } from '@/types'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
@@ -29,6 +29,10 @@ export function useFilterSettings() {
   const [defaultBlockedWords, setDefaultBlockedWords] = useState<string[]>([])
   const [defaultNsfwWords, setDefaultNsfwWords] = useState<string[]>([])
   const { toast } = useToast()
+
+  // Ref for latest filterRules to avoid stale closure in saveFilterRule
+  const filterRulesRef = useRef(filterRules)
+  useEffect(() => { filterRulesRef.current = filterRules }, [filterRules])
 
   // Load filter settings from stats response
   const loadFromFilterSettings = useCallback((settings: FilterSettings) => {
@@ -83,12 +87,12 @@ export function useFilterSettings() {
     if (!isAdmin) return
     setSavingRuleKey(key)
     await persistFilterSetting(
-      { filterRules: { ...filterRules, [key]: val } },
+      { filterRules: { ...filterRulesRef.current, [key]: val } },
       () => { setFilterRules((prev) => ({ ...prev, [key]: val })); toast({ title: `Filter: ${val ? 'ON' : 'OFF'}` }) },
       'Failed to update filter rule',
     )
     setSavingRuleKey(null)
-  }, [isAdmin, filterRules, persistFilterSetting, toast])
+  }, [isAdmin, persistFilterSetting, toast])
 
   const [geminiSaving, setGeminiSaving] = useState(false)
 
@@ -192,6 +196,16 @@ export function useFilterSettings() {
     setBlockedUsernames([])
     setDefaultBlockedWords([])
     setDefaultNsfwWords([])
+    // Reset loading/visibility flags
+    setIsSavingFilter(false)
+    setIsSavingRateLimits(false)
+    setIsSavingCircuitBreaker(false)
+    setIsSavingAutoApprove(false)
+    setSavingRuleKey(null)
+    setGeminiSaving(false)
+    setGeminiKeySaving(false)
+    setGeminiModelSaving(false)
+    setShowGeminiKey(false)
   }, [])
 
   useEffect(() => {

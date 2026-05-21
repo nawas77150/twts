@@ -123,13 +123,19 @@ export async function GET(req: NextRequest) {
     const sanitizedSubmissions = submissions.map((s) => ({
       ...s,
       filterReasons: s.filterReasons
-        ? JSON.stringify(
-            (JSON.parse(s.filterReasons) as string[]).map((r: string) =>
-              r.startsWith('blocked_word:') ? 'blocked_word'
-              : r.startsWith('nsfw_word:') ? 'nsfw_word'
-              : r,
-            ),
-          )
+        ? (() => {
+            try {
+              return JSON.stringify(
+                (JSON.parse(s.filterReasons) as string[]).map((r: string) =>
+                  r.startsWith('blocked_word:') ? 'blocked_word'
+                  : r.startsWith('nsfw_word:') ? 'nsfw_word'
+                  : r,
+                ),
+              )
+            } catch {
+              return s.filterReasons
+            }
+          })()
         : s.filterReasons,
     }))
 
