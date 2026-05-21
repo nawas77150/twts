@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const rawStatus = searchParams.get('status')
-    if (rawStatus && rawStatus !== 'all' && !VALID_STATUSES.includes(rawStatus as any)) {
+    if (rawStatus && rawStatus !== 'all' && !(VALID_STATUSES as readonly string[]).includes(rawStatus)) {
       return NextResponse.json({ error: `Status tidak valid: ${rawStatus}. Valid: ${VALID_STATUSES.join(', ')}` }, { status: 400 })
     }
     const status = rawStatus && rawStatus !== 'all' ? rawStatus : null
