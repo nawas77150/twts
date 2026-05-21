@@ -11,7 +11,6 @@ export function useSubmitters() {
   const [submitters, setSubmitters] = useState<SubmitterWithStats[]>([])
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [search, setSearch] = useState('')
   const { toast } = useToast()
 
   const fetchSubmitters = useCallback(async () => {

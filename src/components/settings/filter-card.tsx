@@ -18,13 +18,15 @@ import type { FilterRules } from '@/types'
 
 interface FilterCardProps {
   autoApprove: boolean
-  toggleAutoApprove: () => void
+  saveAutoApprove: (val: boolean) => void
+  isSavingAutoApprove: boolean
   blockedWordsText: string
   setBlockedWordsText: (v: string) => void
   nsfwWordsText: string
   setNsfwWordsText: (v: string) => void
   filterRules: FilterRules
-  toggleRule: (key: keyof FilterRules) => void
+  saveFilterRule: (key: keyof FilterRules, val: boolean) => void
+  savingRuleKey: string | null
   geminiEnabled: boolean
   geminiApiKeySet: boolean
   isSaving: boolean
@@ -51,13 +53,15 @@ const ALWAYS_ON_RULES = [
 
 export function FilterCard({
   autoApprove,
-  toggleAutoApprove,
+  saveAutoApprove,
+  isSavingAutoApprove,
   blockedWordsText,
   setBlockedWordsText,
   nsfwWordsText,
   setNsfwWordsText,
   filterRules,
-  toggleRule,
+  saveFilterRule,
+  savingRuleKey,
   geminiEnabled,
   geminiApiKeySet,
   isSaving,
@@ -94,7 +98,8 @@ export function FilterCard({
           <Switch
             id="auto-approve-switch"
             checked={autoApprove}
-            onCheckedChange={toggleAutoApprove}
+            onCheckedChange={(checked) => { void saveAutoApprove(checked) }}
+            disabled={isSavingAutoApprove}
           />
         </div>
         {autoApprove && (
@@ -174,7 +179,8 @@ export function FilterCard({
               </div>
               <Switch
                 checked={filterRules[rule.key]}
-                onCheckedChange={() => { toggleRule(rule.key) }}
+                onCheckedChange={(checked) => { void saveFilterRule(rule.key, checked) }}
+                disabled={savingRuleKey !== null}
                 aria-label={`Toggle ${rule.label}`}
               />
             </div>

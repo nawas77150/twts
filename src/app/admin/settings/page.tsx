@@ -47,6 +47,7 @@ function SettingsTabTrigger({ value, icon: Icon, label }: { value: string; icon:
 
 export default function AdminSettingsPage() {
   const [isLoadingCredits, setIsLoadingCredits] = useState(false)
+  const [savingSource, setSavingSource] = useState<'rateLimits' | 'circuitBreaker' | null>(null)
 
   // Hooks — declared without cross-references to avoid circular deps
   const posting = usePostingSettings()
@@ -90,8 +91,17 @@ export default function AdminSettingsPage() {
   }, [filterSettings, refetchAdminStats])
 
   const filterSaveRateLimits = useCallback(async () => {
+    setSavingSource('rateLimits')
     await filterSettings.saveRateLimits()
     void refetchAdminStats()
+    setSavingSource(null)
+  }, [filterSettings, refetchAdminStats])
+
+  const filterSaveCircuitBreaker = useCallback(async () => {
+    setSavingSource('circuitBreaker')
+    await filterSettings.saveRateLimits()
+    void refetchAdminStats()
+    setSavingSource(null)
   }, [filterSettings, refetchAdminStats])
 
   const filterSaveGeminiKey = useCallback(async (key: string) => {
@@ -192,13 +202,15 @@ export default function AdminSettingsPage() {
           <TabPanel>
             <FilterCard
               autoApprove={filterSettings.autoApprove}
-              toggleAutoApprove={filterSettings.toggleAutoApprove}
+              saveAutoApprove={filterSettings.saveAutoApprove}
+              isSavingAutoApprove={filterSettings.isSavingAutoApprove}
               blockedWordsText={filterSettings.blockedWordsText}
               setBlockedWordsText={filterSettings.setBlockedWordsText}
               nsfwWordsText={filterSettings.nsfwWordsText}
               setNsfwWordsText={filterSettings.setNsfwWordsText}
               filterRules={filterSettings.filterRules}
-              toggleRule={filterSettings.toggleRule}
+              saveFilterRule={filterSettings.saveFilterRule}
+              savingRuleKey={filterSettings.savingRuleKey}
               geminiEnabled={filterSettings.geminiEnabled}
               geminiApiKeySet={filterSettings.geminiApiKeySet}
               isSaving={filterSettings.isSavingFilter}
@@ -217,9 +229,11 @@ export default function AdminSettingsPage() {
               showGeminiKey={filterSettings.showGeminiKey}
               setShowGeminiKey={filterSettings.setShowGeminiKey}
               saveGeminiKey={filterSaveGeminiKey}
+              geminiKeySaving={filterSettings.geminiKeySaving}
               geminiModel={filterSettings.geminiModel}
               setGeminiModel={filterSettings.setGeminiModel}
               saveGeminiModel={filterSettings.saveGeminiModel}
+              geminiModelSaving={filterSettings.geminiModelSaving}
             />
           </TabPanel>
         </TabsContent>
@@ -247,7 +261,7 @@ export default function AdminSettingsPage() {
             <RateLimitCard
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
-              isSaving={filterSettings.isSavingRateLimits}
+              isSaving={savingSource === 'rateLimits'}
               saveRateLimits={filterSaveRateLimits}
             />
 
@@ -257,8 +271,8 @@ export default function AdminSettingsPage() {
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
               reset={circuitBreaker.reset}
-              isSaving={filterSettings.isSavingRateLimits}
-              saveRateLimits={filterSaveRateLimits}
+              isSaving={savingSource === 'circuitBreaker'}
+              saveRateLimits={filterSaveCircuitBreaker}
             />
           </TabPanel>
         </TabsContent>

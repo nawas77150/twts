@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
-import { Users, Ban, RefreshCw, Loader2, User, Settings2, X } from 'lucide-react'
+import { Users, Ban, RefreshCw, Loader2, User, Settings2, X, ShieldOff } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -126,7 +126,7 @@ export function UsersDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5 text-purple-600" /> Pengguna
@@ -184,7 +184,8 @@ export function UsersDialog({
                         className="text-[10px] h-6 px-2 ml-auto text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
                         onClick={() => { void onUnblock(username) }}
                       >
-                        Unblock
+                        <ShieldOff className="w-3 h-3 sm:mr-1" />
+                        <span className="hidden sm:inline">Unblock</span>
                       </Button>
                     </div>
                   ))}
@@ -326,8 +327,8 @@ export function UsersDialog({
                                 }`}
                                 onClick={() => { if (isEditing) { setEditingUsername(null) } else { startEditing(s) } }}
                               >
-                                <Settings2 className="w-3 h-3 mr-0.5" />
-                                {isEditing ? 'Tutup' : 'Limits'}
+                            <Settings2 className="w-3 h-3 mr-0.5" />
+                            <span className="hidden sm:inline">{isEditing ? 'Tutup' : 'Limits'}</span>
                               </Button>
                             )}
                             {!isBlocked ? (
@@ -337,7 +338,8 @@ export function UsersDialog({
                                 className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                                 onClick={() => { void onBlock(s.username) }}
                               >
-                                <Ban className="w-3 h-3 mr-1" /> Block
+                              <Ban className="w-3 h-3 mr-0.5 sm:mr-1" />
+                              <span className="hidden sm:inline">Block</span>
                               </Button>
                             ) : (
                               <Button
@@ -346,7 +348,8 @@ export function UsersDialog({
                                 className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
                                 onClick={() => { void onUnblock(s.username) }}
                               >
-                                Unblock
+                              <ShieldOff className="w-3 h-3 mr-0.5 sm:mr-1" />
+                              <span className="hidden sm:inline">Unblock</span>
                               </Button>
                             )}
                           </div>
@@ -356,7 +359,7 @@ export function UsersDialog({
                         {isEditing && (
                           <div className="px-2 pb-2 pt-1">
                             <Separator className="mb-2" />
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {PER_USER_LIMIT_KEYS.map((key) => (
                                 <div key={key} className="space-y-0.5">
                                   <label htmlFor={`limit-${key}`} className="text-[10px] text-[#536471] font-medium flex items-center gap-1">

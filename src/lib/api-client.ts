@@ -249,6 +249,15 @@ class ApiClient {
   }> {
     return this.request('/api/admin/limit-hits')
   }
+
+  async getGeminiStatus(): Promise<{
+    healthy: boolean
+    model: string
+    encryptionEnabled: boolean
+    error: string | null
+  }> {
+    return this.request('/api/admin/gemini-status')
+  }
 }
 
 export const apiClient = new ApiClient()

@@ -86,9 +86,8 @@ export function ApiFallbackCard({
 
   const handleV2Toggle = useCallback(() => {
     const newValue = !v2LoginEnabled
-    setV2LoginEnabled(newValue) // optimistic update
-    saveSetting('v2_login_enabled', newValue ? 'true' : 'false', undefined, () => {
-      setV2LoginEnabled(!newValue) // revert on failure
+    saveSetting('v2_login_enabled', newValue ? 'true' : 'false', () => {
+      setV2LoginEnabled(newValue)
     })
   }, [v2LoginEnabled, setV2LoginEnabled, saveSetting])
 
@@ -121,11 +120,8 @@ export function ApiFallbackCard({
               size="sm"
               variant={postMethodSetting === opt.value ? 'default' : 'outline'}
               onClick={() => {
-                const previous = postMethodSetting
-                setPostMethodSetting(opt.value) // optimistic update
-                saveSetting('post_method', opt.value, undefined, () => {
-                  // Revert on failure
-                  setPostMethodSetting(previous)
+                saveSetting('post_method', opt.value, () => {
+                  setPostMethodSetting(opt.value)
                 })
               }}
               disabled={isSavingAnySetting}

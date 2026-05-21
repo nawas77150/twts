@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { SettingsCard } from '@/components/shared/settings-card'
 import { SecretInput } from '@/components/shared/secret-input'
+import { apiClient } from '@/lib/api-client'
 
 interface HealthStatus {
   healthy: boolean
@@ -34,9 +35,11 @@ interface GeminiCardProps {
   showGeminiKey: boolean
   setShowGeminiKey: (v: boolean) => void
   saveGeminiKey: (key: string) => void
+  geminiKeySaving: boolean
   geminiModel: string
   setGeminiModel: (v: string) => void
   saveGeminiModel: (model: string) => void
+  geminiModelSaving: boolean
 }
 
 export function GeminiCard({
@@ -49,9 +52,11 @@ export function GeminiCard({
   showGeminiKey,
   setShowGeminiKey,
   saveGeminiKey,
+  geminiKeySaving,
   geminiModel,
   setGeminiModel,
   saveGeminiModel,
+  geminiModelSaving,
 }: GeminiCardProps) {
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [isTesting, setIsTesting] = useState(false)
@@ -60,8 +65,7 @@ export function GeminiCard({
     setIsTesting(true)
     setHealthStatus(null)
     try {
-      const res = await fetch('/api/admin/gemini-status')
-      const data = await res.json()
+      const data = await apiClient.getGeminiStatus()
       setHealthStatus({ healthy: data.healthy, model: data.model, error: data.error })
     } catch {
       setHealthStatus({ healthy: false, model: '', error: 'Network error' })
@@ -101,7 +105,7 @@ export function GeminiCard({
         <Switch
           id="gemini-toggle"
           checked={geminiEnabled}
-          onCheckedChange={() => { setGeminiEnabled(!geminiEnabled) }}
+          onCheckedChange={(checked) => { void setGeminiEnabled(checked) }}
           disabled={geminiSaving}
         />
       </div>
@@ -138,9 +142,10 @@ export function GeminiCard({
             variant="outline"
             size="sm"
             className="text-xs border-[#EFF3F4] h-8"
-            disabled={!geminiApiKeyInput.trim()}
+            disabled={!geminiApiKeyInput.trim() || geminiKeySaving}
             onClick={() => { saveGeminiKey(geminiApiKeyInput.trim()) }}
           >
+            {geminiKeySaving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
             Save Key
           </Button>
         </div>
@@ -169,9 +174,10 @@ export function GeminiCard({
             variant="outline"
             size="sm"
             className="text-xs border-[#EFF3F4] h-8 shrink-0"
-            disabled={!geminiModel.trim()}
+            disabled={!geminiModel.trim() || geminiModelSaving}
             onClick={() => { saveGeminiModel(geminiModel) }}
           >
+            {geminiModelSaving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
             Save
           </Button>
         </div>

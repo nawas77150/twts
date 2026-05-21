@@ -2,10 +2,21 @@
 
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { CheckCircle, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
+import { CheckCircle, AlertCircle, Loader2, ExternalLink, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { XLogo } from '@/components/shared/x-logo'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { FilterReasons } from '@/components/shared/filter-reasons'
@@ -166,19 +177,39 @@ export function SubmissionCard({
                   Retry Post
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                onClick={() => { if (window.confirm('Hapus pesan ini?')) onDelete(sub.id) }}
-                disabled={actionLoading === sub.id}
-                className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
-                aria-label="Hapus pesan"
-              >
-                {actionLoading === sub.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <span className="text-xs">&times;</span>
-                )}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    disabled={actionLoading === sub.id}
+                    className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
+                    aria-label="Hapus pesan"
+                  >
+                    {actionLoading === sub.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Hapus pesan ini?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Pesan akan dihapus permanen dan tidak dapat dikembalikan.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                      onClick={() => { onDelete(sub.id) }}
+                    >
+                      Hapus
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardContent>

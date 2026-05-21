@@ -14,7 +14,6 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('pending')
   const [search, setSearch] = useState('')
@@ -67,7 +66,6 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
 
       setSubmissions(data.submissions)
       setHasMore(data.pagination.hasMore)
-      setTotal(data.pagination.total)
       setTotalPages(data.pagination.totalPages)
       setPage(p)
     } catch {

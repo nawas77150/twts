@@ -5,7 +5,6 @@ import type { FilterRules, RateLimitSettings, FilterSettings } from '@/types'
 import { DEFAULT_FILTER_RULES } from '@/types'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { apiClient } from '@/lib/api-client'
-import { safeAccess } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useAdminAuth } from '@/contexts/admin-auth-context'
 
@@ -45,40 +44,70 @@ export function useFilterSettings() {
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
   }, [])
 
-  const toggleAutoApprove = useCallback(() => {
-    setAutoApprove((prev) => !prev)
-  }, [])
+  const [isSavingAutoApprove, setIsSavingAutoApprove] = useState(false)
+  const [savingRuleKey, setSavingRuleKey] = useState<string | null>(null)
 
-  const toggleRule = useCallback((key: keyof FilterRules) => {
-    setFilterRules((prev) => ({ ...prev, [key]: !safeAccess(prev, key) }))
-  }, [])
+  const saveAutoApprove = useCallback(async (val: boolean) => {
+    if (!isAdmin) return
+    setIsSavingAutoApprove(true)
+    try {
+      const data = await apiClient.saveFilterSettings({ autoApprove: val })
+      if (!data.error) {
+        setAutoApprove(val)
+        toast({ title: `Auto-Approve: ${val ? 'ON' : 'OFF'}` })
+      } else {
+        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update auto-approve', variant: 'destructive' })
+    } finally {
+      setIsSavingAutoApprove(false)
+    }
+  }, [isAdmin, toast])
+
+  const saveFilterRule = useCallback(async (key: keyof FilterRules, val: boolean) => {
+    if (!isAdmin) return
+    setSavingRuleKey(key)
+    try {
+      const data = await apiClient.saveFilterSettings({ filterRules: { ...filterRules, [key]: val } })
+      if (!data.error) {
+        setFilterRules((prev) => ({ ...prev, [key]: val }))
+        toast({ title: `Filter: ${val ? 'ON' : 'OFF'}` })
+      } else {
+        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update filter rule', variant: 'destructive' })
+    } finally {
+      setSavingRuleKey(null)
+    }
+  }, [isAdmin, filterRules, toast])
 
   const [geminiSaving, setGeminiSaving] = useState(false)
 
   const setGeminiEnabledState = useCallback(async (val: boolean) => {
     if (!isAdmin) return
-    // Optimistic update
-    setGeminiEnabled(val)
     setGeminiSaving(true)
     try {
       const data = await apiClient.saveFilterSettings({ geminiEnabled: val })
       if (!data.error) {
+        setGeminiEnabled(val)
         toast({ title: `Gemini AI Filter: ${val ? 'ON' : 'OFF'}` })
       } else {
-        // Revert on failure
-        setGeminiEnabled(!val)
         toast({ title: 'Failed to update Gemini', description: data.error, variant: 'destructive' })
       }
     } catch {
-      setGeminiEnabled(!val)
       toast({ title: 'Error', description: 'Failed to update Gemini setting', variant: 'destructive' })
     } finally {
       setGeminiSaving(false)
     }
   }, [isAdmin, toast])
 
+  const [geminiKeySaving, setGeminiKeySaving] = useState(false)
+
   const saveGeminiKey = useCallback(async (key: string) => {
     if (!isAdmin) return
+    setGeminiKeySaving(true)
     try {
       const data = await apiClient.saveFilterSettings({ geminiApiKey: key.trim() })
       if (!data.error) {
@@ -90,11 +119,16 @@ export function useFilterSettings() {
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to save API key', variant: 'destructive' })
+    } finally {
+      setGeminiKeySaving(false)
     }
   }, [isAdmin, toast])
 
+  const [geminiModelSaving, setGeminiModelSaving] = useState(false)
+
   const saveGeminiModel = useCallback(async (model: string) => {
     if (!isAdmin) return
+    setGeminiModelSaving(true)
     try {
       const data = await apiClient.saveFilterSettings({ geminiModel: model.trim() })
       if (!data.error) {
@@ -105,6 +139,8 @@ export function useFilterSettings() {
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to save model', variant: 'destructive' })
+    } finally {
+      setGeminiModelSaving(false)
     }
   }, [isAdmin, toast])
 
@@ -206,11 +242,13 @@ export function useFilterSettings() {
     blockedUsernames,
     defaultBlockedWords,
     defaultNsfwWords,
-    toggleAutoApprove,
+    saveAutoApprove,
+    isSavingAutoApprove,
     setBlockedWordsText,
     setNsfwWordsText,
     setFilterRules,
-    toggleRule,
+    saveFilterRule,
+    savingRuleKey,
     setGeminiEnabled: setGeminiEnabledState,
     setGeminiApiKeyInput,
     setShowGeminiKey,
@@ -219,7 +257,9 @@ export function useFilterSettings() {
     setWhitelistUsernames,
     setBlockedUsernames,
     saveGeminiKey,
+    geminiKeySaving,
     saveGeminiModel,
+    geminiModelSaving,
     saveFilterSettings,
     saveRateLimits,
     loadFromFilterSettings,
