@@ -5,13 +5,14 @@
 
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/block — Block a user from submitting
 // Uses atomic PostgreSQL jsonb append to prevent race conditions
 // when two admin block requests run concurrently.
-export async function POST(req: NextRequest) {
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const parsed = await parseUsernameRequest(req)
     if (parsed instanceof NextResponse) return parsed
@@ -63,4 +64,4 @@ export async function POST(req: NextRequest) {
     console.error('Block user error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

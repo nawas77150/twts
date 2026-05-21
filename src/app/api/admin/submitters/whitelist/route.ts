@@ -5,12 +5,13 @@
 
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, checkUserInList } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/whitelist — Add a user to the whitelist
 // Uses atomic PostgreSQL jsonb append to prevent race conditions.
-export async function POST(req: NextRequest) {
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const parsed = await parseUsernameRequest(req)
     if (parsed instanceof NextResponse) return parsed
@@ -36,11 +37,11 @@ export async function POST(req: NextRequest) {
     console.error('Whitelist POST error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})
 
 // DELETE /api/admin/submitters/whitelist — Remove a user from the whitelist
 // Uses atomic PostgreSQL jsonb removal to prevent race conditions.
-export async function DELETE(req: NextRequest) {
+export const DELETE = withAdmin(async (req: NextRequest) => {
   try {
     const parsed = await parseUsernameRequest(req)
     if (parsed instanceof NextResponse) return parsed
@@ -59,4 +60,4 @@ export async function DELETE(req: NextRequest) {
     console.error('Whitelist DELETE error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

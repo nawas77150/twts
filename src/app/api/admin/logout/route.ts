@@ -1,11 +1,8 @@
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/logout — Clear the HttpOnly admin cookie
-export async function POST(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const POST = withAdmin(async (req: NextRequest) => {
   const response = NextResponse.json({ success: true })
   response.cookies.set('admin_token', '', {
     httpOnly: true,
@@ -15,4 +12,4 @@ export async function POST(req: NextRequest) {
     maxAge: 0,
   })
   return response
-}
+})

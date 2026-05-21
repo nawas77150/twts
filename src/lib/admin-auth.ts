@@ -149,3 +149,23 @@ export function verifyAdmin(token: string | null):
 
   return { authorized: true }
 }
+
+/**
+ * Route handler wrapper that enforces admin authentication.
+ * Eliminates the duplicated auth boilerplate in every admin route handler.
+ * Supports dynamic route handlers that receive a context argument.
+ *
+ * Usage:
+ *   export const GET = withAdmin(async (req) => { ... })
+ *   export const POST = withAdmin(async (req) => { ... })
+ *   export const DELETE = withAdmin(async (req, ctx) => { ... })
+ */
+export function withAdmin<C = unknown>(
+  handler: (req: NextRequest, ctx: C) => Promise<NextResponse>
+): (req: NextRequest, ctx: C) => Promise<NextResponse> {
+  return async (req, ctx) => {
+    const auth = verifyAdmin(getAdminTokenFromRequest(req))
+    if (!auth.authorized) return auth.response
+    return handler(req, ctx)
+  }
+}

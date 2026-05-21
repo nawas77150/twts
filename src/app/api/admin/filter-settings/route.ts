@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { encrypt } from '@/lib/encrypt'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import {
   DEFAULT_BLOCKED_WORDS,
   DEFAULT_NSFW_WORDS,
@@ -58,10 +58,7 @@ async function upsertRateLimits(
 }
 
 // GET /api/admin/filter-settings — Return filter settings
-export async function GET(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const GET = withAdmin(async (req: NextRequest) => {
   const settings = await getFilterSettings()
   const circuitBreaker = await getCircuitBreakerStatus(settings.rateLimits)
 
@@ -84,13 +81,10 @@ export async function GET(req: NextRequest) {
       rateLimits: DEFAULT_RATE_LIMITS,
     },
   })
-}
+})
 
 // POST /api/admin/filter-settings — Save filter settings
-export async function POST(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const body = await req.json()
     const { autoApprove, blockedWords, nsfwWords, filterRules, geminiEnabled, geminiApiKey, geminiModel, rateLimits } = body as {
@@ -228,4 +222,4 @@ export async function POST(req: NextRequest) {
     console.error('[filter-settings] Save error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

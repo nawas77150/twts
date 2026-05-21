@@ -4,13 +4,14 @@
 // requires plaintext values. Do NOT apply encrypt() to these settings.
 
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbRemove, checkUserInList } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/unblock — Unblock a user
 // Uses atomic PostgreSQL jsonb removal to prevent race conditions
 // when concurrent block/unblock requests run at the same time.
-export async function POST(req: NextRequest) {
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const parsed = await parseUsernameRequest(req)
     if (parsed instanceof NextResponse) return parsed
@@ -33,4 +34,4 @@ export async function POST(req: NextRequest) {
     console.error('Unblock user error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

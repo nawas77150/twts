@@ -1,12 +1,9 @@
 import { db } from '@/lib/db'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/admin/submitters — List all submitters with their submission counts (cursor-based pagination)
-export async function GET(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const GET = withAdmin(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
     const cursor = searchParams.get('cursor') || undefined
@@ -79,4 +76,4 @@ export async function GET(req: NextRequest) {
     console.error('Submitters GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

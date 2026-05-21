@@ -1,19 +1,18 @@
 // Shared helpers for whitelist/block/unblock route handlers.
-// Extracts duplicated auth+validate+normalize patterns and SQL operations.
+// Extracts duplicated parse+validate+normalize patterns and SQL operations.
+// Auth is handled by the withAdmin wrapper in each route — not here.
 
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
-// --- Helper 1: Auth + parse + validate + normalize ---
+// --- Helper 1: Parse + validate + normalize username from request body ---
 // Must be async because req.json() returns Promise<unknown>.
 // Callers MUST invoke this inside a try block so that malformed JSON
 // bodies are caught by the handler's catch clause.
+// NOTE: Auth is handled by withAdmin() wrapper in the route — this function
+// only parses and validates the request body.
 export async function parseUsernameRequest(req: NextRequest): Promise<{ normalizedUsername: string } | NextResponse> {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
   const { username } = await req.json()
   if (!username || typeof username !== 'string' || !username.trim()) {
     return NextResponse.json({ error: 'Username wajib diisi' }, { status: 400 })

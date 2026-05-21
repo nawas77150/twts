@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
 import { getApiCreditsNonBlocking, getCachedApiCredits, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
@@ -12,10 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export const maxDuration = 30
 
 // GET /api/admin/stats - Get dashboard stats + post method ratio + API credits + login status
-export async function GET(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const GET = withAdmin(async (req: NextRequest) => {
   // If refresh=true, invalidate caches before fetching
   // On Vercel serverless, each API route is a separate function instance —
   // mutation routes invalidate their own cache but not the stats route's cache.
@@ -93,7 +90,7 @@ export async function GET(req: NextRequest) {
     console.error('Stats GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})
 
 /**
  * Calculate post method statistics from posted submissions.

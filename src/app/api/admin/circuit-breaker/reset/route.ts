@@ -1,12 +1,9 @@
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { resetCircuitBreaker } from '@/lib/circuit-breaker'
 import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/circuit-breaker/reset — Manually reset the circuit breaker
-export async function POST(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
     await resetCircuitBreaker()
     return NextResponse.json({ success: true, message: 'Circuit breaker reset' })
@@ -14,4 +11,4 @@ export async function POST(req: NextRequest) {
     console.error('[circuit-breaker/reset] Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

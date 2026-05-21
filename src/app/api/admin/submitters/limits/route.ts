@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { db } from '@/lib/db'
 import { PER_USER_LIMIT_KEYS } from '@/types'
 import { Prisma } from '@prisma/client'
@@ -8,10 +8,7 @@ import { Prisma } from '@prisma/client'
 // Only accepts `username` as identifier (matches existing admin patterns).
 // customLimits values: number = set override, null = remove that key.
 // customLimits: null = clear ALL overrides.
-export async function PATCH(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const PATCH = withAdmin(async (req: NextRequest) => {
   try {
     const body = await req.json()
     const { username, customLimits } = body
@@ -120,4 +117,4 @@ export async function PATCH(req: NextRequest) {
     console.error('Submitters limits PATCH error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

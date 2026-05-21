@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { parseXCookies } from '@/lib/twitter-post-cookie'
 import { encrypt, decryptSetting, isEncryptionEnabled } from '@/lib/encrypt'
 import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -33,10 +33,7 @@ const LOGIN_TRIGGER_KEYS = [
 const SENSITIVE_KEYS = ['x_password', 'x_totp_secret', 'twitterapi_login_cookie']
 
 // GET /api/admin/settings — Return all settings (values masked)
-export async function GET(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const GET = withAdmin(async (req: NextRequest) => {
   try {
     const settings = await db.setting.findMany()
 
@@ -86,13 +83,10 @@ export async function GET(req: NextRequest) {
     console.error('Settings GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})
 
 // POST /api/admin/settings — Upsert a setting (encrypt + auto-login)
-export async function POST(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const POST = withAdmin(async (req: NextRequest) => {
   try {
   const body = await req.json()
   const { key, value } = body
@@ -264,13 +258,10 @@ export async function POST(req: NextRequest) {
     console.error('Settings POST error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})
 
 // DELETE /api/admin/settings — Delete a setting
-export async function DELETE(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const DELETE = withAdmin(async (req: NextRequest) => {
   try {
   const { searchParams } = new URL(req.url)
   const key = searchParams.get('key')
@@ -304,4 +295,4 @@ export async function DELETE(req: NextRequest) {
     console.error('Settings DELETE error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

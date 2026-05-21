@@ -1,13 +1,10 @@
 import { isEncryptionEnabled } from '@/lib/encrypt'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getErrorMessage } from '@/lib/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET(req: NextRequest) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const GET = withAdmin(async (req: NextRequest) => {
   const { geminiApiKey, geminiModel: model } = await getFilterSettings()
 
   if (!geminiApiKey) {
@@ -34,4 +31,4 @@ export async function GET(req: NextRequest) {
       error: getErrorMessage(err),
     })
   }
-}
+})
