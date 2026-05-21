@@ -118,8 +118,7 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
     setStats((prev) => {
       if (!prev) return prev
       const next = setStatValue(prev, key, Math.max(0, getStatValue(prev, key) - 1))
-      next.total = Math.max(0, prev.total - 1)
-      return next
+      return { ...next, total: Math.max(0, prev.total - 1) }
     })
     if (status === 'pending') {
       setPendingCount((prev) => Math.max(0, prev - 1))
