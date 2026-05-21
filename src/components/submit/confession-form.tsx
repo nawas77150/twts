@@ -75,43 +75,49 @@ export function ConfessionForm({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Textarea
-            id="message"
-            name="message"
-            placeholder="Tulis pesan anonimmu di sini..."
-            value={message}
-            onChange={(e) => { setMessage(e.target.value) }}
-            className="min-h-[120px] resize-none border-[#EFF3F4]"
-            maxLength={280}
-          />
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-[#71767B]">Maks 280 karakter (batas tweet X)</span>
-            <span className={`text-xs font-medium ${message.length > 280 ? 'text-red-500' : message.length > 220 ? 'text-amber-500' : 'text-[#71767B]'}`}>
-              {message.length}/280
-            </span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Input
-            id="category"
-            name="category"
-            placeholder="Kategori (opsional, contoh: curhat, confes, dll)"
-            value={category}
-            onChange={(e) => { setCategory(e.target.value) }}
-            className="border-[#EFF3F4]"
-            maxLength={30}
-          />
-        </div>
-        <Button
-          onClick={handleSubmit}
-          disabled={isSubmitting || !message.trim()}
-          className="w-full bg-[#0F1419] hover:bg-[#272c30] disabled:opacity-50"
-          size="lg"
+        <form
+          onSubmit={(e) => { e.preventDefault(); void handleSubmit() }}
+          className="space-y-4"
+          aria-label="Kirim pesan anonim"
         >
-          {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-          {isSubmitting ? 'Mengirim...' : 'Kirim Pesan'}
-        </Button>
+          <div className="space-y-2">
+            <Textarea
+              id="message"
+              name="message"
+              placeholder="Tulis pesan anonimmu di sini..."
+              value={message}
+              onChange={(e) => { setMessage(e.target.value) }}
+              className="min-h-[120px] resize-none border-[#EFF3F4]"
+              maxLength={280}
+            />
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-[#71767B]">Maks 280 karakter (batas tweet X)</span>
+              <span className={`text-xs font-medium ${message.length > 280 ? 'text-red-500' : message.length > 220 ? 'text-amber-500' : 'text-[#71767B]'}`}>
+                {message.length}/280
+              </span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Input
+              id="category"
+              name="category"
+              placeholder="Kategori (opsional, contoh: curhat, confes, dll)"
+              value={category}
+              onChange={(e) => { setCategory(e.target.value) }}
+              className="border-[#EFF3F4]"
+              maxLength={30}
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={isSubmitting || !message.trim()}
+            className="w-full bg-[#0F1419] hover:bg-[#272c30] disabled:opacity-50"
+            size="lg"
+          >
+            {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+            {isSubmitting ? 'Mengirim...' : 'Kirim Pesan'}
+          </Button>
+        </form>
 
         {/* Limits display */}
         {limits && (

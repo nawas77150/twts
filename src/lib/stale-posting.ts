@@ -82,3 +82,31 @@ export async function checkStalePosting(
 
   return { isStale: true, timeInPostingMs, recovered: result.count > 0 }
 }
+
+/**
+ * Bulk-recover all stale "posting" submissions in one query.
+ * Called by the autopost cron on every tick to ensure stuck submissions
+ * are recovered even when no admin is actively managing them.
+ *
+ * Uses the same atomic conditions as checkStalePosting() to prevent
+ * overwriting legitimate status changes by concurrent processes.
+ *
+ * @returns Number of submissions recovered
+ */
+export async function recoverStalePostings(): Promise<number> {
+  const staleCutoff = new Date(Date.now() - POSTING_STALE_MS)
+  const result = await db.submission.updateMany({
+    where: {
+      status: 'posting',
+      updatedAt: { lte: staleCutoff },
+    },
+    data: {
+      status: 'post_failed',
+      postError: '[Auto-recovered] Posting status stuck. Possible server crash. Check X account before retrying — tweet may have been posted.',
+    },
+  })
+  if (result.count > 0) {
+    debug('stale-posting', 'Bulk recovered', result.count, 'stale posting submissions')
+  }
+  return result.count
+}

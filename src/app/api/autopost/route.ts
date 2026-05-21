@@ -6,6 +6,7 @@ import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
+import { recoverStalePostings } from '@/lib/stale-posting'
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -77,6 +78,12 @@ export async function GET(req: NextRequest) {
         remainingMinutes: cbStatus.remainingMinutes,
       }, { headers: { 'Cache-Control': 'no-store' } })
     }
+
+    // ── Recover stale "posting" submissions ──────────────
+    // Submissions stuck in "posting" status (Vercel timeout killed the
+    // function before cleanup) are invisible to the pending/post_failed
+    // query below. Recover them so they become eligible again.
+    void recoverStalePostings().catch(() => {})
 
     // ── Find up to 5 candidate submissions (FIFO) ──────────
     // If the first candidate is per-user-capped, we skip and try
