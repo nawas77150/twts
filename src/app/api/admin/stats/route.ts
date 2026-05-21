@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
-import { getApiCreditsNonBlocking, getApiLoginStatus } from '@/lib/twitter-api-fallback'
+import { getApiCreditsNonBlocking, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
@@ -15,6 +15,11 @@ export const maxDuration = 30
 export async function GET(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
+
+  // If refresh=true, invalidate the credits cache before fetching
+  if (req.nextUrl.searchParams.get('refresh') === 'true') {
+    invalidateCreditsCache()
+  }
 
   try {
   // 1. Single GROUP BY for all submission counts (was 6 separate count() queries)

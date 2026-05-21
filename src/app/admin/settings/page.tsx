@@ -112,7 +112,7 @@ export default function AdminSettingsPage() {
   const handleRefreshCredits = useCallback(async () => {
     setIsLoadingCredits(true)
     try {
-      await refetchAdminStats()
+      await refetchAdminStats({ refresh: true })
     } finally {
       setIsLoadingCredits(false)
     }

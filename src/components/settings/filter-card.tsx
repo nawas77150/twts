@@ -98,7 +98,7 @@ export function FilterCard({
           <Switch
             id="auto-approve-switch"
             checked={autoApprove}
-            onCheckedChange={(checked) => { void saveAutoApprove(checked) }}
+            onCheckedChange={(checked) => { saveAutoApprove(checked) }}
             disabled={isSavingAutoApprove}
           />
         </div>
@@ -179,7 +179,7 @@ export function FilterCard({
               </div>
               <Switch
                 checked={filterRules[rule.key]}
-                onCheckedChange={(checked) => { void saveFilterRule(rule.key, checked) }}
+                onCheckedChange={(checked) => { saveFilterRule(rule.key, checked) }}
                 disabled={savingRuleKey !== null}
                 aria-label={`Toggle ${rule.label}`}
               />

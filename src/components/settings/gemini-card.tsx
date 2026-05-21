@@ -105,7 +105,7 @@ export function GeminiCard({
         <Switch
           id="gemini-toggle"
           checked={geminiEnabled}
-          onCheckedChange={(checked) => { void setGeminiEnabled(checked) }}
+          onCheckedChange={(checked) => { setGeminiEnabled(checked) }}
           disabled={geminiSaving}
         />
       </div>

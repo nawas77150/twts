@@ -156,8 +156,9 @@ class ApiClient {
     return this.request('/api/admin/session')
   }
 
-  async getStats(): Promise<Stats> {
-    return this.request<Stats>('/api/admin/stats')
+  async getStats(options?: { refresh?: boolean }): Promise<Stats> {
+    const query = options?.refresh ? '?refresh=true' : ''
+    return this.request<Stats>(`/api/admin/stats${query}`)
   }
 
   async saveSetting(key: string, value: string): Promise<{

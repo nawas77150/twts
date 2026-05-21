@@ -9,6 +9,8 @@ interface AdminAuthState {
   isChecking: boolean
   login: (password: string) => Promise<boolean>
   logout: () => Promise<void>
+  registerResetCallback: (cb: () => void) => void
+  unregisterResetCallback: (cb: () => void) => void
   loginPassword: string
   setLoginPassword: (v: string) => void
   loginOpen: boolean
@@ -24,6 +26,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [loginOpen, setLoginOpen] = useState(false)
   const { toast } = useToast()
   const initialCheckDone = useRef(false)
+  const resetCallbacks = useRef<Set<() => void>>(new Set())
 
   useEffect(() => {
     if (initialCheckDone.current) return
@@ -52,14 +55,24 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [toast])
 
+  const registerResetCallback = useCallback((cb: () => void) => {
+    resetCallbacks.current.add(cb)
+  }, [])
+
+  const unregisterResetCallback = useCallback((cb: () => void) => {
+    resetCallbacks.current.delete(cb)
+  }, [])
+
   const logout = useCallback(async () => {
     try { await apiClient.adminLogout() } catch { /* best effort */ }
     setIsAdmin(false)
+    // Reset all settings hooks imperatively at logout (M-2)
+    for (const cb of resetCallbacks.current) cb()
     toast({ title: 'Logout berhasil' })
   }, [toast])
 
   return (
-    <AdminAuthContext.Provider value={{ isAdmin, isChecking, login, logout, loginPassword, setLoginPassword, loginOpen, setLoginOpen }}>
+    <AdminAuthContext.Provider value={{ isAdmin, isChecking, login, logout, registerResetCallback, unregisterResetCallback, loginPassword, setLoginPassword, loginOpen, setLoginOpen }}>
       {children}
     </AdminAuthContext.Provider>
   )

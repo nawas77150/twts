@@ -94,10 +94,14 @@ export function getApiCreditsNonBlocking(): KeyCredits[] | null {
   }
   // Cache is stale or empty — fire background fetch for next request
   void getAllKeyCredits().then((fresh) => {
-    creditsCache = fresh
-    creditsCacheTime = Date.now()
+    // Only cache if all entries are error-free (getKeyCredits never throws,
+    // it resolves with an error field — so .catch is dead code)
+    if (fresh.length > 0 && fresh.every((k) => !k.error)) {
+      creditsCache = fresh
+      creditsCacheTime = Date.now()
+    }
   }).catch(() => {
-    // External API failed — keep whatever cache we have (or null)
+    // External API threw (shouldn't happen — getKeyCredits catches internally)
   })
   return creditsCache // Return stale cache or null — don't block
 }
@@ -113,8 +117,11 @@ export async function getCachedApiCredits(): Promise<KeyCredits[]> {
     return creditsCache
   }
   const fresh = await getAllKeyCredits()
-  creditsCache = fresh
-  creditsCacheTime = now
+  // Only cache if all entries are error-free
+  if (fresh.length > 0 && fresh.every((k) => !k.error)) {
+    creditsCache = fresh
+    creditsCacheTime = now
+  }
   return fresh
 }
 

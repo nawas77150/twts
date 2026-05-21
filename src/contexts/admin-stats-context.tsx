@@ -13,8 +13,8 @@ interface AdminStatsState {
   apiLoginStatus: ApiLoginStatus | null
   pendingCount: number
   isStale: boolean
-  fetchStats: () => Promise<void>
-  refetch: () => Promise<void>
+  fetchStats: (options?: { refresh?: boolean }) => Promise<void>
+  refetch: (options?: { refresh?: boolean }) => Promise<void>
   adjustStatsForTransition: (from: SubmissionStatus, to: SubmissionStatus) => void
   adjustStatsForDeletion: (status: SubmissionStatus) => void
 }
@@ -73,9 +73,9 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   const [pendingCount, setPendingCount] = useState(0)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (options?: { refresh?: boolean }) => {
     try {
-      const data = await apiClient.getStats()
+      const data = await apiClient.getStats(options)
       setStats(data)
       setPendingCount(data.pending)
       if (data.cookieAuthStatus !== undefined) setCookieStatus(data.cookieAuthStatus)
@@ -88,7 +88,7 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const refetch = useCallback(async () => { await fetchStats() }, [fetchStats])
+  const refetch = useCallback(async (options?: { refresh?: boolean }) => { await fetchStats(options) }, [fetchStats])
 
   const isStale = consecutiveFailures >= 3
 

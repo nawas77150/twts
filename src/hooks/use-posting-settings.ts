@@ -25,7 +25,7 @@ const SETTING_LABELS = new Map<string, string>([
 ])
 
 export function usePostingSettings() {
-  const { isAdmin } = useAdminAuth()
+  const { isAdmin, registerResetCallback, unregisterResetCallback } = useAdminAuth()
   // Direct posting (Cookie method)
   const [cookieString, setCookieString] = useState('')
   const [queryId, setQueryId] = useState('')
@@ -164,7 +164,7 @@ export function usePostingSettings() {
     }
   }, [toast])
 
-  // Reset state (used when admin logs out)
+  // Reset state on logout — registered imperatively via auth context (M-2)
   const resetState = useCallback(() => {
     setCookieString('')
     setQueryId('')
@@ -179,10 +179,10 @@ export function usePostingSettings() {
     setV2LoginEnabled(false)
   }, [])
 
-  // Reset state when admin logs out
   useEffect(() => {
-    if (!isAdmin) resetState()
-  }, [isAdmin, resetState])
+    registerResetCallback(resetState)
+    return () => unregisterResetCallback(resetState)
+  }, [registerResetCallback, unregisterResetCallback, resetState])
 
   return {
     // Direct posting
@@ -231,6 +231,5 @@ export function usePostingSettings() {
     saveSetting,
     saveAllCredentials,
     clearCache,
-    resetState,
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import type { FilterRules, RateLimitSettings, FilterSettings } from '@/types'
+import type { FilterRules, RateLimitSettings, FilterSettings, SaveFilterSettingsRequest } from '@/types'
 import { DEFAULT_FILTER_RULES } from '@/types'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { apiClient } from '@/lib/api-client'
@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useAdminAuth } from '@/contexts/admin-auth-context'
 
 export function useFilterSettings() {
-  const { isAdmin } = useAdminAuth()
+  const { isAdmin, registerResetCallback, unregisterResetCallback } = useAdminAuth()
   const [autoApprove, setAutoApprove] = useState(false)
   const [blockedWordsText, setBlockedWordsText] = useState('')
   const [nsfwWordsText, setNsfwWordsText] = useState('')
@@ -44,165 +44,122 @@ export function useFilterSettings() {
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
   }, [])
 
+  /** Shared helper: call saveFilterSettings API, toast on error, run onSuccess on success */
+  const persistFilterSetting = useCallback(async (
+    payload: SaveFilterSettingsRequest,
+    onSuccess: () => void,
+    errorMsg: string,
+  ): Promise<void> => {
+    try {
+      const data = await apiClient.saveFilterSettings(payload)
+      if (!data.error) {
+        onSuccess()
+      } else {
+        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: errorMsg, variant: 'destructive' })
+    }
+  }, [toast])
+
   const [isSavingAutoApprove, setIsSavingAutoApprove] = useState(false)
   const [savingRuleKey, setSavingRuleKey] = useState<string | null>(null)
 
   const saveAutoApprove = useCallback(async (val: boolean) => {
     if (!isAdmin) return
     setIsSavingAutoApprove(true)
-    try {
-      const data = await apiClient.saveFilterSettings({ autoApprove: val })
-      if (!data.error) {
-        setAutoApprove(val)
-        toast({ title: `Auto-Approve: ${val ? 'ON' : 'OFF'}` })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update auto-approve', variant: 'destructive' })
-    } finally {
-      setIsSavingAutoApprove(false)
-    }
-  }, [isAdmin, toast])
+    await persistFilterSetting(
+      { autoApprove: val },
+      () => { setAutoApprove(val); toast({ title: `Auto-Approve: ${val ? 'ON' : 'OFF'}` }) },
+      'Failed to update auto-approve',
+    )
+    setIsSavingAutoApprove(false)
+  }, [isAdmin, persistFilterSetting, toast])
 
   const saveFilterRule = useCallback(async (key: keyof FilterRules, val: boolean) => {
     if (!isAdmin) return
     setSavingRuleKey(key)
-    try {
-      const data = await apiClient.saveFilterSettings({ filterRules: { ...filterRules, [key]: val } })
-      if (!data.error) {
-        setFilterRules((prev) => ({ ...prev, [key]: val }))
-        toast({ title: `Filter: ${val ? 'ON' : 'OFF'}` })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update filter rule', variant: 'destructive' })
-    } finally {
-      setSavingRuleKey(null)
-    }
-  }, [isAdmin, filterRules, toast])
+    await persistFilterSetting(
+      { filterRules: { ...filterRules, [key]: val } },
+      () => { setFilterRules((prev) => ({ ...prev, [key]: val })); toast({ title: `Filter: ${val ? 'ON' : 'OFF'}` }) },
+      'Failed to update filter rule',
+    )
+    setSavingRuleKey(null)
+  }, [isAdmin, filterRules, persistFilterSetting, toast])
 
   const [geminiSaving, setGeminiSaving] = useState(false)
 
   const setGeminiEnabledState = useCallback(async (val: boolean) => {
     if (!isAdmin) return
     setGeminiSaving(true)
-    try {
-      const data = await apiClient.saveFilterSettings({ geminiEnabled: val })
-      if (!data.error) {
-        setGeminiEnabled(val)
-        toast({ title: `Gemini AI Filter: ${val ? 'ON' : 'OFF'}` })
-      } else {
-        toast({ title: 'Failed to update Gemini', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to update Gemini setting', variant: 'destructive' })
-    } finally {
-      setGeminiSaving(false)
-    }
-  }, [isAdmin, toast])
+    await persistFilterSetting(
+      { geminiEnabled: val },
+      () => { setGeminiEnabled(val); toast({ title: `Gemini AI Filter: ${val ? 'ON' : 'OFF'}` }) },
+      'Failed to update Gemini setting',
+    )
+    setGeminiSaving(false)
+  }, [isAdmin, persistFilterSetting, toast])
 
   const [geminiKeySaving, setGeminiKeySaving] = useState(false)
 
   const saveGeminiKey = useCallback(async (key: string) => {
     if (!isAdmin) return
     setGeminiKeySaving(true)
-    try {
-      const data = await apiClient.saveFilterSettings({ geminiApiKey: key.trim() })
-      if (!data.error) {
-        setGeminiApiKeyInput('')
-        setGeminiApiKeySet(true)
-        toast({ title: 'Gemini API key saved!' })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save API key', variant: 'destructive' })
-    } finally {
-      setGeminiKeySaving(false)
-    }
-  }, [isAdmin, toast])
+    await persistFilterSetting(
+      { geminiApiKey: key.trim() },
+      () => { setGeminiApiKeyInput(''); setGeminiApiKeySet(true); toast({ title: 'Gemini API key saved!' }) },
+      'Failed to save API key',
+    )
+    setGeminiKeySaving(false)
+  }, [isAdmin, persistFilterSetting, toast])
 
   const [geminiModelSaving, setGeminiModelSaving] = useState(false)
 
   const saveGeminiModel = useCallback(async (model: string) => {
     if (!isAdmin) return
     setGeminiModelSaving(true)
-    try {
-      const data = await apiClient.saveFilterSettings({ geminiModel: model.trim() })
-      if (!data.error) {
-        setGeminiModel(model.trim())
-        toast({ title: 'Gemini model saved!', description: `Using ${model.trim()}` })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save model', variant: 'destructive' })
-    } finally {
-      setGeminiModelSaving(false)
-    }
-  }, [isAdmin, toast])
+    await persistFilterSetting(
+      { geminiModel: model.trim() },
+      () => { setGeminiModel(model.trim()); toast({ title: 'Gemini model saved!', description: `Using ${model.trim()}` }) },
+      'Failed to save model',
+    )
+    setGeminiModelSaving(false)
+  }, [isAdmin, persistFilterSetting, toast])
 
   const saveFilterSettings = useCallback(async () => {
     if (!isAdmin) return
     setIsSavingFilter(true)
-    try {
-      const words = blockedWordsText
-        .split(/[,\n]+/)
-        .map((w) => w.trim().toLowerCase())
-        .filter((w) => w.length > 0)
+    const words = blockedWordsText
+      .split(/[,\n]+/)
+      .map((w) => w.trim().toLowerCase())
+      .filter((w) => w.length > 0)
 
-      const nsfwWords = nsfwWordsText
-        .split(/[,\n]+/)
-        .map((w) => w.trim().toLowerCase())
-        .filter((w) => w.length > 0)
+    const nsfwWords = nsfwWordsText
+      .split(/[,\n]+/)
+      .map((w) => w.trim().toLowerCase())
+      .filter((w) => w.length > 0)
 
-      const data = await apiClient.saveFilterSettings({
-        autoApprove,
-        blockedWords: words,
-        nsfwWords: nsfwWords,
-        filterRules,
-        geminiEnabled,
-        // rateLimits is NOT sent here — use saveRateLimits() for that
-      })
-      if (!data.error) {
-        toast({
-          title: 'Filter settings saved!',
-          description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}`,
-        })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save filter settings', variant: 'destructive' })
-    } finally {
-      setIsSavingFilter(false)
-    }
-  }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, toast])
+    await persistFilterSetting(
+      { autoApprove, blockedWords: words, nsfwWords, filterRules, geminiEnabled },
+      () => { toast({ title: 'Filter settings saved!', description: `Auto-approve: ${autoApprove ? 'ON' : 'OFF'}, ${words.length} blocked words, Gemini: ${geminiEnabled ? 'ON' : 'OFF'}` }) },
+      'Failed to save filter settings',
+    )
+    setIsSavingFilter(false)
+  }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, persistFilterSetting, toast])
 
   /** Save only rate-limit + circuit-breaker fields (no filter/Gemini side-effects) */
   const saveRateLimits = useCallback(async () => {
     if (!isAdmin) return
     setIsSavingRateLimits(true)
-    try {
-      const data = await apiClient.saveFilterSettings({ rateLimits })
-      if (!data.error) {
-        toast({
-          title: 'Rate limits saved!',
-          description: `Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}`,
-        })
-      } else {
-        toast({ title: 'Failed', description: data.error, variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save rate limits', variant: 'destructive' })
-    } finally {
-      setIsSavingRateLimits(false)
-    }
-  }, [isAdmin, rateLimits, toast])
+    await persistFilterSetting(
+      { rateLimits },
+      () => { toast({ title: 'Rate limits saved!', description: `Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}` }) },
+      'Failed to save rate limits',
+    )
+    setIsSavingRateLimits(false)
+  }, [isAdmin, rateLimits, persistFilterSetting, toast])
 
-  // Reset state (used when admin logs out)
+  // Reset state on logout — registered imperatively via auth context (M-2)
   const resetState = useCallback(() => {
     setAutoApprove(false)
     setBlockedWordsText('')
@@ -219,10 +176,10 @@ export function useFilterSettings() {
     setDefaultNsfwWords([])
   }, [])
 
-  // Reset state when admin logs out
   useEffect(() => {
-    if (!isAdmin) resetState()
-  }, [isAdmin, resetState])
+    registerResetCallback(resetState)
+    return () => unregisterResetCallback(resetState)
+  }, [registerResetCallback, unregisterResetCallback, resetState])
 
   return {
     autoApprove,
@@ -263,6 +220,5 @@ export function useFilterSettings() {
     saveFilterSettings,
     saveRateLimits,
     loadFromFilterSettings,
-    resetState,
   }
 }
