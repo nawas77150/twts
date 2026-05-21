@@ -5,7 +5,7 @@ import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { checkStalePosting } from '@/lib/stale-posting'
 import { findSubmissionOr404, fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getMethodDescription, getPostErrorHint } from './_lib'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
 export const maxDuration = 30

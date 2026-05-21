@@ -219,9 +219,18 @@ export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?:
     `
   }
 
-  // Update last_failure_at BEFORE incrementing, so concurrent failures
-  // can see the fresh timestamp and won't also reset
-  await setSettingValue(CB_KEYS.lastFailureAt, String(now))
+  // Upsert last_failure_at BEFORE incrementing, so concurrent failures
+  // can see the fresh timestamp and won't also reset.
+  // Conditional write: on conflict (row exists), only update if the stored
+  // value is older than now — preventing a concurrent failure from
+  // overwriting a newer timestamp. On first failure (no row), inserts.
+  await db.$executeRaw`
+    INSERT INTO "Setting" (id, key, value, "updatedAt")
+    VALUES (${CB_KEYS.lastFailureAt}, ${CB_KEYS.lastFailureAt}, ${String(now)}, NOW())
+    ON CONFLICT (key) DO UPDATE
+    SET "value" = ${String(now)}, "updatedAt" = NOW()
+    WHERE COALESCE(("Setting"."value")::BIGINT, 0) < ${now}
+  `
 
   // Atomically increment the fail count — no read-modify-write race
   await db.$executeRaw`

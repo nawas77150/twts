@@ -3,7 +3,7 @@ import { withAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning } from '../_lib'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
 export const maxDuration = 30

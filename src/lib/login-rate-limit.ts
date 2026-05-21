@@ -120,9 +120,16 @@ export function recordFailedAttempt(ip: string): void {
   const now = Date.now()
 
   if (existing && (now - existing.firstAttemptAt) < WINDOW_MS) {
+    // Within the 15-min window — increment
     existing.count++
+  } else if (existing && existing.count >= MAX_ATTEMPTS && (now - existing.firstAttemptAt) < LOCKOUT_MS) {
+    // Window expired but still in lockout period — don't reset to 1,
+    // carry forward the count and restart the window so future checks
+    // measure elapsed from this point.
+    existing.count++
+    existing.firstAttemptAt = now
   } else {
-    // New window
+    // No record, or lockout expired — fresh window
     store.set(ip, { count: 1, firstAttemptAt: now })
   }
 }
