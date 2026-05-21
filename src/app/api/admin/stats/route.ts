@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
-import { getApiCreditsNonBlocking, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
+import { getApiCreditsNonBlocking, getCachedApiCredits, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
@@ -52,11 +52,13 @@ export async function GET(req: NextRequest) {
   // Strip geminiApiKey before sending to client (server-side only field)
   const { geminiApiKey: _geminiApiKey, ...safeFilterSettings } = filterSettingsData
 
-  // 3. API credits — non-blocking: returns cached data or null, kicks off background fetch.
-  // On cold start, external calls to twitterapi.io take 2-5s and would block the entire
-  // stats response. Instead, return null on first load; the 15s auto-refresh will pick up
-  // the cached data once the background fetch completes.
-  const apiCredits = getApiCreditsNonBlocking()
+  // 3. API credits — try non-blocking first (instant if cached).
+  // On cold start / after cache invalidation, fall through to blocking fetch
+  // so credits always appear (no more "refresh a few times" issue).
+  let apiCredits = getApiCreditsNonBlocking()
+  if (apiCredits === null) {
+    apiCredits = await getCachedApiCredits()
+  }
 
   // Get circuit breaker status separately (needs filterSettings.rateLimits)
   const circuitBreaker = await getCircuitBreakerStatus(filterSettingsData.rateLimits)

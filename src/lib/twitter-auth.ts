@@ -295,53 +295,40 @@ export function verifySessionToken(token: string): SessionData | null {
   }
 }
 
-// Get submitter from NextRequest cookies (recommended for API routes)
-export async function getSubmitterFromNextRequest(request: NextRequest): Promise<{
+type SubmitterLookup = {
   id: string
   username: string
   displayName: string | null
   profileImage: string | null
   twitterId: string | null
   customLimits: unknown
-} | null> {
-  const tokenCookie = request.cookies.get(SESSION_COOKIE_NAME)
-  const token = tokenCookie?.value
-  if (!token) return null
+}
 
+// Shared logic: verify token → find submitter. Both cookie helpers delegate here.
+async function getSubmitterByToken(token: string): Promise<SubmitterLookup | null> {
   const session = verifySessionToken(token)
   if (!session) return null
 
-  const submitter = await db.submitter.findUnique({
+  return db.submitter.findUnique({
     where: { id: session.submitterId },
     select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true, customLimits: true },
   })
+}
 
-  return submitter
+// Get submitter from NextRequest cookies (recommended for API routes)
+export async function getSubmitterFromNextRequest(request: NextRequest): Promise<SubmitterLookup | null> {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  if (!token) return null
+  return getSubmitterByToken(token)
 }
 
 // Get submitter from cookies() — for use in React Server Components
 // (RSC pages receive no NextRequest; use next/headers cookies() instead)
-export async function getSubmitterFromCookies(): Promise<{
-  id: string
-  username: string
-  displayName: string | null
-  profileImage: string | null
-  twitterId: string | null
-  customLimits: unknown
-} | null> {
+export async function getSubmitterFromCookies(): Promise<SubmitterLookup | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-
-  const session = verifySessionToken(token)
-  if (!session) return null
-
-  const submitter = await db.submitter.findUnique({
-    where: { id: session.submitterId },
-    select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true, customLimits: true },
-  })
-
-  return submitter
+  return getSubmitterByToken(token)
 }
 
 

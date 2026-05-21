@@ -77,6 +77,8 @@ export function ConfessionForm({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Textarea
+            id="message"
+            name="message"
             placeholder="Tulis pesan anonimmu di sini..."
             value={message}
             onChange={(e) => { setMessage(e.target.value) }}
@@ -92,6 +94,8 @@ export function ConfessionForm({
         </div>
         <div className="space-y-2">
           <Input
+            id="category"
+            name="category"
             placeholder="Kategori (opsional, contoh: curhat, confes, dll)"
             value={category}
             onChange={(e) => { setCategory(e.target.value) }}

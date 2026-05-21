@@ -101,6 +101,8 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
       {/* Add user input */}
       <div className="flex gap-2">
         <Input
+          id={`${config.title.toLowerCase()}-add`}
+          name="username"
           value={addInput}
           onChange={(e) => { setAddInput(e.target.value) }}
           onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
