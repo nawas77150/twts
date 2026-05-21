@@ -18,21 +18,22 @@ export function useMyPosts({ submitter, isAnonUser, initialLimits }: UseMyPostsP
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const fetchMyPosts = useCallback(async () => {
+  const fetchMyPosts = useCallback(async (silent = false) => {
     if (!submitter) return
     setIsLoading(true)
     setError(null)
     try {
       const data = await apiClient.getMyPosts()
       setMyPosts(data.submissions)
-      // Also capture limits data if present (now properly typed)
       if (data.limits) {
         setLimits(data.limits)
       }
     } catch {
       const msg = 'Gagal memuat pesan. Coba lagi.'
       setError(msg)
-      toast({ title: 'Error', description: msg, variant: 'destructive' })
+      if (!silent) {
+        toast({ title: 'Error', description: msg, variant: 'destructive' })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -57,7 +58,7 @@ export function useMyPosts({ submitter, isAnonUser, initialLimits }: UseMyPostsP
     if (!submitter || isAnonUser || !hasNonTerminalPosts) return
     const interval = setInterval(() => {
       if (!document.hidden) {
-        void fetchMyPosts()
+        void fetchMyPosts(true)
       }
     }, 30000)
     return () => { clearInterval(interval) }

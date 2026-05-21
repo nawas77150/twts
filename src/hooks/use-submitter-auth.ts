@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import type { SubmitterInfo } from '@/types'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, onUnauthorized } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 
 export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null) {
@@ -94,6 +94,18 @@ export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null) {
       window.history.replaceState({}, '', '/')
     }
   }, [toast])
+
+  // Register 401 interceptor — clear stale session on user-side expiry
+  useEffect(() => {
+    const unsub = onUnauthorized(() => {
+      if (submitter) {
+        setSubmitter(null)
+        setAuthError('Sesi telah kadaluarsa. Silakan login ulang.')
+        toast({ title: 'Sesi kadaluarsa', description: 'Sesi kamu telah berakhir. Silakan login ulang.', variant: 'destructive' })
+      }
+    })
+    return unsub
+  }, [submitter, toast])
 
   const logout = useCallback(async () => {
     setSubmitter(null)

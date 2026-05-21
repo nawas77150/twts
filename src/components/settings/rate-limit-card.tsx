@@ -11,6 +11,7 @@ interface RateLimitCardProps {
   rateLimits: RateLimitSettings
   setRateLimits: React.Dispatch<React.SetStateAction<RateLimitSettings>>
   isSaving: boolean
+  isLoaded: boolean
   saveRateLimits: () => void
 }
 
@@ -90,6 +91,7 @@ export function RateLimitCard({
   rateLimits,
   setRateLimits,
   isSaving,
+  isLoaded,
   saveRateLimits,
 }: RateLimitCardProps) {
   const badges = (
@@ -152,11 +154,11 @@ export function RateLimitCard({
       </div>
       <Button
         onClick={saveRateLimits}
-        disabled={isSaving}
+        disabled={isSaving || !isLoaded}
         className="w-full bg-[#0F1419] hover:bg-[#272c30]"
       >
         {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-        Simpan Rate Limits
+        {!isLoaded ? 'Loading...' : 'Simpan Rate Limits'}
       </Button>
     </SettingsCard>
   )

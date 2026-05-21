@@ -27,6 +27,22 @@ export class ApiError extends Error {
   }
 }
 
+// ── 401 Interceptor ─────────────────────────────────────
+// Allows auth contexts (user + admin) to register a handler
+// that fires when any API call returns 401 Unauthorized.
+// This enables automatic session-expiry handling without
+// coupling the API client to specific auth implementations.
+
+type UnauthorizedHandler = () => void
+
+const unauthorizedHandlers: Set<UnauthorizedHandler> = new Set()
+
+/** Register a callback to fire on 401 responses. Returns an unsubscribe function. */
+export function onUnauthorized(handler: UnauthorizedHandler): () => void {
+  unauthorizedHandlers.add(handler)
+  return () => { unauthorizedHandlers.delete(handler) }
+}
+
 const API_PREFIX_WHITELIST: readonly string[] = [
   '/api/auth/', '/api/submissions', '/api/admin/',
 ]
@@ -57,13 +73,21 @@ class ApiClient {
     })
 
     if (!res.ok) {
+      // 401 Unauthorized — fire interceptor(s) before throwing
+      if (res.status === 401) {
+        for (const handler of unauthorizedHandlers) handler()
+      }
+
       let message = `Request failed (${res.status})`
       let data: Record<string, unknown> | undefined
       try {
         data = await res.json()
         const errVal = typeof data?.error === 'string' ? data.error : undefined
         const msgVal = typeof data?.message === 'string' ? data.message : undefined
-        message = errVal ?? msgVal ?? message
+        // Prefer the detailed `message` over the short `error` title.
+        // The server sends both: error="Tunggu sebentar", message="Tunggu 5 menit sebelum mengirim pesan lagi."
+        // The detailed timing info is essential for user understanding.
+        message = msgVal ?? errVal ?? message
       } catch {
         // ignore parse error
       }

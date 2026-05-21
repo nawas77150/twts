@@ -10,6 +10,7 @@ import { useAdminAuth } from '@/contexts/admin-auth-context'
 
 export function useFilterSettings() {
   const { isAdmin, registerResetCallback, unregisterResetCallback } = useAdminAuth()
+  const [isLoaded, setIsLoaded] = useState(false)
   const [autoApprove, setAutoApprove] = useState(false)
   const [blockedWordsText, setBlockedWordsText] = useState('')
   const [nsfwWordsText, setNsfwWordsText] = useState('')
@@ -43,6 +44,7 @@ export function useFilterSettings() {
     if (settings.blockedUsernames) setBlockedUsernames(settings.blockedUsernames)
     if (settings.defaultBlockedWords) setDefaultBlockedWords(settings.defaultBlockedWords)
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
+    setIsLoaded(true)
   }, [])
 
   /** Shared helper: call saveFilterSettings API, toast on error, run onSuccess on success */
@@ -176,6 +178,7 @@ export function useFilterSettings() {
 
   // Reset state on logout — registered imperatively via auth context (M-2)
   const resetState = useCallback(() => {
+    setIsLoaded(false)
     setAutoApprove(false)
     setBlockedWordsText('')
     setNsfwWordsText('')
@@ -197,6 +200,7 @@ export function useFilterSettings() {
   }, [registerResetCallback, unregisterResetCallback, resetState])
 
   return {
+    isLoaded,
     autoApprove,
     blockedWordsText,
     nsfwWordsText,

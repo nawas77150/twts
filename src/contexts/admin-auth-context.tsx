@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import { apiClient, ApiError } from '@/lib/api-client'
+import { apiClient, ApiError, onUnauthorized } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 
 interface AdminAuthState {
@@ -27,6 +27,17 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
   const initialCheckDone = useRef(false)
   const resetCallbacks = useRef<Set<() => void>>(new Set())
+
+  // Register 401 interceptor — auto-logout on session expiry
+  useEffect(() => {
+    const unsub = onUnauthorized(() => {
+      if (isAdmin) {
+        setIsAdmin(false)
+        toast({ title: 'Sesi kadaluarsa', description: 'Sesi admin telah berakhir. Silakan login ulang.', variant: 'destructive' })
+      }
+    })
+    return unsub
+  }, [isAdmin, toast])
 
   useEffect(() => {
     if (initialCheckDone.current) return

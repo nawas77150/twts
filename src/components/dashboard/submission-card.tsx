@@ -153,14 +153,34 @@ export function SubmissionCard({
                     )}
                     Setujui
                   </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => { onReject(sub.id) }}
-                    disabled={actionLoading === sub.id}
-                    className="h-7 px-2 text-xs"
-                  >
-                    Tolak
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        disabled={actionLoading === sub.id}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Tolak
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Tolak pesan ini?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Pesan yang ditolak tidak dapat dibatalkan.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-red-500 hover:bg-red-600 text-white"
+                          onClick={() => { onReject(sub.id) }}
+                        >
+                          Tolak
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </>
               )}
               {sub.status === 'post_failed' && (

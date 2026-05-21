@@ -30,6 +30,7 @@ interface FilterCardProps {
   geminiEnabled: boolean
   geminiApiKeySet: boolean
   isSaving: boolean
+  isLoaded: boolean
   saveFilterSettings: () => void
   defaultBlockedWords: string[]
   defaultNsfwWords: string[]
@@ -65,6 +66,7 @@ export function FilterCard({
   geminiEnabled,
   geminiApiKeySet,
   isSaving,
+  isLoaded,
   saveFilterSettings,
   defaultBlockedWords,
   defaultNsfwWords,
@@ -180,11 +182,11 @@ export function FilterCard({
       {/* Save Filter Settings */}
       <Button
         onClick={saveFilterSettings}
-        disabled={isSaving}
+        disabled={isSaving || !isLoaded}
         className="w-full bg-[#0F1419] hover:bg-[#272c30]"
       >
         {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-        Save Filter Settings
+        {!isLoaded ? 'Loading...' : 'Save Filter Settings'}
       </Button>
     </SettingsCard>
   )

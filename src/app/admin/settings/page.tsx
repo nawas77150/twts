@@ -202,6 +202,7 @@ export default function AdminSettingsPage() {
               geminiEnabled={filterSettings.geminiEnabled}
               geminiApiKeySet={filterSettings.geminiApiKeySet}
               isSaving={filterSettings.isSavingFilter}
+              isLoaded={filterSettings.isLoaded}
               saveFilterSettings={filterSaveFilterSettings}
               defaultBlockedWords={filterSettings.defaultBlockedWords}
               defaultNsfwWords={filterSettings.defaultNsfwWords}
@@ -250,6 +251,7 @@ export default function AdminSettingsPage() {
               rateLimits={filterSettings.rateLimits}
               setRateLimits={filterSettings.setRateLimits}
               isSaving={savingSource === 'rateLimits'}
+              isLoaded={filterSettings.isLoaded}
               saveRateLimits={filterSaveRateLimits}
             />
 
@@ -260,6 +262,7 @@ export default function AdminSettingsPage() {
               setRateLimits={filterSettings.setRateLimits}
               reset={circuitBreaker.reset}
               isSaving={savingSource === 'circuitBreaker'}
+              isLoaded={filterSettings.isLoaded}
               onSave={filterSaveCircuitBreaker}
             />
           </TabPanel>
