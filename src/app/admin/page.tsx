@@ -15,6 +15,11 @@ import { UsersDialog } from '@/components/dashboard/users-dialog'
 import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
 import { Card, CardContent } from '@/components/ui/card'
 
+const STAT_SKELETON_KEYS = [
+  'skel-pending', 'skel-censored', 'skel-posting', 'skel-failed',
+  'skel-rejected', 'skel-posted', 'skel-total', 'skel-users',
+] as const
+
 export default function AdminDashboardPage() {
   const { isAdmin } = useAdminAuth()
   const [usersDialogOpen, setUsersDialogOpen] = useState(false)
@@ -135,8 +140,8 @@ export default function AdminDashboardPage() {
         />
       ) : (
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={`stat-skeleton-${i}`} className="rounded-xl border border-[#EFF3F4] shadow-sm p-3 animate-pulse">
+          {STAT_SKELETON_KEYS.map((key) => (
+            <div key={key} className="rounded-xl border border-[#EFF3F4] shadow-sm p-3 animate-pulse">
               <div className="flex items-center gap-1.5 mb-1">
                 <div className="w-5 h-5 rounded-md bg-gray-200" />
                 <div className="h-4 bg-gray-200 rounded w-6" />

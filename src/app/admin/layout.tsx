@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Shield, LogIn } from 'lucide-react'
+import { Shield, LogIn, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -91,6 +91,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                         disabled={isLoggingIn}
                         className="w-full bg-[#0F1419] hover:bg-[#272c30]"
                       >
+                        {isLoggingIn && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                         {isLoggingIn ? 'Memproses...' : 'Masuk'}
                       </Button>
                     </div>

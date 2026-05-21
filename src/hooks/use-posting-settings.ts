@@ -67,6 +67,13 @@ export function usePostingSettings() {
     if (!isAdmin) return
     setSavingKeys(prev => new Set(prev).add(key))
     try {
+      // Empty value → delete the setting instead (API rejects empty values)
+      if (!value.trim()) {
+        await apiClient.deleteSetting(key)
+        toast({ title: `${SETTING_LABELS.get(key) || key} dihapus!` })
+        onSuccess?.()
+        return
+      }
       const data = await apiClient.saveSetting(key, value)
       // Cookie string gets parsed confirmation toast
       if (key === 'x_cookie_string' && data.parsed) {

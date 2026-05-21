@@ -14,11 +14,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
   title: "Tweetfess - X Menfess Indonesia",
   description: "Kirim pesan anonim, admin moderasi, otomatis diposting ke X. Menfess gratis untuk komunitas Indonesia.",
   keywords: ["tweetfess", "menfess", "x", "twitter", "confess", "indonesia", "anonim"],
   icons: {
     icon: "/favicon.svg",
+  },
+  openGraph: {
+    title: "Tweetfess - X Menfess Indonesia",
+    description: "Kirim pesan anonim, admin moderasi, otomatis diposting ke X. Menfess gratis untuk komunitas Indonesia.",
+    type: "website",
+    locale: "id_ID",
+    siteName: "Tweetfess",
+  },
+  twitter: {
+    card: "summary",
+    title: "Tweetfess - X Menfess Indonesia",
+    description: "Kirim pesan anonim, admin moderasi, otomatis diposting ke X. Menfess gratis untuk komunitas Indonesia.",
   },
 };
 
