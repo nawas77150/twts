@@ -91,7 +91,7 @@ export function HomeClient({ initialSubmitter, initialLimits }: HomeClientProps)
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-[#0F1419] mb-2">Kirim Pesan Anonim</h2>
-          <p className="text-[#536471]">Tulis pesanmu, admin akan memeriksa dan mempostingnya ke X.</p>
+          <p className="text-[#536471]">Tulis pesanmu, dan akan diposting otomatis ke X.</p>
         </div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <AuthGate

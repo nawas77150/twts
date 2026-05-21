@@ -43,18 +43,13 @@ export function AuthGate({
 
   if (authError) {
     return (
-      <Card className="max-w-lg mx-auto shadow-lg border-amber-200">
-        <CardContent className="py-10 text-center space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto">
-            <AlertTriangle className="w-7 h-7 text-amber-500" />
-          </div>
-          <h3 className="text-lg font-semibold text-[#0F1419]">Koneksi Bermasalah</h3>
-          <p className="text-sm text-[#536471]">{authError}</p>
-          <Button onClick={onRetry} variant="outline" className="border-[#EFF3F4]">
-            <RotateCcw className="w-4 h-4 mr-2" /> Coba Lagi
-          </Button>
-        </CardContent>
-      </Card>
+      <AlertCard icon={<AlertTriangle className="w-7 h-7 text-amber-500" />}>
+        <h3 className="text-lg font-semibold text-[#0F1419]">Koneksi Bermasalah</h3>
+        <p className="text-sm text-[#536471]">{authError}</p>
+        <Button onClick={onRetry} variant="outline" className="border-[#EFF3F4]">
+          <RotateCcw className="w-4 h-4 mr-2" /> Coba Lagi
+        </Button>
+      </AlertCard>
     )
   }
 
@@ -84,26 +79,21 @@ export function AuthGate({
 
   if (isAnonUser) {
     return (
-      <Card className="max-w-lg mx-auto shadow-lg border-amber-200">
-        <CardContent className="py-10 text-center space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto">
-            <AlertTriangle className="w-7 h-7 text-amber-500" />
-          </div>
-          <h3 className="text-lg font-semibold text-[#0F1419]">Profil X Gagal Dimuat</h3>
-          <p className="text-sm text-[#536471]">
-            Login berhasil tapi profil X kamu tidak bisa dimuat. <br />
-            <span className="text-[#71767B] text-xs">Coba login ulang untuk mengirim pesan.</span>
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Button onClick={onLogout} variant="outline" className="border-[#EFF3F4]">
-              <LogOut className="w-4 h-4 mr-2" /> Logout & Coba Lagi
-            </Button>
-            <Button onClick={onLogin} className="bg-[#0F1419] hover:bg-[#272c30] text-white">
-              <RotateCcw className="w-4 h-4 mr-2" /> Re-Login X
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AlertCard icon={<AlertTriangle className="w-7 h-7 text-amber-500" />}>
+        <h3 className="text-lg font-semibold text-[#0F1419]">Profil X Gagal Dimuat</h3>
+        <p className="text-sm text-[#536471]">
+          Login berhasil tapi profil X kamu tidak bisa dimuat. <br />
+          <span className="text-[#71767B] text-xs">Coba login ulang untuk mengirim pesan.</span>
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Button onClick={onLogout} variant="outline" className="border-[#EFF3F4]">
+            <LogOut className="w-4 h-4 mr-2" /> Logout & Coba Lagi
+          </Button>
+          <Button onClick={onLogin} className="bg-[#0F1419] hover:bg-[#272c30] text-white">
+            <RotateCcw className="w-4 h-4 mr-2" /> Re-Login X
+          </Button>
+        </div>
+      </AlertCard>
     )
   }
 
@@ -133,4 +123,18 @@ export function AuthGate({
   }
 
   return <>{children}</>
+}
+
+/** Amber warning card shared by authError and isAnonUser states. */
+function AlertCard({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Card className="max-w-lg mx-auto shadow-lg border-amber-200">
+      <CardContent className="py-10 text-center space-y-5">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto">
+          {icon}
+        </div>
+        {children}
+      </CardContent>
+    </Card>
+  )
 }

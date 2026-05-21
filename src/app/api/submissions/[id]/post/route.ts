@@ -1,5 +1,5 @@
 import { withErrorBoundary } from '@/lib/execute-post'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning } from '../_lib'
@@ -10,13 +10,7 @@ export const maxDuration = 30
 
 // POST /api/submissions/[id]/post - Post submission to X (manual retry)
 // Uses the full retry + fallback flow from postTweetViaCookie
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const POST = withAdmin<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   return withErrorBoundary(async () => {
     const { id } = await params
 
@@ -49,4 +43,4 @@ export async function POST(
       )
     }
   })
-}
+})

@@ -57,6 +57,29 @@ async function upsertRateLimits(
   })
 }
 
+/**
+ * Validate, deduplicate, encrypt, and upsert a word list setting.
+ * Shared by blocked_words and nsfw_words save paths.
+ */
+async function saveEncryptedWordList(
+  settingKey: string,
+  words: unknown[],
+  results: { key: string; updated: boolean }[],
+): Promise<void> {
+  const validWords = words.filter(
+    (w: unknown) => typeof w === 'string' && w.trim().length > 0
+  )
+  const uniqueWords = [...new Set(validWords.map((w) => (w as string).toLowerCase().trim()))]
+  const encryptedValue = encrypt(JSON.stringify(uniqueWords))
+
+  await db.setting.upsert({
+    where: { key: settingKey },
+    update: { value: encryptedValue },
+    create: { key: settingKey, value: encryptedValue },
+  })
+  results.push({ key: settingKey, updated: true })
+}
+
 // GET /api/admin/filter-settings — Return filter settings
 export const GET = withAdmin(async (req: NextRequest) => {
   const settings = await getFilterSettings()
@@ -112,38 +135,12 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     // Save blocked_words (encrypted JSON array)
     if (Array.isArray(blockedWords)) {
-      // Validate each word is a non-empty string
-      const validWords = blockedWords.filter(
-        (w: unknown) => typeof w === 'string' && w.trim().length > 0
-      )
-      // Deduplicate
-      const uniqueWords = [...new Set(validWords.map((w: string) => w.toLowerCase().trim()))]
-
-      const encryptedValue = encrypt(JSON.stringify(uniqueWords))
-
-      await db.setting.upsert({
-        where: { key: 'blocked_words' },
-        update: { value: encryptedValue },
-        create: { key: 'blocked_words', value: encryptedValue },
-      })
-      results.push({ key: 'blocked_words', updated: true })
+      await saveEncryptedWordList('blocked_words', blockedWords, results)
     }
 
     // Save nsfw_words (encrypted JSON array)
     if (Array.isArray(nsfwWords)) {
-      const validWords = nsfwWords.filter(
-        (w: unknown) => typeof w === 'string' && w.trim().length > 0
-      )
-      const uniqueWords = [...new Set(validWords.map((w: string) => w.toLowerCase().trim()))]
-
-      const encryptedValue = encrypt(JSON.stringify(uniqueWords))
-
-      await db.setting.upsert({
-        where: { key: 'nsfw_words' },
-        update: { value: encryptedValue },
-        create: { key: 'nsfw_words', value: encryptedValue },
-      })
-      results.push({ key: 'nsfw_words', updated: true })
+      await saveEncryptedWordList('nsfw_words', nsfwWords, results)
     }
 
     // Save filter_rules (encrypted JSON object)

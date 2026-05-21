@@ -25,6 +25,28 @@ import { debug } from '@/lib/debug'
 import type { RateLimitSettings } from '@/lib/rate-limit-defaults'
 import { NextResponse } from 'next/server'
 
+// ── Shared DB queries ──────────────────────────────────
+// Used by both execute-post.ts (under-lock checks) and
+// submissions/route.ts (pre-lock fast-path checks).
+
+/** Count posted submissions today (WIB). */
+export async function countGlobalPostsToday(): Promise<number> {
+  const startOfToday = getStartOfTodayWIB()
+  return db.submission.count({
+    where: { status: 'posted', createdAt: { gte: startOfToday } },
+  })
+}
+
+/** Get the updatedAt timestamp of the most recently posted submission. */
+export async function getLastPostedTime(): Promise<Date | null> {
+  const last = await db.submission.findFirst({
+    where: { status: 'posted' },
+    orderBy: { updatedAt: 'desc' },
+    select: { updatedAt: true },
+  })
+  return last?.updatedAt ?? null
+}
+
 // ── Input ──────────────────────────────────────────────
 
 export interface ExecutePostInput {
@@ -133,10 +155,7 @@ export async function executePostAndRecord(
 
     // ── 3. Built-in globalPostDailyCap check ───────────
     if (rateLimits.globalPostDailyCap > 0) {
-      const startOfToday = getStartOfTodayWIB()
-      const globalPostCount = await db.submission.count({
-        where: { status: 'posted', createdAt: { gte: startOfToday } },
-      })
+      const globalPostCount = await countGlobalPostsToday()
       if (globalPostCount >= rateLimits.globalPostDailyCap) {
         debug('execute-post', 'Global post daily cap reached:', globalPostCount)
         return await releaseAndReturn({
@@ -298,13 +317,9 @@ export function createCooldownWindowChecks(
     // Re-check auto-post cooldown (authoritative under lock)
     // autoPostCooldown is in SECONDS → multiply by 1000 for ms
     if (rateLimits.autoPostCooldown > 0) {
-      const lastPosted = await db.submission.findFirst({
-        where: { status: 'posted' },
-        orderBy: { updatedAt: 'desc' },
-        select: { updatedAt: true },
-      })
-      if (lastPosted) {
-        const elapsedMs = Date.now() - lastPosted.updatedAt.getTime()
+      const lastPostedAt = await getLastPostedTime()
+      if (lastPostedAt) {
+        const elapsedMs = Date.now() - lastPostedAt.getTime()
         const cooldownMs = rateLimits.autoPostCooldown * 1000
         if (elapsedMs < cooldownMs) {
           debug(logPrefix, 'Auto-post cooldown active (confirmed under lock), queuing instead')

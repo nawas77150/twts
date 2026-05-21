@@ -13,6 +13,8 @@ export function Footer() {
           </a>
           <span className="text-xs text-[#71767B]">&middot;</span>
           <p className="text-xs text-[#71767B]">Login with X only &middot; Anonim di tweet</p>
+          <span className="text-xs text-[#71767B]">&middot;</span>
+          <p className="text-xs text-[#71767B]">Made with ❤️ by B</p>
         </div>
       </div>
     </footer>

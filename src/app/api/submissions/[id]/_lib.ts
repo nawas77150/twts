@@ -14,6 +14,22 @@ import { debug } from '@/lib/debug'
 import type { Submission } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
+// --- Helper 0: Fetch submission or 404 ---
+
+/**
+ * Fetch a submission by ID, returning 404 if not found.
+ * Shared by fetchSubmissionForPosting (PATCH/POST) and DELETE.
+ */
+export async function findSubmissionOr404(
+  id: string,
+): Promise<{ submission: Submission } | NextResponse> {
+  const submission = await db.submission.findUnique({ where: { id } })
+  if (!submission) {
+    return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
+  }
+  return { submission }
+}
+
 // --- Helper 1: Submission status validation ---
 
 /**
@@ -33,10 +49,9 @@ export async function fetchSubmissionForPosting(
   id: string,
   invalidStatusLabel: string,
 ): Promise<{ submission: Submission } | NextResponse> {
-  let submission = await db.submission.findUnique({ where: { id } })
-  if (!submission) {
-    return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-  }
+  const found = await findSubmissionOr404(id)
+  if (found instanceof NextResponse) return found
+  let { submission } = found
 
   if (submission.status === 'posted') {
     return NextResponse.json(
@@ -54,11 +69,9 @@ export async function fetchSubmissionForPosting(
       )
     }
     // Stale posting auto-recovered — re-fetch with updated status and fall through.
-    const refreshed = await db.submission.findUnique({ where: { id } })
-    if (!refreshed) {
-      return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-    }
-    submission = refreshed
+    const refreshed = await findSubmissionOr404(id)
+    if (refreshed instanceof NextResponse) return refreshed
+    submission = refreshed.submission
   }
 
   if (submission.status === 'rejected') {

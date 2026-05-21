@@ -1,23 +1,17 @@
 import { db } from '@/lib/db'
 import { withErrorBoundary } from '@/lib/execute-post'
-import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
+import { withAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { checkStalePosting } from '@/lib/stale-posting'
-import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getMethodDescription, getPostErrorHint } from './_lib'
+import { findSubmissionOr404, fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getMethodDescription, getPostErrorHint } from './_lib'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — approve+post can take up to 15s with retries
 export const maxDuration = 30
 
 // PATCH /api/submissions/[id] - Approve (auto-post) or reject
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const PATCH = withAdmin<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   return withErrorBoundary(async () => {
     const { id } = await params
     const body = await req.json()
@@ -81,23 +75,16 @@ export async function PATCH(
 
     return NextResponse.json({ submission: updated })
   })
-}
+})
 
 // DELETE /api/submissions/[id] - Delete a submission
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = verifyAdmin(getAdminTokenFromRequest(req))
-  if (!auth.authorized) return auth.response
-
+export const DELETE = withAdmin<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   try {
     const { id } = await params
 
-    const submission = await db.submission.findUnique({ where: { id } })
-    if (!submission) {
-      return NextResponse.json({ error: 'Submission tidak ditemukan' }, { status: 404 })
-    }
+    const found = await findSubmissionOr404(id)
+    if (found instanceof NextResponse) return found
+    const { submission } = found
 
     // Prevent deleting a submission that is currently being posted to X
     // (would orphan the tweet — it posts but we lose the record)
@@ -128,4 +115,4 @@ export async function DELETE(
     console.error('[submissions] Delete error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
-}
+})

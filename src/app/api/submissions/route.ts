@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
-import { executePostAndRecord, createCooldownWindowChecks } from '@/lib/execute-post'
+import { executePostAndRecord, createCooldownWindowChecks, countGlobalPostsToday, getLastPostedTime } from '@/lib/execute-post'
 import type { PerUserCheck } from '@/lib/execute-post'
 import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
 import { debug } from '@/lib/debug'
@@ -169,13 +169,9 @@ export async function POST(req: NextRequest) {
 
     // Auto-post cooldown — uses createQueuedSubmission
     if (filterSettings.rateLimits.autoPostCooldown > 0) {
-      const lastPosted = await db.submission.findFirst({
-        where: { status: 'posted' },
-        orderBy: { updatedAt: 'desc' },
-        select: { updatedAt: true },
-      })
-      if (lastPosted) {
-        const elapsedMs = Date.now() - lastPosted.updatedAt.getTime()
+      const lastPostedAt = await getLastPostedTime()
+      if (lastPostedAt) {
+        const elapsedMs = Date.now() - lastPostedAt.getTime()
         const cooldownMs = filterSettings.rateLimits.autoPostCooldown * 1000
         if (elapsedMs < cooldownMs) {
           debug('submit', 'Auto-post cooldown active, queuing instead')
@@ -198,10 +194,7 @@ export async function POST(req: NextRequest) {
 
     // Global post daily cap — uses createQueuedSubmission
     if (filterSettings.rateLimits.globalPostDailyCap > 0) {
-      const startOfToday = getStartOfTodayWIB()
-      const globalPostCount = await db.submission.count({
-        where: { status: 'posted', createdAt: { gte: startOfToday } },
-      })
+      const globalPostCount = await countGlobalPostsToday()
       if (globalPostCount >= filterSettings.rateLimits.globalPostDailyCap) {
         debug('submit', 'Global post daily cap reached:', globalPostCount, 'queuing instead')
         return createQueuedSubmission(trimmedMessage, sanitizedCategory, submitter.id)

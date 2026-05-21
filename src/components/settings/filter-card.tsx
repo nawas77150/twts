@@ -113,56 +113,30 @@ export function FilterCard({
       <Separator />
 
       {/* Blocked Words */}
-      <div className="space-y-2">
-        <label htmlFor="blocked-words-textarea" className="text-xs font-medium text-[#536471] flex items-center justify-between">
-          <span>Blocked Words</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
-            onClick={() => { setBlockedWordsText(defaultBlockedWords.join(', ')) }}
-          >
-            <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
-          </Button>
-        </label>
-        <Textarea
-          id="blocked-words-textarea"
-          placeholder="kontol, memek, ngentot, wts, wtb, ..."
-          value={blockedWordsText}
-          onChange={(e) => { setBlockedWordsText(e.target.value) }}
-          className="min-h-[100px] resize-y border-[#EFF3F4] text-xs"
-        />
-        <p className="text-[10px] text-[#71767B]">
-          Comma-separated. Matches whole words only (case-insensitive). Submissions containing these words will be flagged for manual review.
-        </p>
-      </div>
+      <WordListInput
+        id="blocked-words"
+        label="Blocked Words"
+        value={blockedWordsText}
+        onChange={setBlockedWordsText}
+        placeholder="kontol, memek, ngentot, wts, wtb, ..."
+        minRows={100}
+        defaults={defaultBlockedWords}
+        helpText="Comma-separated. Matches whole words only (case-insensitive). Submissions containing these words will be flagged for manual review."
+      />
 
       <Separator />
 
       {/* NSFW Words */}
-      <div className="space-y-2">
-        <label htmlFor="nsfw-words-textarea" className="text-xs font-medium text-[#536471] flex items-center justify-between">
-          <span>NSFW Words</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
-            onClick={() => { setNsfwWordsText(defaultNsfwWords.join(', ')) }}
-          >
-            <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
-          </Button>
-        </label>
-        <Textarea
-          id="nsfw-words-textarea"
-          placeholder="bokep, telanjang, milf, ..."
-          value={nsfwWordsText}
-          onChange={(e) => { setNsfwWordsText(e.target.value) }}
-          className="min-h-[80px] resize-y border-[#EFF3F4] text-xs"
-        />
-        <p className="text-[10px] text-[#71767B]">
-          Comma-separated. Used when &quot;Block NSFW/explicit content&quot; rule is ON.
-        </p>
-      </div>
+      <WordListInput
+        id="nsfw-words"
+        label="NSFW Words"
+        value={nsfwWordsText}
+        onChange={setNsfwWordsText}
+        placeholder="bokep, telanjang, milf, ..."
+        minRows={80}
+        defaults={defaultNsfwWords}
+        helpText='Used when "Block NSFW/explicit content" rule is ON.'
+      />
 
       <Separator />
 
@@ -213,5 +187,51 @@ export function FilterCard({
         Save Filter Settings
       </Button>
     </SettingsCard>
+  )
+}
+
+/** Reusable word-list input with label, reset button, textarea, and help text. */
+function WordListInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  minRows,
+  defaults,
+  helpText,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  minRows: number
+  defaults: string[]
+  helpText: string
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={`${id}-textarea`} className="text-xs font-medium text-[#536471] flex items-center justify-between">
+        <span>{label}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-5 text-[10px] text-[#71767B] hover:text-[#0F1419]"
+          onClick={() => { onChange(defaults.join(', ')) }}
+        >
+          <RotateCcw className="w-3 h-3 mr-1" /> Reset Default
+        </Button>
+      </label>
+      <Textarea
+        id={`${id}-textarea`}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => { onChange(e.target.value) }}
+        className="resize-y border-[#EFF3F4] text-xs"
+        style={{ minHeight: `${minRows}px` }}
+      />
+      <p className="text-[10px] text-[#71767B]">{helpText}</p>
+    </div>
   )
 }

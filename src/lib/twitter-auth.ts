@@ -199,8 +199,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       })
     }
 
-    return await db.submitter.upsert({
-      where: { twitterId },
+    const upsertData = {
       update: {
         username: username.toLowerCase(),
         displayName: displayName || null,
@@ -214,30 +213,25 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
         profileImage: profile_image_url || null,
         ...buildTokenFields(tokens),
       },
-    })
-  } catch (error: unknown) {
-    // Handle rare case: username unique constraint violation on create
-    // (another user has the same username). Retry with a suffixed username.
-    const isUniqueError = error instanceof Error && error.message.includes('Unique constraint')
-    if (isUniqueError) {
-      const suffixedUsername = `${username}_${Date.now()}`
-      return db.submitter.upsert({
-        where: { twitterId },
-        update: {
-          username: username.toLowerCase(),
-          displayName: displayName || null,
-          profileImage: profile_image_url || null,
-          ...buildTokenFields(tokens),
-        },
-        create: {
-          twitterId,
-          username: suffixedUsername.toLowerCase(),
-          displayName: displayName || null,
-          profileImage: profile_image_url || null,
-          ...buildTokenFields(tokens),
-        },
-      })
     }
+
+    try {
+      return await db.submitter.upsert({ where: { twitterId }, ...upsertData })
+    } catch (error: unknown) {
+      // Handle rare case: username unique constraint violation on create
+      // (another user has the same username). Retry with a suffixed username.
+      const isUniqueError = error instanceof Error && error.message.includes('Unique constraint')
+      if (isUniqueError) {
+        return db.submitter.upsert({
+          where: { twitterId },
+          ...upsertData,
+          create: { ...upsertData.create, username: `${username}_${Date.now()}`.toLowerCase() },
+        })
+      }
+      throw error
+    }
+  } catch (error: unknown) {
+    console.error('[twitter-auth] OAuth callback error:', error)
     throw error
   }
 }
