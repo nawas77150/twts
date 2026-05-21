@@ -29,7 +29,7 @@ interface SubmissionCardProps {
   onReject: (id: string) => void
   onRetryPost: (id: string) => void
   onDelete: (id: string) => void
-  actionLoading: string | null
+  actionLoading: Set<string>
 }
 
 export function SubmissionCard({
@@ -141,23 +141,43 @@ export function SubmissionCard({
             <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
               {(sub.status === 'pending' || sub.status === 'censored') && (
                 <>
-                  <Button
-                    onClick={() => { onApprove(sub.id) }}
-                    disabled={actionLoading === sub.id}
-                    className="h-7 px-2 text-xs bg-green-500 hover:bg-green-600 text-white"
-                  >
-                    {actionLoading === sub.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                    )}
-                    Setujui
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        disabled={actionLoading.has(sub.id)}
+                        className="h-7 px-2 text-xs bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        {actionLoading.has(sub.id) ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                        )}
+                        Setujui
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Setujui pesan ini?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Pesan akan diposting ke X.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-green-500 hover:bg-green-600 text-white"
+                          onClick={() => { onApprove(sub.id) }}
+                        >
+                          Setujui
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="destructive"
-                        disabled={actionLoading === sub.id}
+                        disabled={actionLoading.has(sub.id)}
                         className="h-7 px-2 text-xs"
                       >
                         Tolak
@@ -186,10 +206,10 @@ export function SubmissionCard({
               {sub.status === 'post_failed' && (
                 <Button
                   onClick={() => { onRetryPost(sub.id) }}
-                  disabled={actionLoading === sub.id}
+                  disabled={actionLoading.has(sub.id)}
                   className="h-7 px-2 text-xs bg-[#0F1419] hover:bg-[#272c30] text-white"
                 >
-                  {actionLoading === sub.id ? (
+                  {actionLoading.has(sub.id) ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
                     <XLogo className="w-3 h-3 mr-1" />
@@ -201,11 +221,11 @@ export function SubmissionCard({
                 <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
-                    disabled={actionLoading === sub.id}
+                    disabled={actionLoading.has(sub.id)}
                     className="h-7 w-7 p-0 text-[#71767B] hover:text-red-500"
                     aria-label="Hapus pesan"
                   >
-                    {actionLoading === sub.id ? (
+                    {actionLoading.has(sub.id) ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <Trash2 className="w-3 h-3" />

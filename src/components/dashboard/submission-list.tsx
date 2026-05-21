@@ -13,7 +13,7 @@ interface SubmissionListProps {
   setSearch: (search: string) => void
   filterStatus: string
   isLoading: boolean
-  actionLoading: string | null
+  actionLoading: Set<string>
   page: number
   totalPages: number
   onApprove: (id: string) => void

@@ -82,28 +82,33 @@ async function saveEncryptedWordList(
 
 // GET /api/admin/filter-settings — Return filter settings
 export const GET = withAdmin(async (req: NextRequest) => {
-  const settings = await getFilterSettings()
-  const circuitBreaker = await getCircuitBreakerStatus(settings.rateLimits)
+  try {
+    const settings = await getFilterSettings()
+    const circuitBreaker = await getCircuitBreakerStatus(settings.rateLimits)
 
-  return NextResponse.json({
-    autoApprove: settings.autoApprove,
-    blockedWords: settings.blockedWords,
-    nsfwWords: settings.nsfwWords,
-    filterRules: settings.filterRules,
-    geminiEnabled: settings.geminiEnabled,
-    geminiApiKeySet: settings.geminiApiKeySet,
-    geminiModel: settings.geminiModel,
-    rateLimits: settings.rateLimits,
-    whitelistUsernames: settings.whitelistUsernames,
-    blockedUsernames: settings.blockedUsernames,
-    circuitBreaker,
-    defaults: {
-      blockedWords: DEFAULT_BLOCKED_WORDS,
-      nsfwWords: DEFAULT_NSFW_WORDS,
-      filterRules: DEFAULT_FILTER_RULES,
-      rateLimits: DEFAULT_RATE_LIMITS,
-    },
-  })
+    return NextResponse.json({
+      autoApprove: settings.autoApprove,
+      blockedWords: settings.blockedWords,
+      nsfwWords: settings.nsfwWords,
+      filterRules: settings.filterRules,
+      geminiEnabled: settings.geminiEnabled,
+      geminiApiKeySet: settings.geminiApiKeySet,
+      geminiModel: settings.geminiModel,
+      rateLimits: settings.rateLimits,
+      whitelistUsernames: settings.whitelistUsernames,
+      blockedUsernames: settings.blockedUsernames,
+      circuitBreaker,
+      defaults: {
+        blockedWords: DEFAULT_BLOCKED_WORDS,
+        nsfwWords: DEFAULT_NSFW_WORDS,
+        filterRules: DEFAULT_FILTER_RULES,
+        rateLimits: DEFAULT_RATE_LIMITS,
+      },
+    })
+  } catch (e) {
+    console.error('[filter-settings/GET] Error:', e)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 })
 
 // POST /api/admin/filter-settings — Save filter settings

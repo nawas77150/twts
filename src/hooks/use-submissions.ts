@@ -26,7 +26,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   const [filterStatus, setFilterStatus] = useState<string>('pending')
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
   const { toast } = useToast()
 
   // Use refs for page, search, and filterStatus to avoid infinite loop from useCallback + useEffect dep chain
@@ -138,7 +138,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   // ── Actions: spinner + toast + refetch ──────────────────────────────
 
   const approve = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(id)
+    setActionLoading(prev => new Set(prev).add(id))
     try {
       const data = await apiClient.approveSubmission(id)
       if (data.autoPosted) {
@@ -164,12 +164,12 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyetujui'), variant: 'destructive' })
       return null
     } finally {
-      setActionLoading(null)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
     }
   }, [fetchSubmissions, toast])
 
   const reject = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(id)
+    setActionLoading(prev => new Set(prev).add(id))
     try {
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
@@ -179,12 +179,12 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menolak'), variant: 'destructive' })
       return false
     } finally {
-      setActionLoading(null)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
     }
   }, [fetchSubmissions, toast])
 
   const deleteSubmission = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(id)
+    setActionLoading(prev => new Set(prev).add(id))
     try {
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
@@ -194,12 +194,12 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Error', description: getErrorMessage(err, 'Gagal menghapus'), variant: 'destructive' })
       return false
     } finally {
-      setActionLoading(null)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
     }
   }, [fetchSubmissions, toast])
 
   const retryPost = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(id)
+    setActionLoading(prev => new Set(prev).add(id))
     try {
       const data = await apiClient.retryPost(id)
       if (data.error) {
@@ -214,7 +214,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Gagal posting', description: getErrorMessage(err, 'Gagal posting ke X'), variant: 'destructive' })
       return null
     } finally {
-      setActionLoading(null)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
     }
   }, [fetchSubmissions, toast])
 

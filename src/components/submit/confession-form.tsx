@@ -110,7 +110,7 @@ export function ConfessionForm({
           </div>
           <Button
             type="submit"
-            disabled={isSubmitting || !message.trim()}
+            disabled={isSubmitting || !message.trim() || cooldownRemaining > 0 || remainingDaily === 0 || pendingOverCap}
             className="w-full bg-[#0F1419] hover:bg-[#272c30] disabled:opacity-50"
             size="lg"
           >

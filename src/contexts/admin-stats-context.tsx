@@ -64,7 +64,7 @@ function setStatValue(stats: Stats, key: keyof Stats, value: number): Stats {
 }
 
 export function AdminStatsProvider({ children }: { children: ReactNode }) {
-  const { isAdmin } = useAdminAuth()
+  const { isAdmin, registerResetCallback, unregisterResetCallback } = useAdminAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [cookieStatus, setCookieStatus] = useState<CookieAuthStatus | null>(null)
   const [postMethodStats, setPostMethodStats] = useState<PostMethodStats | null>(null)
@@ -73,9 +73,13 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
   const [pendingCount, setPendingCount] = useState(0)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
 
+  const requestIdRef = useRef(0)
+
   const fetchStats = useCallback(async (options?: { refresh?: boolean }) => {
+    const thisRequestId = ++requestIdRef.current
     try {
       const data = await apiClient.getStats(options)
+      if (thisRequestId !== requestIdRef.current) return
       setStats(data)
       setPendingCount(data.pending)
       if (data.cookieAuthStatus !== undefined) setCookieStatus(data.cookieAuthStatus)
@@ -84,6 +88,7 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
       if (data.postMethodStats) setPostMethodStats(data.postMethodStats)
       setConsecutiveFailures(0)
     } catch {
+      if (thisRequestId !== requestIdRef.current) return
       setConsecutiveFailures((prev) => prev + 1)
     }
   }, [])
@@ -124,6 +129,23 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
       setPendingCount((prev) => Math.max(0, prev - 1))
     }
   }, [])
+
+  // Reset all stats state on logout
+  const resetStats = useCallback(() => {
+    setStats(null)
+    setCookieStatus(null)
+    setPostMethodStats(null)
+    setApiCredits([])
+    setApiLoginStatus(null)
+    setPendingCount(0)
+    setConsecutiveFailures(0)
+  }, [])
+
+  // Register reset callback so auth context can clear stats on logout
+  useEffect(() => {
+    registerResetCallback(resetStats)
+    return () => { unregisterResetCallback(resetStats) }
+  }, [resetStats, registerResetCallback, unregisterResetCallback])
 
   // Keep a ref to fetchStats so the interval always calls the latest version
   // Updated in an effect to comply with react-hooks/refs rule.

@@ -7,7 +7,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
     const cursor = searchParams.get('cursor') || undefined
-    const limit = Math.min(Math.max(Number(searchParams.get('limit') || '50'), 1), 200)
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10) || 50, 1), 200)
 
   // Single GROUP BY query instead of 4 COUNT × N submitters (N+1 problem)
   const statusCounts = await db.$queryRaw<

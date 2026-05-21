@@ -23,48 +23,53 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
 
-  const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status')
-  const search = searchParams.get('search')?.trim() || ''
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
-  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50))
+  try {
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status')
+    const search = searchParams.get('search')?.trim() || ''
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50))
 
-  const where: Prisma.SubmissionWhereInput = status && status !== 'all' ? { status } : {}
+    const where: Prisma.SubmissionWhereInput = status && status !== 'all' ? { status } : {}
 
-  // Server-side search: case-insensitive search across message, username, displayName
-  if (search) {
-    where.OR = [
-      { message: { contains: search, mode: 'insensitive' } },
-      { submitter: { username: { contains: search, mode: 'insensitive' } } },
-      { submitter: { displayName: { contains: search, mode: 'insensitive' } } },
-    ]
-  }
+    // Server-side search: case-insensitive search across message, username, displayName
+    if (search) {
+      where.OR = [
+        { message: { contains: search, mode: 'insensitive' } },
+        { submitter: { username: { contains: search, mode: 'insensitive' } } },
+        { submitter: { displayName: { contains: search, mode: 'insensitive' } } },
+      ]
+    }
 
-  const [submissions, total] = await Promise.all([
-    db.submission.findMany({
-      where,
-      include: {
-        submitter: {
-          select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+    const [submissions, total] = await Promise.all([
+      db.submission.findMany({
+        where,
+        include: {
+          submitter: {
+            select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: (page - 1) * limit,
-    }),
-    db.submission.count({ where }),
-  ])
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      db.submission.count({ where }),
+    ])
 
-  return NextResponse.json({
-    submissions,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasMore: page * limit < total,
-    },
-  })
+    return NextResponse.json({
+      submissions,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    })
+  } catch (e) {
+    console.error('[submissions/GET] Error:', e)
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+  }
 }
 
 // POST /api/submissions - Create new submission (requires Twitter login)

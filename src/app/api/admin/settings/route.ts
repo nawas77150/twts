@@ -64,7 +64,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
         displayValue = atIdx > 0 ? decrypted.slice(0, 3) + '***@' + decrypted.slice(atIdx + 1) : decrypted.slice(0, 5) + '***'
       } else if (s.key === 'twitterapi_proxy') {
         // Mask password in proxy URL
-        displayValue = decrypted.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')
+        displayValue = decrypted.replace(/\/\/([^:]+):([^@]+)@/, '//****:****@')
       } else if (SENSITIVE_KEYS.includes(s.key)) {
         displayValue = '••••••••' // Never reveal passwords/secrets
       } else {
