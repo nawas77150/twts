@@ -8,7 +8,7 @@ import { encrypt } from '@/lib/encrypt'
 
 const TWITTER_AUTH_URL = 'https://x.com/i/oauth2/authorize'
 const TWITTER_TOKEN_URL = 'https://api.x.com/2/oauth2/token'
-const TWITTER_USER_URL = 'https://api.x.com/2/users/me'
+const TWITTER_USER_URL = 'https://api.x.com/2/users/me?user.fields=profile_image_url'
 
 // Get the base URL for OAuth callbacks
 // IMPORTANT: Must match the Callback URI registered in X Developer Portal exactly!

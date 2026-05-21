@@ -10,6 +10,13 @@ interface UseSubmissionsParams {
   isAdmin: boolean
 }
 
+/** Revert strategy: how to restore submissions after a failed optimistic update. */
+type RevertFn = (prev: Submission[], originalSub: Submission) => Submission[]
+
+/** Default revert: replace the item with its original state (used by approve, reject, retryPost). */
+const defaultRevert: RevertFn = (prev, originalSub) =>
+  prev.map((s) => s.id === originalSub.id ? { ...originalSub } : s)
+
 export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [page, setPage] = useState(1)
@@ -38,8 +45,17 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
   // (it didn't set it), but we need the latest request to clear it.
   const outstandingLoadingRef = useRef(false)
 
+  // Mirror actionLoading state as a ref so fetchSubmissions can read it
+  // without adding it to its dependency array (which would restart the 15s interval).
+  // Used to skip silent auto-refresh while an optimistic action is in-flight,
+  // preventing the server's stale state from overwriting the optimistic update.
+  const actionLoadingRef = useRef<string | null>(null)
+
   const fetchSubmissions = useCallback(async (silent = false, targetPage?: number) => {
     if (!isAdmin) return
+    // Skip silent auto-refresh while an optimistic action is in-flight
+    // to prevent stale server data from overwriting the optimistic update.
+    if (silent && actionLoadingRef.current) return
     const p = targetPage ?? pageRef.current
     const q = searchRef.current
     // Read filterStatus from ref (not closure) so the callback identity stays stable
@@ -130,137 +146,131 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     setPage(1)
   }, [])
 
-  const approve = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(id)
-    // Capture only this submission's original state for targeted revert
+  // ── Optimistic action helper ──────────────────────────────────────
+  // Eliminates duplication across approve/reject/delete/retryPost:
+  //   1. setActionLoading(id)
+  //   2. capture original submission for revert
+  //   3. apply optimistic update
+  //   4. catch → revert + error toast
+  //   5. finally → clear loading state
+  //
+  // Returns { result, originalSub } on success, null on catch (after revert + toast).
+  // The caller handles the success path, which varies per action.
+  async function withOptimisticAction<R>(
+    id: string,
+    optimisticUpdate: (prev: Submission[]) => Submission[],
+    action: () => Promise<R>,
+    errorConfig: { title: string; fallback: string },
+    revertFn: RevertFn = defaultRevert,
+  ): Promise<{ result: R; originalSub: Submission | undefined } | null> {
     const originalSub = submissions.find((s) => s.id === id)
+    actionLoadingRef.current = id
+    setActionLoading(id)
+    setSubmissions(optimisticUpdate)
 
-    // Optimistic: set to 'posting'
-    setSubmissions((prev) =>
-      prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus } : s)
-    )
     try {
-      const data = await apiClient.approveSubmission(id)
-      if (data.autoPosted) {
-        let desc = 'Pesan otomatis diposting ke X.'
-        if (data.postMethod === 'retry') desc = data.description || 'Pesan diposting setelah retry.'
-        else if (data.postMethod === 'fallback' || data.postMethod === 'fallback_cookie') desc = data.description || 'Pesan diposting via Cookie API (twitterapi.io).'
-        else if (data.postMethod === 'fallback_login') desc = data.description || 'Pesan diposting via V2 Login API (twitterapi.io).'
-        // Refine to 'posted'
-        setSubmissions((prev) =>
-          prev.map((s) => s.id === id
-            ? { ...s, status: 'posted' as SubmissionStatus, postMethod: (data.postMethod as PostMethodResult) ?? null }
-            : s)
-        )
-        toast({ title: 'Disetujui & diposting!', description: desc })
-        return 'posted'
-      } else if (data.warning) {
-        toast({ title: 'Disetujui', description: data.warning })
-        return 'posting'
-      } else if (data.error) {
-        // Server accepted approval but posting failed — keep 'posting', poll corrects to 'post_failed'
-        toast({ title: 'Disetujui, tapi gagal posting', description: data.error, variant: 'destructive' })
-        return 'posting'
-      } else {
-        toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
-        return 'posting'
-      }
+      const result = await action()
+      return { result, originalSub }
     } catch (err: unknown) {
-      // Revert only this card
       if (originalSub) {
-        setSubmissions((prev) =>
-          prev.map((s) => s.id === id ? { ...originalSub } : s)
-        )
+        setSubmissions((prev) => revertFn(prev, originalSub))
       }
-      toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyetujui'), variant: 'destructive' })
+      toast({ title: errorConfig.title, description: getErrorMessage(err, errorConfig.fallback), variant: 'destructive' })
       return null
     } finally {
+      actionLoadingRef.current = null
       setActionLoading(null)
+    }
+  }
+
+  const approve = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
+    const res = await withOptimisticAction(
+      id,
+      (prev) => prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus } : s),
+      () => apiClient.approveSubmission(id),
+      { title: 'Gagal', fallback: 'Gagal menyetujui' },
+    )
+    if (!res) return null
+
+    const { result: data } = res
+    if (data.autoPosted) {
+      let desc = 'Pesan otomatis diposting ke X.'
+      if (data.postMethod === 'retry') desc = data.description || 'Pesan diposting setelah retry.'
+      else if (data.postMethod === 'fallback' || data.postMethod === 'fallback_cookie') desc = data.description || 'Pesan diposting via Cookie API (twitterapi.io).'
+      else if (data.postMethod === 'fallback_login') desc = data.description || 'Pesan diposting via V2 Login API (twitterapi.io).'
+      // Refine to 'posted'
+      setSubmissions((prev) =>
+        prev.map((s) => s.id === id
+          ? { ...s, status: 'posted' as SubmissionStatus, postMethod: (data.postMethod as PostMethodResult) ?? null }
+          : s)
+      )
+      toast({ title: 'Disetujui & diposting!', description: desc })
+      return 'posted'
+    } else if (data.warning) {
+      toast({ title: 'Disetujui', description: data.warning })
+      return 'posting'
+    } else if (data.error) {
+      // Server accepted approval but posting failed — keep 'posting', poll corrects to 'post_failed'
+      toast({ title: 'Disetujui, tapi gagal posting', description: data.error, variant: 'destructive' })
+      return 'posting'
+    } else {
+      toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
+      return 'posting'
     }
   }, [submissions, toast])
 
   const reject = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(id)
-    const originalSub = submissions.find((s) => s.id === id)
-
-    // Optimistic: set to 'rejected'
-    setSubmissions((prev) =>
-      prev.map((s) => s.id === id ? { ...s, status: 'rejected' as SubmissionStatus } : s)
+    const res = await withOptimisticAction(
+      id,
+      (prev) => prev.map((s) => s.id === id ? { ...s, status: 'rejected' as SubmissionStatus } : s),
+      () => apiClient.rejectSubmission(id),
+      { title: 'Gagal', fallback: 'Gagal menolak' },
     )
-    try {
-      await apiClient.rejectSubmission(id)
-      toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
-      return true
-    } catch (err: unknown) {
-      // Revert only this card
-      if (originalSub) {
-        setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
-      }
-      toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menolak'), variant: 'destructive' })
-      return false
-    } finally {
-      setActionLoading(null)
-    }
+    if (!res) return false
+    toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
+    return true
   }, [submissions, toast])
 
   const deleteSubmission = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(id)
-    const originalSub = submissions.find((s) => s.id === id)
-
-    // Optimistic: remove immediately
-    setSubmissions((prev) => prev.filter((s) => s.id !== id))
-    try {
-      await apiClient.deleteSubmission(id)
-      toast({ title: 'Dihapus' })
-      return true
-    } catch {
-      // Re-append at end; 15s poll restores correct order
-      if (originalSub) {
-        setSubmissions((prev) => [...prev, originalSub])
-      }
-      toast({ title: 'Error', description: 'Gagal menghapus', variant: 'destructive' })
-      return false
-    } finally {
-      setActionLoading(null)
-    }
+    const res = await withOptimisticAction(
+      id,
+      (prev) => prev.filter((s) => s.id !== id),
+      () => apiClient.deleteSubmission(id),
+      { title: 'Error', fallback: 'Gagal menghapus' },
+      // Delete reverts by re-appending (not replacing)
+      (prev, originalSub) => [...prev, originalSub],
+    )
+    if (!res) return false
+    toast({ title: 'Dihapus' })
+    return true
   }, [submissions, toast])
 
   const retryPost = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(id)
-    const originalSub = submissions.find((s) => s.id === id)
-
-    // Optimistic: set to 'posting'
-    setSubmissions((prev) =>
-      prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus, postError: null } : s)
+    const res = await withOptimisticAction(
+      id,
+      (prev) => prev.map((s) => s.id === id ? { ...s, status: 'posting' as SubmissionStatus, postError: null } : s),
+      () => apiClient.retryPost(id),
+      { title: 'Gagal posting', fallback: 'Gagal posting ke X' },
     )
-    try {
-      const data = await apiClient.retryPost(id)
-      if (data.error) {
-        // Revert — posting failed
-        if (originalSub) {
-          setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
-        }
-        toast({ title: 'Gagal posting', description: data.error, variant: 'destructive' })
-        return null
-      }
-      // Refine to 'posted'
-      setSubmissions((prev) =>
-        prev.map((s) => s.id === id
-          ? { ...s, status: 'posted' as SubmissionStatus, tweetId: data.tweetId ?? null }
-          : s)
-      )
-      toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
-      return 'posted'
-    } catch (err: unknown) {
-      // Revert only this card
+    if (!res) return null
+
+    const { result: data, originalSub } = res
+    if (data.error) {
+      // Revert — posting failed (logical error from API, not a network error)
       if (originalSub) {
-        setSubmissions((prev) => prev.map((s) => s.id === id ? { ...originalSub } : s))
+        setSubmissions((prev) => defaultRevert(prev, originalSub))
       }
-      toast({ title: 'Gagal posting', description: getErrorMessage(err, 'Gagal posting ke X'), variant: 'destructive' })
+      toast({ title: 'Gagal posting', description: data.error, variant: 'destructive' })
       return null
-    } finally {
-      setActionLoading(null)
     }
+    // Refine to 'posted'
+    setSubmissions((prev) =>
+      prev.map((s) => s.id === id
+        ? { ...s, status: 'posted' as SubmissionStatus, tweetId: data.tweetId ?? null }
+        : s)
+    )
+    toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
+    return 'posted'
   }, [submissions, toast])
 
   return {
