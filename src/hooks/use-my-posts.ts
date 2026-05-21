@@ -8,11 +8,12 @@ import { useToast } from '@/hooks/use-toast'
 interface UseMyPostsParams {
   submitter: SubmitterInfo | null
   isAnonUser: boolean
+  initialLimits?: SubmissionLimitsData | null
 }
 
-export function useMyPosts({ submitter, isAnonUser }: UseMyPostsParams) {
+export function useMyPosts({ submitter, isAnonUser, initialLimits }: UseMyPostsParams) {
   const [myPosts, setMyPosts] = useState<Submission[]>([])
-  const [limits, setLimits] = useState<SubmissionLimitsData | null>(null)
+  const [limits, setLimits] = useState<SubmissionLimitsData | null>(initialLimits ?? null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()

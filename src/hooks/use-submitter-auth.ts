@@ -5,9 +5,9 @@ import type { SubmitterInfo } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 
-export function useSubmitterAuth() {
-  const [submitter, setSubmitter] = useState<SubmitterInfo | null>(null)
-  const [isChecking, setIsChecking] = useState(true)
+export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null) {
+  const [submitter, setSubmitter] = useState<SubmitterInfo | null>(initialSubmitter ?? null)
+  const [isChecking, setIsChecking] = useState(initialSubmitter === undefined)
   const [authError, setAuthError] = useState<string | null>(null)
   const [isBlocked, setIsBlocked] = useState(false)
   const { toast } = useToast()
@@ -31,14 +31,15 @@ export function useSubmitterAuth() {
     return false
   }, [])
 
-  // Initial auth check on mount
+  // Initial auth check on mount — skip if initialSubmitter provided
   useEffect(() => {
+    if (initialSubmitter !== undefined) return
     async function initialCheck() {
       await checkAuth()
       setIsChecking(false)
     }
     void initialCheck()
-  }, [checkAuth])
+  }, [checkAuth, initialSubmitter])
 
   // Re-check auth after OAuth callback with retry (server may need time
   // to set the session cookie, especially on cold starts).

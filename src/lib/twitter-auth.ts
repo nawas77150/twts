@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { encrypt } from '@/lib/encrypt'
 
@@ -305,6 +306,31 @@ export async function getSubmitterFromNextRequest(request: NextRequest): Promise
 } | null> {
   const tokenCookie = request.cookies.get(SESSION_COOKIE_NAME)
   const token = tokenCookie?.value
+  if (!token) return null
+
+  const session = verifySessionToken(token)
+  if (!session) return null
+
+  const submitter = await db.submitter.findUnique({
+    where: { id: session.submitterId },
+    select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true, customLimits: true },
+  })
+
+  return submitter
+}
+
+// Get submitter from cookies() — for use in React Server Components
+// (RSC pages receive no NextRequest; use next/headers cookies() instead)
+export async function getSubmitterFromCookies(): Promise<{
+  id: string
+  username: string
+  displayName: string | null
+  profileImage: string | null
+  twitterId: string | null
+  customLimits: unknown
+} | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
 
   const session = verifySessionToken(token)
