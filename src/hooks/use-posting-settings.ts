@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { PostMethodSetting } from '@/types'
 import { apiClient } from '@/lib/api-client'
 import { getErrorMessage } from '@/lib/utils'
@@ -178,6 +178,11 @@ export function usePostingSettings() {
     setXTotpSecret('')
     setV2LoginEnabled(false)
   }, [])
+
+  // Reset state when admin logs out
+  useEffect(() => {
+    if (!isAdmin) resetState()
+  }, [isAdmin, resetState])
 
   return {
     // Direct posting

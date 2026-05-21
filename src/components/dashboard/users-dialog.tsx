@@ -214,11 +214,7 @@ export function UsersDialog({
                 onClick={onFetchSubmitters}
                 disabled={isLoading}
               >
-                {isLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3 h-3" />
-                )}
+                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin-reverse' : ''}`} />
               </Button>
             </div>
             {isLoading ? (

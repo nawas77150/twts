@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { FilterRules, RateLimitSettings, FilterSettings } from '@/types'
 import { DEFAULT_FILTER_RULES } from '@/types'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
@@ -182,6 +182,11 @@ export function useFilterSettings() {
     setDefaultBlockedWords([])
     setDefaultNsfwWords([])
   }, [])
+
+  // Reset state when admin logs out
+  useEffect(() => {
+    if (!isAdmin) resetState()
+  }, [isAdmin, resetState])
 
   return {
     autoApprove,

@@ -101,8 +101,11 @@ export default function AdminSettingsPage() {
 
   const handleRefreshCredits = useCallback(async () => {
     setIsLoadingCredits(true)
-    await refetchAdminStats()
-    setIsLoadingCredits(false)
+    try {
+      await refetchAdminStats()
+    } finally {
+      setIsLoadingCredits(false)
+    }
   }, [refetchAdminStats])
 
   return (
@@ -195,7 +198,6 @@ export default function AdminSettingsPage() {
               nsfwWordsText={filterSettings.nsfwWordsText}
               setNsfwWordsText={filterSettings.setNsfwWordsText}
               filterRules={filterSettings.filterRules}
-              setFilterRules={filterSettings.setFilterRules}
               toggleRule={filterSettings.toggleRule}
               geminiEnabled={filterSettings.geminiEnabled}
               geminiApiKeySet={filterSettings.geminiApiKeySet}

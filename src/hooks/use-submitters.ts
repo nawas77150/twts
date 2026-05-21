@@ -85,12 +85,10 @@ export function useSubmitters() {
     submitters,
     blockedUsernames,
     isLoading,
-    search,
     fetchSubmitters,
     block,
     unblock,
     setCustomLimits,
-    setSearch,
     setBlockedUsernames: setBlockedUsernamesFromSource,
   }
 }

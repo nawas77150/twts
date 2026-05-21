@@ -265,17 +265,10 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     }
   }, [submissions, toast])
 
-  const loadMore = useCallback(() => {
-    if (hasMore && page < totalPages) {
-      void fetchSubmissions(false, page + 1)
-    }
-  }, [hasMore, page, totalPages, fetchSubmissions])
-
   return {
     submissions,
     page,
     totalPages,
-    total,
     hasMore,
     filterStatus,
     search,
@@ -285,7 +278,6 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
     reject,
     delete: deleteSubmission,
     retryPost,
-    loadMore,
     setFilter,
     setSearch: updateSearch,
     fetchSubmissions,

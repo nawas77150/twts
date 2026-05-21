@@ -24,7 +24,6 @@ interface FilterCardProps {
   nsfwWordsText: string
   setNsfwWordsText: (v: string) => void
   filterRules: FilterRules
-  setFilterRules: (v: FilterRules) => void
   toggleRule: (key: keyof FilterRules) => void
   geminiEnabled: boolean
   geminiApiKeySet: boolean
@@ -58,7 +57,6 @@ export function FilterCard({
   nsfwWordsText,
   setNsfwWordsText,
   filterRules,
-  setFilterRules,
   toggleRule,
   geminiEnabled,
   geminiApiKeySet,
