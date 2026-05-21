@@ -1,12 +1,12 @@
 'use client'
 
 import { ShieldAlert } from 'lucide-react'
+import { useAdminStats } from '@/contexts/admin-stats-context'
 
-interface EncryptionBannerProps {
-  encryptionEnabled: boolean | undefined
-}
+export function EncryptionBanner() {
+  const { stats } = useAdminStats()
+  const encryptionEnabled = stats?.encryptionEnabled
 
-export function EncryptionBanner({ encryptionEnabled }: EncryptionBannerProps) {
   // Show shimmer while loading
   if (encryptionEnabled === undefined) {
     return (

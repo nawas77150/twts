@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Encryption Warning Banner */}
-      <EncryptionBanner encryptionEnabled={stats?.encryptionEnabled} />
+      <EncryptionBanner />
 
       {/* Users Dialog */}
       <UsersDialog

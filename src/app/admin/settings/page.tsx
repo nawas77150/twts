@@ -18,7 +18,6 @@ import { CircuitBreakerCard } from '@/components/settings/circuit-breaker-card'
 import { WhitelistCard } from '@/components/settings/whitelist-card'
 import { BlocklistCard } from '@/components/settings/blocklist-card'
 import { LimitHealthCard } from '@/components/settings/limit-health-card'
-import { EncryptionBanner } from '@/components/dashboard/encryption-banner'
 
 function TabPanel({ children }: { children: React.ReactNode }) {
   return (
@@ -120,17 +119,6 @@ export default function AdminSettingsPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-lg font-bold text-[#0F1419]">Settings</h2>
-        <p className="text-xs text-[#536471]">Manage autobase configuration</p>
-      </div>
-
-      {/* Encryption Warning Banner */}
-      <div className="mb-4">
-        <EncryptionBanner encryptionEnabled={stats?.encryptionEnabled} />
-      </div>
-
       {/* Tab-based Settings Layout */}
       <Tabs defaultValue="posting" className="w-full">
         <TabsList className="bg-[#EFF3F4] p-1 h-auto rounded-xl w-full sm:w-fit grid grid-cols-4 sm:flex">
