@@ -63,7 +63,7 @@ export function AuthGate({
           <h3 className="text-lg font-semibold text-[#0F1419]">Login Dulu Ya!</h3>
           <p className="text-sm text-[#536471]">
             Login dengan akun X untuk mengirim pesan. <br />
-            <span className="text-[#71767B] text-xs">Tenang, identitasmu tetap anonim di tweet!</span>
+            <span className="text-[#71767B] text-xs">Tenang, identitasmu tetap anonim di X!</span>
           </p>
           <Button
             onClick={onLogin}
