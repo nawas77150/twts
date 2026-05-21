@@ -212,7 +212,7 @@ export interface SaveFilterSettingsRequest {
   geminiEnabled?: boolean
   geminiApiKey?: string
   geminiModel?: string
-  rateLimits?: RateLimitSettings
+  rateLimits?: Partial<RateLimitSettings>
   // whitelistUsernames and blockedUsernames are NOT included here.
   // They are managed exclusively through atomic API routes:
   //   POST/DELETE /api/admin/submitters/whitelist

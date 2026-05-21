@@ -16,6 +16,7 @@ export function useFilterSettings() {
   const [filterRules, setFilterRules] = useState<FilterRules>({ ...DEFAULT_FILTER_RULES })
   const [isSavingFilter, setIsSavingFilter] = useState(false)
   const [isSavingRateLimits, setIsSavingRateLimits] = useState(false)
+  const [isSavingCircuitBreaker, setIsSavingCircuitBreaker] = useState(false)
   const [geminiEnabled, setGeminiEnabled] = useState(false)
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
   const [geminiApiKeySet, setGeminiApiKeySet] = useState(false)
@@ -147,16 +148,30 @@ export function useFilterSettings() {
     setIsSavingFilter(false)
   }, [isAdmin, autoApprove, blockedWordsText, nsfwWordsText, filterRules, geminiEnabled, persistFilterSetting, toast])
 
-  /** Save only rate-limit + circuit-breaker fields (no filter/Gemini side-effects) */
+  /** Save only rate-limit fields (no filter/Gemini/circuit-breaker side-effects) */
   const saveRateLimits = useCallback(async () => {
     if (!isAdmin) return
     setIsSavingRateLimits(true)
+    const { circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes: _cbWindow, ...rateOnly } = rateLimits
     await persistFilterSetting(
-      { rateLimits },
+      { rateLimits: rateOnly },
       () => { toast({ title: 'Rate limits saved!', description: `Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}` }) },
       'Failed to save rate limits',
     )
     setIsSavingRateLimits(false)
+  }, [isAdmin, rateLimits, persistFilterSetting, toast])
+
+  /** Save only circuit-breaker fields (threshold, cooldown, window) */
+  const saveCircuitBreaker = useCallback(async () => {
+    if (!isAdmin) return
+    setIsSavingCircuitBreaker(true)
+    const { circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes } = rateLimits
+    await persistFilterSetting(
+      { rateLimits: { circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes } },
+      () => { toast({ title: 'Circuit breaker saved!', description: `Threshold: ${circuitBreakerThreshold}x, Pause: ${circuitBreakerCooldownMinutes}m` }) },
+      'Failed to save circuit breaker',
+    )
+    setIsSavingCircuitBreaker(false)
   }, [isAdmin, rateLimits, persistFilterSetting, toast])
 
   // Reset state on logout — registered imperatively via auth context (M-2)
@@ -188,6 +203,7 @@ export function useFilterSettings() {
     filterRules,
     isSavingFilter,
     isSavingRateLimits,
+    isSavingCircuitBreaker,
     geminiEnabled,
     geminiSaving,
     geminiApiKeyInput,
@@ -219,6 +235,7 @@ export function useFilterSettings() {
     geminiModelSaving,
     saveFilterSettings,
     saveRateLimits,
+    saveCircuitBreaker,
     loadFromFilterSettings,
   }
 }

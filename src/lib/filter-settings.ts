@@ -87,7 +87,7 @@ export async function getFilterSettings(): Promise<{
   whitelistUsernames: string[]  // Twitter usernames bypassing rate limits
   blockedUsernames: string[]    // Twitter usernames blocked from submitting
 }> {
-  if (isCacheValid()) return cachedSettings!.data
+  if (isCacheValid()) return structuredClone(cachedSettings!.data)
 
   const settings = await db.setting.findMany({
     where: { key: { in: FILTER_SETTING_KEYS } },

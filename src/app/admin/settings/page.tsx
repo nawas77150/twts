@@ -98,7 +98,7 @@ export default function AdminSettingsPage() {
 
   const filterSaveCircuitBreaker = useCallback(async () => {
     setSavingSource('circuitBreaker')
-    await filterSettings.saveRateLimits()
+    await filterSettings.saveCircuitBreaker()
     void refetchAdminStats()
     setSavingSource(null)
   }, [filterSettings, refetchAdminStats])
@@ -231,12 +231,12 @@ export default function AdminSettingsPage() {
           <TabPanel>
             <WhitelistCard
               whitelistUsernames={filterSettings.whitelistUsernames}
-              onWhitelistChange={() => { void refetchAdminStats() }}
+              onWhitelistChange={() => { void refetchAdminStats({ refresh: true }) }}
             />
 
             <BlocklistCard
               blockedUsernames={filterSettings.blockedUsernames}
-              onBlocklistChange={() => { void refetchAdminStats() }}
+              onBlocklistChange={() => { void refetchAdminStats({ refresh: true }) }}
             />
           </TabPanel>
         </TabsContent>
@@ -260,7 +260,7 @@ export default function AdminSettingsPage() {
               setRateLimits={filterSettings.setRateLimits}
               reset={circuitBreaker.reset}
               isSaving={savingSource === 'circuitBreaker'}
-              saveRateLimits={filterSaveCircuitBreaker}
+              onSave={filterSaveCircuitBreaker}
             />
           </TabPanel>
         </TabsContent>

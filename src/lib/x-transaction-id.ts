@@ -86,7 +86,7 @@ const CONFIG_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours
 async function getTransactionIdConfig(): Promise<TransactionIdConfig> {
   const now = Date.now()
   if (cachedConfig && now - cachedConfigTime < CONFIG_CACHE_TTL) {
-    return cachedConfig
+    return structuredClone(cachedConfig)
   }
 
   // Step 1: Fetch x.com homepage (uses shared cache to avoid duplicate fetches)
@@ -121,7 +121,7 @@ async function getTransactionIdConfig(): Promise<TransactionIdConfig> {
   cachedConfig = { keyBytes, animationKey, rowIndex, keyBytesIndices }
   cachedConfigTime = now
 
-  return cachedConfig
+  return structuredClone(cachedConfig)
 }
 
 /**

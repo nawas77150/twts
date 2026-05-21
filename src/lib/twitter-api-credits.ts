@@ -90,7 +90,7 @@ const CREDITS_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 export function getApiCreditsNonBlocking(): KeyCredits[] | null {
   const now = Date.now()
   if (creditsCache && now - creditsCacheTime < CREDITS_CACHE_TTL) {
-    return creditsCache // Cache is fresh — return immediately
+    return structuredClone(creditsCache) // Cache is fresh — return independent copy
   }
   // Cache is stale or empty — fire background fetch for next request
   void getAllKeyCredits().then((fresh) => {
@@ -103,7 +103,7 @@ export function getApiCreditsNonBlocking(): KeyCredits[] | null {
   }).catch(() => {
     // External API threw (shouldn't happen — getKeyCredits catches internally)
   })
-  return creditsCache // Return stale cache or null — don't block
+  return structuredClone(creditsCache) // Return stale cache or null — don't block
 }
 
 /**
@@ -114,7 +114,7 @@ export function getApiCreditsNonBlocking(): KeyCredits[] | null {
 export async function getCachedApiCredits(): Promise<KeyCredits[]> {
   const now = Date.now()
   if (creditsCache && now - creditsCacheTime < CREDITS_CACHE_TTL) {
-    return creditsCache
+    return structuredClone(creditsCache)
   }
   const fresh = await getAllKeyCredits()
   // Only cache if all entries are error-free

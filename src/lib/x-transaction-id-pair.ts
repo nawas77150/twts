@@ -58,7 +58,7 @@ const PAIR_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours
 async function fetchPairs(): Promise<PairDict[]> {
   const now = Date.now()
   if (cachedPairs && now - cachedPairsTime < PAIR_CACHE_TTL) {
-    return cachedPairs
+    return structuredClone(cachedPairs)
   }
 
   debug('pair-dict', 'Fetching pair.json from GitHub CDN')
@@ -88,13 +88,13 @@ async function fetchPairs(): Promise<PairDict[]> {
   // log a warning and keep the old cache
   if (cachedPairs && validPairs.length < cachedPairs.length * 0.5) {
     console.warn(`[pair-dict] Drastic change detected: ${validPairs.length} entries vs previous ${cachedPairs.length}. Keeping old cache.`)
-    return cachedPairs
+    return structuredClone(cachedPairs)
   }
 
   cachedPairs = validPairs
   cachedPairsTime = now
   debug('pair-dict', 'Loaded', validPairs.length, 'pairs, cached for 4h')
-  return cachedPairs
+  return structuredClone(cachedPairs)
 }
 
 // --- Transaction ID Generator ---

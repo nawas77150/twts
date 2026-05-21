@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
 import { getApiCreditsNonBlocking, getCachedApiCredits, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
-import { getFilterSettings } from '@/lib/filter-settings'
+import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
@@ -16,9 +16,13 @@ export async function GET(req: NextRequest) {
   const auth = verifyAdmin(getAdminTokenFromRequest(req))
   if (!auth.authorized) return auth.response
 
-  // If refresh=true, invalidate the credits cache before fetching
+  // If refresh=true, invalidate caches before fetching
+  // On Vercel serverless, each API route is a separate function instance —
+  // mutation routes invalidate their own cache but not the stats route's cache.
+  // Passing refresh=true ensures the stats route also clears its stale data.
   if (req.nextUrl.searchParams.get('refresh') === 'true') {
     invalidateCreditsCache()
+    invalidateFilterSettingsCache()
   }
 
   try {
