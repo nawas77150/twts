@@ -20,6 +20,16 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB)
 }
 
+/** Wrap response with Cache-Control: no-store on every response.
+ *  Prevents caching intermediaries (CDNs, proxies) from serving stale
+ *  cron results, which could mask actual posting failures. */
+function cronJson(body: unknown, init?: ResponseInit): NextResponse {
+  const headers = new Headers(init?.headers)
+  headers.set('Content-Type', 'application/json')
+  headers.set('Cache-Control', 'no-store')
+  return new NextResponse(JSON.stringify(body), { ...init, headers })
+}
+
 // GET /api/autopost — Cron endpoint for auto-posting queued submissions.
 // Called by external cron service (cron-job.org) every minute.
 // Processes exactly 1 submission per hit.
@@ -30,12 +40,12 @@ export async function GET(req: NextRequest) {
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
       console.error('[autopost] CRON_SECRET env var not set')
-      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+      return cronJson({ error: 'CRON_SECRET not configured' }, { status: 500 })
     }
 
     const authHeader = req.headers.get('authorization')
     if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${cronSecret}`)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return cronJson({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // ── Load filter settings ────────────────────────────────
@@ -44,7 +54,7 @@ export async function GET(req: NextRequest) {
       filterSettings = await getFilterSettings()
     } catch {
       debug('autopost', 'Failed to load filter settings')
-      return NextResponse.json(
+      return cronJson(
         { processed: false, reason: 'settings_load_failed' },
         { status: 500 }
       )
@@ -58,9 +68,8 @@ export async function GET(req: NextRequest) {
 
     // ── Gate: auto-approve must be ON ───────────────────────
     if (!filterSettings.autoApprove) {
-      return NextResponse.json(
-        { processed: false, reason: 'auto_approve_off' },
-        { headers: { 'Cache-Control': 'no-store' } }
+      return cronJson(
+        { processed: false, reason: 'auto_approve_off' }
       )
     }
 
@@ -71,12 +80,12 @@ export async function GET(req: NextRequest) {
     const isPaused = await isCircuitBreakerPaused(filterSettings.rateLimits)
     if (isPaused) {
       const cbStatus = await getCircuitBreakerStatus(filterSettings.rateLimits)
-      return NextResponse.json({
+      return cronJson({
         processed: false,
         reason: 'circuit_breaker_paused',
         pausedUntil: cbStatus.pausedUntil,
         remainingMinutes: cbStatus.remainingMinutes,
-      }, { headers: { 'Cache-Control': 'no-store' } })
+      })
     }
 
     // ── Recover stale "posting" submissions ──────────────
@@ -103,7 +112,7 @@ export async function GET(req: NextRequest) {
     })
 
     if (candidates.length === 0) {
-      return NextResponse.json({ processed: false, reason: 'no_eligible_submissions' })
+      return cronJson({ processed: false, reason: 'no_eligible_submissions' })
     }
 
     // ── Iterate candidates — find first valid one ───────────
@@ -142,7 +151,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!selectedSubmission) {
-      return NextResponse.json({ processed: false, reason: 'all_candidates_capped' })
+      return cronJson({ processed: false, reason: 'all_candidates_capped' })
     }
 
     const submission = selectedSubmission
@@ -159,20 +168,20 @@ export async function GET(req: NextRequest) {
     // Map result — File 4 returns 200 with processed:false for soft failures
     if (postResult.lockBusy) {
       debug('autopost', 'Posting lock busy')
-      return NextResponse.json({ processed: false, reason: 'posting_lock_busy' })
+      return cronJson({ processed: false, reason: 'posting_lock_busy' })
     }
     if (postResult.underLockAbortReason) {
-      return NextResponse.json({ processed: false, reason: postResult.underLockAbortReason })
+      return cronJson({ processed: false, reason: postResult.underLockAbortReason })
     }
     if (postResult.casAborted) {
       debug('autopost', 'Status changed before posting, aborting')
-      return NextResponse.json({ processed: false, reason: 'status_changed' })
+      return cronJson({ processed: false, reason: 'status_changed' })
     }
     if (postResult.success) {
       debug('autopost', 'Post succeeded! tweetId:', postResult.tweetId, 'method:', postResult.method)
       // ★ BUG FIX: warning path now handled (was missing in original)
       if (postResult.warning) {
-        return NextResponse.json({
+        return cronJson({
           processed: true,
           submissionId: submission.id,
           tweetId: postResult.tweetId,
@@ -180,7 +189,7 @@ export async function GET(req: NextRequest) {
           warning: postResult.warning,
         })
       }
-      return NextResponse.json({
+      return cronJson({
         processed: true,
         submissionId: submission.id,
         tweetId: postResult.tweetId,
@@ -189,7 +198,7 @@ export async function GET(req: NextRequest) {
     } else {
       const errorMsg = postResult.error || 'Unknown error'
       debug('autopost', 'Post failed:', errorMsg)
-      return NextResponse.json({
+      return cronJson({
         processed: false,
         reason: 'post_failed',
         submissionId: submission.id,
@@ -198,6 +207,6 @@ export async function GET(req: NextRequest) {
     }
   } catch (e) {
     console.error('[autopost] Unexpected error:', e)
-    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
+    return cronJson({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

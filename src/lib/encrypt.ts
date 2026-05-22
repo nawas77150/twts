@@ -14,13 +14,18 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
+/** Prefix added to values stored without encryption (ENCRYPTION_KEY not set).
+ *  Enables safe migration: decrypt()/decryptSetting() strip this prefix,
+ *  so tagged values are handled correctly even after ENCRYPTION_KEY is later added. */
+const PLAINTEXT_PREFIX = '{PLAINTEXT}'
+
 // Track whether encryption key is available (set once at module load)
 const _encryptionKeyAvailable = !!process.env.ENCRYPTION_KEY;
 
 // Warn once at startup if ENCRYPTION_KEY is not configured
 if (!_encryptionKeyAvailable) {
   console.error(
-    '[ENCRYPTION] ⚠️  ENCRYPTION_KEY is not set. Sensitive data (API keys, cookies, passwords) will be stored in PLAINTEXT. ' +
+    '[ENCRYPTION] ⚠️  ENCRYPTION_KEY is not set. Sensitive data (API keys, cookies, passwords) will be stored with a {PLAINTEXT} tag (not encrypted, but distinguishable from encrypted values). ' +
     'Generate a key with: openssl rand -hex 32  —  Then set ENCRYPTION_KEY in your environment variables.'
   );
 }
@@ -51,7 +56,8 @@ function getKey(): Buffer | null {
 /**
  * Encrypts plaintext using AES-256-GCM.
  * Returns "iv:authTag:ciphertext" (all base64 encoded).
- * If ENCRYPTION_KEY is not set, returns plaintext as-is.
+ * If ENCRYPTION_KEY is not set, returns the value with a {PLAINTEXT} prefix tag,
+ * which decrypt()/decryptSetting() will strip when reading.
  */
 export function encrypt(plaintext: string): string {
   const key = getKey();
@@ -61,11 +67,11 @@ export function encrypt(plaintext: string): string {
     if (now - _lastEncryptWarnTime > 60_000) {
       _lastEncryptWarnTime = now;
       console.warn(
-        `[ENCRYPTION] encrypt() called without ENCRYPTION_KEY — value stored in plaintext. ` +
+        `[ENCRYPTION] encrypt() called without ENCRYPTION_KEY — value stored as {PLAINTEXT}-tagged string (not encrypted). ` +
         `Set ENCRYPTION_KEY to enable encryption. (This warning is throttled to once per minute)`
       );
     }
-    return plaintext;
+    return `${PLAINTEXT_PREFIX}${plaintext}`;
   }
 
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -84,10 +90,17 @@ export function encrypt(plaintext: string): string {
 
 /**
  * Decrypts a value produced by `encrypt`.
- * If ENCRYPTION_KEY is not set, returns input as-is.
+ * Handles {PLAINTEXT}-tagged values (stored when ENCRYPTION_KEY was not set)
+ * by stripping the prefix and returning the raw value.
+ * If ENCRYPTION_KEY is not set and the value is not tagged, returns input as-is.
  * Throws a descriptive error if decryption fails (wrong key, tampered data).
  */
 export function decrypt(encrypted: string): string {
+  // Handle {PLAINTEXT}-tagged values — strip the prefix regardless of key availability.
+  // These were stored when ENCRYPTION_KEY was not configured.
+  if (encrypted.startsWith(PLAINTEXT_PREFIX)) {
+    return encrypted.slice(PLAINTEXT_PREFIX.length)
+  }
   const key = getKey();
   if (!key) return encrypted;
 
@@ -152,11 +165,17 @@ export function isEncrypted(value: string): boolean {
 
 /**
  * Decrypt a setting value if encrypted, return as-is if plaintext.
+ * Handles {PLAINTEXT}-tagged values (stored when ENCRYPTION_KEY was not set)
+ * by stripping the prefix and returning the raw value.
  * Handles migration from unencrypted to encrypted values.
  * On decryption failure, returns the fallback (defaults to raw value).
  */
 export function decryptSetting(value: string, fallback?: string): string {
   if (!value) return fallback ?? value
+  // Handle {PLAINTEXT}-tagged values — strip prefix, no decryption needed.
+  if (value.startsWith(PLAINTEXT_PREFIX)) {
+    return value.slice(PLAINTEXT_PREFIX.length)
+  }
   try {
     return isEncrypted(value) ? decrypt(value) : value
   } catch {
