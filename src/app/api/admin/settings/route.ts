@@ -179,9 +179,45 @@ export const POST = withAdmin(async (req: NextRequest) => {
     }
   }
 
-  // Validate proxy URL format (basic)
+  // Validate proxy URL format + block private/internal IPs (SSRF protection)
   if (key === 'twitterapi_proxy' && value.trim()) {
     if (!value.match(/^https?:\/\/.+/)) {
+      return NextResponse.json(
+        { error: 'Proxy must be a valid HTTP/HTTPS URL, e.g. http://user:pass@ip:port' },
+        { status: 400 }
+      )
+    }
+    // Parse hostname and reject RFC 1918, loopback, link-local, and cloud metadata IPs
+    try {
+      const url = new URL(value)
+      const hostname = url.hostname
+      const isPrivate =
+        hostname === 'localhost' ||
+        hostname.endsWith('.localhost') ||
+        hostname.endsWith('.local') ||
+        hostname.endsWith('.internal') ||
+        // Loopback 127.0.0.0/8
+        (() => { const p = hostname.split('.'); return p.length === 4 && p[0] === '127' })() ||
+        // Link-local 169.254.0.0/16 (includes AWS/GCP metadata endpoint)
+        (() => { const p = hostname.split('.'); return p.length === 4 && p[0] === '169' && p[1] === '254' })() ||
+        // RFC 1918: 10.0.0.0/8
+        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 10 })() ||
+        // RFC 1918: 172.16.0.0/12 (172.16.x.x – 172.31.x.x)
+        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 172 && p[1] >= 16 && p[1] <= 31 })() ||
+        // RFC 1918: 192.168.0.0/16
+        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 192 && p[1] === 168 })() ||
+        // 0.0.0.0
+        hostname === '0.0.0.0' ||
+        // IPv6 loopback
+        hostname === '::1' ||
+        hostname.startsWith('fc') || hostname.startsWith('fd')  // IPv6 ULA
+      if (isPrivate) {
+        return NextResponse.json(
+          { error: 'Proxy URL must not point to a private/internal IP address' },
+          { status: 400 }
+        )
+      }
+    } catch {
       return NextResponse.json(
         { error: 'Proxy must be a valid HTTP/HTTPS URL, e.g. http://user:pass@ip:port' },
         { status: 400 }
@@ -208,12 +244,19 @@ export const POST = withAdmin(async (req: NextRequest) => {
     const allSettings = await db.setting.findMany({
       where: {
         key: { in: ['x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys'] },
-        value: { not: '' },
       },
+    })
+    // Decrypt + filter: DB-level { not: '' } misses encrypted empties and
+    // {PLAINTEXT}-tagged empties (regression from C3 fix). Application-level
+    // check correctly detects all empty-value representations.
+    const nonEmptySettings = allSettings.filter(s => {
+      if (!s.value) return false
+      const decrypted = decryptSetting(s.value, '')
+      return decrypted.trim() !== ''
     })
 
     const hasAll = ['x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys'].every(
-      (k) => allSettings.some((s) => s.key === k)
+      (k) => nonEmptySettings.some((s) => s.key === k)
     )
 
     if (hasAll) {

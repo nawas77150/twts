@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { SubmitterWithStats } from '@/types'
 import { apiClient, ApiError } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
@@ -11,20 +11,26 @@ export function useSubmitters() {
   const [submitters, setSubmitters] = useState<SubmitterWithStats[]>([])
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const fetchSubmitters = useCallback(async () => {
+  const fetchSubmitters = useCallback(async (silent = false) => {
     if (!isAdmin) return
     setIsLoading(true)
+    setError(null)
     try {
       const data = await apiClient.getSubmitters()
       setSubmitters(data.submitters)
     } catch {
-      /* ignore */
+      const msg = 'Gagal memuat data submitter. Coba lagi.'
+      setError(msg)
+      if (!silent) {
+        toast({ title: 'Error', description: msg, variant: 'destructive' })
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [isAdmin])
+  }, [isAdmin, toast])
 
   // Shared helper for block/unblock — eliminates duplication
   const toggleBlock = useCallback(async (
@@ -80,10 +86,18 @@ export function useSubmitters() {
     setBlockedUsernames(usernames)
   }, [])
 
+  // Clear error state on logout
+  useEffect(() => {
+    if (!isAdmin) {
+      setError(null)
+    }
+  }, [isAdmin])
+
   return {
     submitters,
     blockedUsernames,
     isLoading,
+    error,
     fetchSubmitters,
     block,
     unblock,
