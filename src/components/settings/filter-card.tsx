@@ -5,8 +5,6 @@ import {
   AlertTriangle,
   RotateCcw,
   ShieldCheck,
-  Loader2,
-  Shield,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -14,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { SettingsCard } from '@/components/shared/settings-card'
+import { SaveButton } from '@/components/shared/save-button'
 import type { FilterRules } from '@/types'
 
 interface FilterCardProps {
@@ -180,14 +179,12 @@ export function FilterCard({
       <Separator />
 
       {/* Save Filter Settings */}
-      <Button
+      <SaveButton
+        isSaving={isSaving}
+        isLoaded={isLoaded}
+        label="Save Filter Settings"
         onClick={saveFilterSettings}
-        disabled={isSaving || !isLoaded}
-        className="w-full bg-[#0F1419] hover:bg-[#272c30]"
-      >
-        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-        {!isLoaded ? 'Loading...' : 'Save Filter Settings'}
-      </Button>
+      />
     </SettingsCard>
   )
 }

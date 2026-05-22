@@ -137,9 +137,24 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
 
   // ── Actions: spinner + toast + refetch ──────────────────────────────
 
+  /** Wrap an async action with loading spinner + error toast + cleanup */
+  const withActionLoading = useCallback(
+    <T,>(id: string, fn: () => Promise<T>, errorTitle: string, errorFallback: string): Promise<T | null> => {
+      setActionLoading(prev => new Set(prev).add(id))
+      return fn()
+        .catch((err: unknown) => {
+          toast({ title: errorTitle, description: getErrorMessage(err, errorFallback), variant: 'destructive' })
+          return null
+        })
+        .finally(() => {
+          setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
+        })
+    },
+    [toast],
+  )
+
   const approve = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(prev => new Set(prev).add(id))
-    try {
+    return withActionLoading(id, async () => {
       const data = await apiClient.approveSubmission(id)
       if (data.autoPosted) {
         const desc = data.description || (data.postMethod ? POST_METHOD_DESCRIPTIONS[data.postMethod] : '') || 'Pesan otomatis diposting ke X.'
@@ -160,47 +175,31 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Disetujui', description: 'Pesan telah disetujui.' })
       void fetchSubmissions(true)
       return 'posting'
-    } catch (err: unknown) {
-      toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menyetujui'), variant: 'destructive' })
-      return null
-    } finally {
-      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
-    }
-  }, [fetchSubmissions, toast])
+    }, 'Gagal', 'Gagal menyetujui')
+  }, [fetchSubmissions, toast, withActionLoading])
 
   const reject = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(prev => new Set(prev).add(id))
-    try {
+    const result = await withActionLoading(id, async () => {
       await apiClient.rejectSubmission(id)
       toast({ title: 'Ditolak', description: 'Pesan telah ditolak.' })
       void fetchSubmissions(true)
       return true
-    } catch (err: unknown) {
-      toast({ title: 'Gagal', description: getErrorMessage(err, 'Gagal menolak'), variant: 'destructive' })
-      return false
-    } finally {
-      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
-    }
-  }, [fetchSubmissions, toast])
+    }, 'Gagal', 'Gagal menolak')
+    return result ?? false
+  }, [fetchSubmissions, toast, withActionLoading])
 
   const deleteSubmission = useCallback(async (id: string): Promise<boolean> => {
-    setActionLoading(prev => new Set(prev).add(id))
-    try {
+    const result = await withActionLoading(id, async () => {
       await apiClient.deleteSubmission(id)
       toast({ title: 'Dihapus' })
       void fetchSubmissions(true)
       return true
-    } catch (err: unknown) {
-      toast({ title: 'Error', description: getErrorMessage(err, 'Gagal menghapus'), variant: 'destructive' })
-      return false
-    } finally {
-      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
-    }
-  }, [fetchSubmissions, toast])
+    }, 'Error', 'Gagal menghapus')
+    return result ?? false
+  }, [fetchSubmissions, toast, withActionLoading])
 
   const retryPost = useCallback(async (id: string): Promise<SubmissionStatus | null> => {
-    setActionLoading(prev => new Set(prev).add(id))
-    try {
+    return withActionLoading(id, async () => {
       const data = await apiClient.retryPost(id)
       if (data.error) {
         toast({ title: 'Gagal posting', description: data.error, variant: 'destructive' })
@@ -210,13 +209,8 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
       toast({ title: 'Berhasil diposting ke X!', description: data.tweetId ? `Tweet ID: ${data.tweetId}` : undefined })
       void fetchSubmissions(true)
       return 'posted'
-    } catch (err: unknown) {
-      toast({ title: 'Gagal posting', description: getErrorMessage(err, 'Gagal posting ke X'), variant: 'destructive' })
-      return null
-    } finally {
-      setActionLoading(prev => { const next = new Set(prev); next.delete(id); return next })
-    }
-  }, [fetchSubmissions, toast])
+    }, 'Gagal posting', 'Gagal posting ke X')
+  }, [fetchSubmissions, toast, withActionLoading])
 
   return {
     submissions,

@@ -3,13 +3,12 @@
 import {
   Activity,
   RotateCcw,
-  Loader2,
-  Shield,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from '@/components/shared/settings-card'
+import { SaveButton } from '@/components/shared/save-button'
 import type { CircuitBreakerStatus, RateLimitSettings } from '@/types'
 
 function CircuitBreakerStatusDisplay({
@@ -159,14 +158,12 @@ export function CircuitBreakerCard({
         </ul>
       </div>
 
-      <Button
+      <SaveButton
+        isSaving={isSaving}
+        isLoaded={isLoaded}
+        label="Simpan Circuit Breaker"
         onClick={onSave}
-        disabled={isSaving || !isLoaded}
-        className="w-full bg-[#0F1419] hover:bg-[#272c30]"
-      >
-        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-        {!isLoaded ? 'Loading...' : 'Simpan Circuit Breaker'}
-      </Button>
+      />
     </SettingsCard>
   )
 }

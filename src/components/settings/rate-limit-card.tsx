@@ -1,10 +1,11 @@
 'use client'
 
-import { Clock, Loader2, Shield, User, Globe, Zap } from 'lucide-react'
+import { Clock, User, Globe, Zap } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from '@/components/shared/settings-card'
+import { SaveButton } from '@/components/shared/save-button'
 import type { RateLimitSettings } from '@/types'
 
 interface RateLimitCardProps {
@@ -152,14 +153,12 @@ export function RateLimitCard({
           <li><strong>Batas post harian global</strong> — maks {rateLimits.globalPostDailyCap} tweet ke X dari semua user per hari <span className="text-rose-500">(selalu aktif)</span></li>
         </ul>
       </div>
-      <Button
+      <SaveButton
+        isSaving={isSaving}
+        isLoaded={isLoaded}
+        label="Simpan Rate Limits"
         onClick={saveRateLimits}
-        disabled={isSaving || !isLoaded}
-        className="w-full bg-[#0F1419] hover:bg-[#272c30]"
-      >
-        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
-        {!isLoaded ? 'Loading...' : 'Simpan Rate Limits'}
-      </Button>
+      />
     </SettingsCard>
   )
 }
