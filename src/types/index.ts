@@ -91,6 +91,7 @@ export interface FilterSettings {
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
   blockedUsernames: string[]
+  postHashtags: string
   defaultBlockedWords?: string[]
   defaultNsfwWords?: string[]
 }

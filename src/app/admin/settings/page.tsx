@@ -11,6 +11,7 @@ import { useAdminStats } from '@/contexts/admin-stats-context'
 import { useSettingsSync } from '@/hooks/use-settings-sync'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
 import { ApiFallbackCard } from '@/components/settings/api-fallback-card'
+import { HashtagsCard } from '@/components/settings/hashtags-card'
 import { FilterCard } from '@/components/settings/filter-card'
 import { GeminiCard } from '@/components/settings/gemini-card'
 import { RateLimitCard } from '@/components/settings/rate-limit-card'
@@ -181,6 +182,13 @@ export default function AdminSettingsPage() {
               apiCredits={apiCredits}
               onRefreshCredits={handleRefreshCredits}
               isLoadingCredits={isLoadingCredits}
+            />
+
+            <HashtagsCard
+              postHashtags={posting.postHashtags}
+              setPostHashtags={posting.setPostHashtags}
+              isSavingSetting={posting.isSavingSetting}
+              saveSetting={postingSaveSetting}
             />
           </TabPanel>
         </TabsContent>

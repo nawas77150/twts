@@ -22,6 +22,7 @@ const SETTING_LABELS = new Map<string, string>([
   ['x_password', 'X Password'],
   ['x_totp_secret', '2FA Secret'],
   ['v2_login_enabled', 'V2 Login Fallback'],
+  ['post_hashtags', 'Hashtag'],
 ])
 
 export function usePostingSettings() {
@@ -44,6 +45,9 @@ export function usePostingSettings() {
 
   // V2 Login toggle
   const [v2LoginEnabled, setV2LoginEnabled] = useState(false)
+
+  // Post hashtags
+  const [postHashtags, setPostHashtags] = useState('')
 
   // Visibility toggles
   const [showCookieValue, setShowCookieValue] = useState(false)
@@ -177,6 +181,7 @@ export function usePostingSettings() {
     setXPassword('')
     setXTotpSecret('')
     setV2LoginEnabled(false)
+    setPostHashtags('')
   }, [])
 
   useEffect(() => {
@@ -211,6 +216,9 @@ export function usePostingSettings() {
     // V2 Login toggle
     v2LoginEnabled,
     setV2LoginEnabled,
+    // Post hashtags
+    postHashtags,
+    setPostHashtags,
     // Visibility toggles
     showCookieValue,
     setShowCookieValue,

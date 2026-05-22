@@ -6,6 +6,7 @@ interface UseSettingsSyncParams {
   posting: {
     setPostMethodSetting: (v: PostMethodSetting) => void
     setV2LoginEnabled: (v: boolean) => void
+    setPostHashtags: (v: string) => void
   }
   filterSettings: {
     loadFromFilterSettings: (fs: NonNullable<Stats['filterSettings']>) => void
@@ -49,10 +50,13 @@ export function useSettingsSync({
     if (stats.apiLoginStatus?.v2LoginEnabled !== undefined) {
       posting.setV2LoginEnabled(stats.apiLoginStatus.v2LoginEnabled)
     }
+    if (stats.filterSettings?.postHashtags !== undefined) {
+      posting.setPostHashtags(stats.filterSettings.postHashtags)
+    }
     if (stats.circuitBreaker) {
       circuitBreaker.setStatus(stats.circuitBreaker)
     }
-  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting, posting.setV2LoginEnabled])
+  }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting, posting.setV2LoginEnabled, posting.setPostHashtags])
 
   // Phase 2: Always sync circuit breaker status (read-only display, safe to update)
   useEffect(() => {
