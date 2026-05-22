@@ -97,19 +97,25 @@ export async function GET(req: NextRequest) {
         }),
       ])
 
-      const cooldownMs = effectiveLimits.submissionCooldown * 60 * 1000
-      const cooldownSeconds = lastSubmission
-        ? Math.max(0, Math.ceil((new Date(lastSubmission.createdAt).getTime() + cooldownMs - Date.now()) / 1000))
-        : 0
+      // Whitelisted users bypass per-user cooldown, daily cap, and pending cap
+      const isWhitelisted = filterSettings.whitelistUsernames.includes(submitter.username?.toLowerCase() ?? '')
+
+      const cooldownSeconds = isWhitelisted ? 0 : (() => {
+        const cooldownMs = effectiveLimits.submissionCooldown * 60 * 1000
+        return lastSubmission
+          ? Math.max(0, Math.ceil((new Date(lastSubmission.createdAt).getTime() + cooldownMs - Date.now()) / 1000))
+          : 0
+      })()
 
       limitsData = {
-        dailyCap: effectiveLimits.submissionDailyCap,
+        dailyCap: isWhitelisted ? 0 : effectiveLimits.submissionDailyCap,
         dailyUsed: dailySubmissionCount,
-        pendingCap: effectiveLimits.userPendingCap,
+        pendingCap: isWhitelisted ? 0 : effectiveLimits.userPendingCap,
         pendingUsed: pendingCount,
-        postCap: effectiveLimits.userPostDailyCap,
+        postCap: isWhitelisted ? 0 : effectiveLimits.userPostDailyCap,
         postUsed: dailyPostCount,
         cooldownSeconds,
+        isWhitelisted,
         isCustom,
         autoApprove: filterSettings.autoApprove,
         hashtags: filterSettings.postHashtags,

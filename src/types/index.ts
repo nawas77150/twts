@@ -170,6 +170,7 @@ export interface SubmissionLimitsData {
   postCap: number
   postUsed: number
   cooldownSeconds: number
+  isWhitelisted?: boolean    // Whitelisted users bypass per-user cooldown & caps
   isCustom: boolean
   autoApprove?: boolean
   hashtags?: string          // Admin-configured hashtags appended to posts (e.g. "#conf #anon")
