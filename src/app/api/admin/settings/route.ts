@@ -4,6 +4,7 @@ import { encrypt, decryptSetting, isEncryptionEnabled } from '@/lib/encrypt'
 import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { withAdmin } from '@/lib/admin-auth'
 import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
+import { isPrivateIP } from '@/lib/is-private-ip'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_KEYS = [
@@ -187,31 +188,9 @@ export const POST = withAdmin(async (req: NextRequest) => {
         { status: 400 }
       )
     }
-    // Parse hostname and reject RFC 1918, loopback, link-local, and cloud metadata IPs
     try {
-      const url = new URL(value)
-      const hostname = url.hostname
-      const isPrivate =
-        hostname === 'localhost' ||
-        hostname.endsWith('.localhost') ||
-        hostname.endsWith('.local') ||
-        hostname.endsWith('.internal') ||
-        // Loopback 127.0.0.0/8
-        (() => { const p = hostname.split('.'); return p.length === 4 && p[0] === '127' })() ||
-        // Link-local 169.254.0.0/16 (includes AWS/GCP metadata endpoint)
-        (() => { const p = hostname.split('.'); return p.length === 4 && p[0] === '169' && p[1] === '254' })() ||
-        // RFC 1918: 10.0.0.0/8
-        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 10 })() ||
-        // RFC 1918: 172.16.0.0/12 (172.16.x.x – 172.31.x.x)
-        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 172 && p[1] >= 16 && p[1] <= 31 })() ||
-        // RFC 1918: 192.168.0.0/16
-        (() => { const p = hostname.split('.').map(Number); return p.length === 4 && p[0] === 192 && p[1] === 168 })() ||
-        // 0.0.0.0
-        hostname === '0.0.0.0' ||
-        // IPv6 loopback
-        hostname === '::1' ||
-        hostname.startsWith('fc') || hostname.startsWith('fd')  // IPv6 ULA
-      if (isPrivate) {
+      const hostname = new URL(value).hostname
+      if (isPrivateIP(hostname)) {
         return NextResponse.json(
           { error: 'Proxy URL must not point to a private/internal IP address' },
           { status: 400 }
