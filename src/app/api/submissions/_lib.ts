@@ -16,6 +16,7 @@ import { debug } from '@/lib/debug'
 import { runContentFilter, checkDuplicate24h, normalizeText, sanitizeInput, hasAlwaysOnReason, getRejectionMessage } from '@/lib/content-filter'
 import { runGeminiSubmissionCheck } from '@/lib/gemini-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { getEffectiveMaxLength } from '@/lib/append-hashtags'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Determine censored reason from filter reasons
@@ -80,9 +81,18 @@ export async function validateSubmission(req: NextRequest): Promise<ValidatedInp
     return NextResponse.json({ error: 'Pesan tidak boleh kosong' }, { status: 400 })
   }
 
-  if (trimmedMessage.length > 280) {
+  let postHashtags = ''
+  try {
+    postHashtags = (await getFilterSettings()).postHashtags
+  } catch {
+    // If settings can't be loaded, use default (no hashtags → 280 limit)
+  }
+  const effectiveMax = getEffectiveMaxLength(postHashtags)
+
+  if (trimmedMessage.length > effectiveMax) {
+    const hashtagNote = postHashtags ? ` (${postHashtags.length + 1} karakter untuk ${postHashtags})` : ''
     return NextResponse.json(
-      { error: `Pesan terlalu panjang (${trimmedMessage.length}/280 karakter)` },
+      { error: `Pesan terlalu panjang (${trimmedMessage.length}/${effectiveMax} karakter${hashtagNote})` },
       { status: 400 }
     )
   }

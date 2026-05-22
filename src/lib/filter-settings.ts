@@ -19,6 +19,7 @@ export const FILTER_SETTING_KEYS = [
   'global_submission_daily_cap',
   'circuit_breaker_threshold', 'circuit_breaker_cooldown_minutes', 'circuit_breaker_failure_window_minutes',
   'whitelist_usernames', 'blocked_usernames',
+  'post_hashtags',
 ]
 
 /**
@@ -86,6 +87,7 @@ export async function getFilterSettings(): Promise<{
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]  // Twitter usernames bypassing rate limits
   blockedUsernames: string[]    // Twitter usernames blocked from submitting
+  postHashtags: string          // Hashtags appended to auto-posted tweets
 }> {
   if (isCacheValid()) return structuredClone(cachedSettings!.data)
 
@@ -150,6 +152,9 @@ export async function getFilterSettings(): Promise<{
     getRaw('blocked_usernames'), validateLowercaseStringArray, [] as string[],
   )
 
+  // Post hashtags (appended to auto-posted tweets)
+  const postHashtags = getRaw('post_hashtags')?.trim() || ''
+
   const result = {
     autoApprove,
     blockedWords,
@@ -162,6 +167,7 @@ export async function getFilterSettings(): Promise<{
     rateLimits: { submissionCooldown, submissionDailyCap, autoPostCooldown, autoPostWindowCap, autoPostWindowMinutes, globalPostDailyCap, userPostDailyCap, userPendingCap, globalSubmissionDailyCap, circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes },
     whitelistUsernames,
     blockedUsernames,
+    postHashtags,
   }
 
   cachedSettings = { data: result, ts: Date.now() }

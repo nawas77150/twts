@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { getEffectiveMaxLength } from '@/lib/append-hashtags'
 import { resolveEffectiveLimits, hasCustomLimits } from '@/lib/limit-resolver'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
@@ -111,6 +112,8 @@ export async function GET(req: NextRequest) {
         cooldownSeconds,
         isCustom,
         autoApprove: filterSettings.autoApprove,
+        hashtags: filterSettings.postHashtags,
+        maxMessageLength: getEffectiveMaxLength(filterSettings.postHashtags),
       }
     } catch {
       // If limits computation fails, return null — don't block the main response

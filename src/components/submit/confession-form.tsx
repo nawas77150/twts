@@ -40,6 +40,10 @@ export function ConfessionForm({
     }
   }, [onSubmit, message, category])
 
+  const maxLen = limits?.maxMessageLength ?? 280
+  // Proportional amber threshold: same ratio as 220/280 ≈ 0.786
+  const amberThreshold = Math.round(maxLen * 220 / 280)
+
   const remainingDaily = limits ? Math.max(0, limits.dailyCap - limits.dailyUsed) : null
   const isCustom = limits?.isCustom ?? false
   const pendingOverCap = limits ? limits.pendingUsed > limits.pendingCap : false
@@ -88,12 +92,16 @@ export function ConfessionForm({
               value={message}
               onChange={(e) => { setMessage(e.target.value) }}
               className="min-h-[120px] resize-none border-[#EFF3F4]"
-              maxLength={280}
+              maxLength={maxLen}
             />
             <div className="flex justify-between items-center">
-              <span className="text-xs text-[#71767B]">Maks 280 karakter (batas tweet X)</span>
-              <span className={`text-xs font-medium ${message.length > 280 ? 'text-red-500' : message.length > 220 ? 'text-amber-500' : 'text-[#71767B]'}`}>
-                {message.length}/280
+              <span className="text-xs text-[#71767B]">
+                {limits?.hashtags
+                  ? `Maks ${maxLen} karakter (${limits.hashtags.length + 1} untuk ${limits.hashtags})`
+                  : 'Maks 280 karakter (batas tweet X)'}
+              </span>
+              <span className={`text-xs font-medium ${message.length > maxLen ? 'text-red-500' : message.length > amberThreshold ? 'text-amber-500' : 'text-[#71767B]'}`}>
+                {message.length}/{maxLen}
               </span>
             </div>
           </div>

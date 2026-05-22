@@ -4,6 +4,7 @@ import { isCircuitBreakerPaused, getCircuitBreakerStatus } from '@/lib/circuit-b
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
+import { appendHashtags } from '@/lib/append-hashtags'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
 import { recoverStalePostings } from '@/lib/stale-posting'
@@ -159,7 +160,7 @@ export async function GET(req: NextRequest) {
     // ── Delegated: lock → under-lock checks → CAS → post → record → release ──
     const postResult = await executePostAndRecord({
       submissionId: submission.id,
-      message: decodeHtmlEntities(submission.message),
+      message: appendHashtags(decodeHtmlEntities(submission.message), filterSettings.postHashtags),
       rateLimits: filterSettings.rateLimits,
       casStatuses: ['pending', 'post_failed'],
       extraUnderLockChecks: createCooldownWindowChecks(filterSettings.rateLimits, 'autopost'),

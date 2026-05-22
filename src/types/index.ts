@@ -171,6 +171,8 @@ export interface SubmissionLimitsData {
   cooldownSeconds: number
   isCustom: boolean
   autoApprove?: boolean
+  hashtags?: string          // Admin-configured hashtags appended to posts (e.g. "#conf #anon")
+  maxMessageLength?: number  // Effective max: 280 minus hashtag space
 }
 
 // --- Pagination ---

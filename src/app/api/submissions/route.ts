@@ -6,6 +6,7 @@ import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
 import { debug } from '@/lib/debug'
 import { normalizeText, decodeHtmlEntities, DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS, DEFAULT_FILTER_RULES } from '@/lib/content-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { appendHashtags } from '@/lib/append-hashtags'
 import { DEFAULT_RATE_LIMITS, DEFAULT_GEMINI_MODEL } from '@/lib/rate-limit-defaults'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { getCensoredReason, validateSubmission, runFilterPipeline, createQueuedSubmission } from './_lib'
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
         rateLimits: { ...DEFAULT_RATE_LIMITS },
         whitelistUsernames: [],
         blockedUsernames: [],
+        postHashtags: '',
       }
     }
 
@@ -268,7 +270,7 @@ export async function POST(req: NextRequest) {
     }
     const postResult = await executePostAndRecord({
       submissionId: submission.id,
-      message: decodeHtmlEntities(trimmedMessage),
+      message: appendHashtags(decodeHtmlEntities(trimmedMessage), filterSettings.postHashtags),
       rateLimits: filterSettings.rateLimits,
       casStatuses: ['pending'],
       extraUnderLockChecks: createCooldownWindowChecks(filterSettings.rateLimits, 'submit', perUserCheck),

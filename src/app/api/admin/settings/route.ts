@@ -20,6 +20,7 @@ const VALID_KEYS = [
   'x_totp_secret',
   'twitterapi_login_cookie',
   'v2_login_enabled',
+  'post_hashtags',
 ]
 const MAX_VALUE_LENGTH = 50000 // Larger for twitterapi_keys (JSON array)
 const VALID_POST_METHODS = ['direct', 'api', 'auto']
@@ -66,6 +67,8 @@ export const GET = withAdmin(async (req: NextRequest) => {
       } else if (s.key === 'twitterapi_proxy') {
         // Mask password in proxy URL
         displayValue = decrypted.replace(/\/\/([^:]+):([^@]+)@/, '//****:****@')
+      } else if (s.key === 'post_hashtags') {
+        displayValue = decrypted // hashtags are not sensitive
       } else if (SENSITIVE_KEYS.includes(s.key)) {
         displayValue = '••••••••' // Never reveal passwords/secrets
       } else {
@@ -98,7 +101,8 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
   // Reject empty/whitespace-only values to prevent encrypted-empty bypass
   // (encrypt('') produces non-empty ciphertext that passes { not: '' } filters)
-  if (!value.trim()) {
+  // Exception: post_hashtags can be cleared (empty = no hashtags)
+  if (key !== 'post_hashtags' && !value.trim()) {
     return NextResponse.json({ error: 'Value cannot be empty' }, { status: 400 })
   }
 
@@ -180,6 +184,23 @@ export const POST = withAdmin(async (req: NextRequest) => {
     }
   }
 
+  // Validate post_hashtags: each tag must start with #, max 60 chars total
+  if (key === 'post_hashtags' && value.trim()) {
+    if (value.length > 60) {
+      return NextResponse.json(
+        { error: 'Hashtag total max 60 characters' },
+        { status: 400 }
+      )
+    }
+    const invalid = value.split(/\s+/).filter(t => !t.startsWith('#') || t.length < 2)
+    if (invalid.length > 0) {
+      return NextResponse.json(
+        { error: `Each hashtag must start with # and be at least 2 characters. Invalid: ${invalid.join(', ')}` },
+        { status: 400 }
+      )
+    }
+  }
+
   // Validate proxy URL format + block private/internal IPs (SSRF protection)
   if (key === 'twitterapi_proxy' && value.trim()) {
     if (!value.match(/^https?:\/\/.+/)) {
@@ -205,7 +226,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
   }
 
   // Encrypt value before storing (non-sensitive settings are not encrypted)
-  const nonEncryptedKeys = ['post_method', 'v2_login_enabled']
+  const nonEncryptedKeys = ['post_method', 'v2_login_enabled', 'post_hashtags']
   const encryptedValue = nonEncryptedKeys.includes(key) ? value : encrypt(value)
 
   const setting = await db.setting.upsert({
