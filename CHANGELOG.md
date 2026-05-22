@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.2.0](https://github.com/james2256/tweetfess/compare/v1.1.0...v1.2.0) (2026-05-22)
+
+
+### Features
+
+* add AdminAuthContext + AdminStatsContext ([3eb52c9](https://github.com/james2256/tweetfess/commit/3eb52c95111bf35c5bd3f4e7714654a1331d6a33))
+* add lightweight session endpoint and rename verifyAdmin parameter ([2f836e5](https://github.com/james2256/tweetfess/commit/2f836e5d9469680c70b508035e0e0361e25a4677))
+* admin UI for post hashtags setting ([3f2100b](https://github.com/james2256/tweetfess/commit/3f2100b4b99b4a6e4b8c135064ecc1f93f3beeae))
+* admin-configurable post hashtags with proportional char limit ([fa1e001](https://github.com/james2256/tweetfess/commit/fa1e001ceb5ecd683d1e3dfed50e5f601bc430cb))
+* **admin:** loading/error state consistency — skeleton, shimmer, error retry ([9c97820](https://github.com/james2256/tweetfess/commit/9c9782076a443cc3f33aae3379e2da56e7735aff))
+* **admin:** optimistic updates, instant stats sync, per-card loading, stale indicator ([7ae4be0](https://github.com/james2256/tweetfess/commit/7ae4be0fd20a0980eed4a65cba0d2271b4cd536d))
+* **home:** server-render page + pre-hydrate auth from cookies ([0c6b747](https://github.com/james2256/tweetfess/commit/0c6b747d992b1bc28943a794e834b1bc95bea8fa))
+* namespaced debug logging with timestamps, DB query duration ([09646ee](https://github.com/james2256/tweetfess/commit/09646ee3f6966cae9ea6b81d2cb3a04cb26d6c31))
+* proxy auth with HMAC verify, admin SSR shell, settings layout, EncryptionBanner context refactor ([b8ee0fb](https://github.com/james2256/tweetfess/commit/b8ee0fb55e3b8aab8b02f50d6b0524df8f6c9030))
+* **public:** live cooldown countdown, auto-poll MyPosts, cooldown-expired refetch ([3299964](https://github.com/james2256/tweetfess/commit/3299964b91ffbdb6a7d48eaefde17181a89d3f83))
+* **settings:** split isSaving into isSavingFilter + isSavingRateLimits ([70611f7](https://github.com/james2256/tweetfess/commit/70611f7029610d1010a6950ea933d2802380e80d))
+* **ui:** compact dashboard cards, upgrade lucide v1, remove API credits card, update CI actions ([3d41226](https://github.com/james2256/tweetfess/commit/3d412266414b8d7f8a3e9fa71337aae31dcaa0f0))
+
+
+### Bug Fixes
+
+* 401 toast dedup, status validation, stale closure, reset flags, JSON parse guard ([c5f6a19](https://github.com/james2256/tweetfess/commit/c5f6a19e7d9019b5b0f1ba356a7a0885fcc575e8))
+* add [status, createdAt] index, batch circuit-breaker reads, cache filter settings ([13cefbe](https://github.com/james2256/tweetfess/commit/13cefbeef28240209659c1f5f29573e70f311f7f))
+* add missing posting.setV2LoginEnabled to useEffect deps (exhaustive-deps) ([8370cbb](https://github.com/james2256/tweetfess/commit/8370cbbf114ae33a9aef152af571d23149b3cb6f))
+* add safeAccess helper to resolve SAST Object Injection Sink warnings in users-dialog ([d0bdc69](https://github.com/james2256/tweetfess/commit/d0bdc6927afdfb5dc2f5bafa131549895546867e))
+* add timeouts to remaining bare external fetches ([9110337](https://github.com/james2256/tweetfess/commit/9110337b1f16ec8eef1c768049b8f72ea2d5a114))
+* add u flag to normalizeForFilter regex ([0ad343f](https://github.com/james2256/tweetfess/commit/0ad343f457a5c7d5cf172f7f1cc2bdf9777c3652))
+* **admin:** isolate save payloads + structuredClone all caches ([87c215e](https://github.com/james2256/tweetfess/commit/87c215eb637d7f584edc3c65fdcbe049cc084da8))
+* bug fixes and dead code cleanup ([acc5cdf](https://github.com/james2256/tweetfess/commit/acc5cdf8d7fb83a9d8cc59d0b4dcad69ef4a976e))
+* circuit-breaker lastFailureAt race + login lockout bypass + remove unused imports ([7b76046](https://github.com/james2256/tweetfess/commit/7b760469010e318e0c39278091b79de4e18ce843))
+* credits cold-cache fallback + form field id/name + auth dedup ([74d2054](https://github.com/james2256/tweetfess/commit/74d2054e4787a6d703e8ee36eef6aab91d4ad85e))
+* credits error cache guard, refresh bypass, dynamic robots, imperative resetState on logout, lint cleanup ([ab546ec](https://github.com/james2256/tweetfess/commit/ab546ec2fb3f4e888f028578ffc26b88849fe08c))
+* **deps:** update dependency lucide-react to ^0.577.0 ([beecf9b](https://github.com/james2256/tweetfess/commit/beecf9be1e009e93ba642ee95bcaa3e5b6279ce8))
+* **deps:** update dependency lucide-react to ^0.577.0 ([2ba409d](https://github.com/james2256/tweetfess/commit/2ba409d194fa7dd097ae705375d7526d4732eebc))
+* empty-value guard, login spinner, skeleton keys, metadata ([84d66ee](https://github.com/james2256/tweetfess/commit/84d66ee7792238baeea578cf8f53420bb1ef950a))
+* filter bypass (combining marks, fullwidth, zero-width), Gemini key exposure, error handling consistency ([23a42db](https://github.com/james2256/tweetfess/commit/23a42dbaafc5f901750125638ef01d796366d837))
+* guard empty normalizedMessage dedup, fix postMethod comment, revert u flag ([bee91a7](https://github.com/james2256/tweetfess/commit/bee91a784825f8316315c52d509dd84851d1e035))
+* harden safeAccess with Object.keys whitelist validation for SAST compliance ([cbbb9d9](https://github.com/james2256/tweetfess/commit/cbbb9d962bb0e31344ba26d2191a16e8cf62519c))
+* icon-btn CSS specificity + admin UX hardening ([a2cdccf](https://github.com/james2256/tweetfess/commit/a2cdccfcc823ea797ceaf60cac38e7116c12803e))
+* **lint:** replace 'as any' with readonly string[] widening in status validation ([1b8290c](https://github.com/james2256/tweetfess/commit/1b8290c502631e5576202b5a5a7a939850673c5b))
+* patch 9 bugs (auth, filter bypass, timeouts, cache, JSONB) ([d7a12c8](https://github.com/james2256/tweetfess/commit/d7a12c84cb8ea9b664cb883a9896f44ec4d642e6))
+* pin release-please-action to SHA, move tryAuth to function body root, suppress false positive hardcoded-password SAST warnings ([a4a6af3](https://github.com/james2256/tweetfess/commit/a4a6af3c70067d60476f29b4bfd5b989f5e1f0cf))
+* polling toast spam, data loss guard, rate limit detail, 401 interceptor, toast limit, reject confirmation ([a3c83b4](https://github.com/james2256/tweetfess/commit/a3c83b43d9d371981d17e588fe7f78646ff0e217))
+* recover stale postings, wrap confession in form, protect admin API routes ([4e2d62e](https://github.com/james2256/tweetfess/commit/4e2d62e7e04b13f17ec90f4ebc923cb1de99c355))
+* remove redundant cancelled check before await in use-submitter-auth ([036f763](https://github.com/james2256/tweetfess/commit/036f76308978f43e547e6ae0a762f3e449664f61))
+* remove unused import, deduplicate block/unblock in use-submitters ([c2dd634](https://github.com/james2256/tweetfess/commit/c2dd634b15a0a20b55d91a6af1ddf3e94f33481e))
+* repair stats mutation bug and simplify stat accessor functions ([b5a1c1a](https://github.com/james2256/tweetfess/commit/b5a1c1a3e9abc224ab569c015a99602dbda9e5c6))
+* resolve SAST issues — object injection sink, non-serializable expressions, unused imports, img element ([4c7b468](https://github.com/james2256/tweetfess/commit/4c7b468fde721fcd58a6622f50068fcf19cf7ff8))
+* resolve SAST non-serializable expressions and img element issues across 10 files ([1d0ead3](https://github.com/james2256/tweetfess/commit/1d0ead31ce2c4746c7b6ca77e44f719286731adb))
+* **sast:** object injection sinks, unhandled async errors, SSRF, and XSS ([9bb0712](https://github.com/james2256/tweetfess/commit/9bb07123851ccb637581407cf939f32e5cae6781))
+* **sast:** replace URL constructor SSRF validation with API prefix whitelist ([205454e](https://github.com/james2256/tweetfess/commit/205454e8fd9834d12cae342012e0f5689c87bc45))
+* **sast:** SSRF URL validation, Map for bracket access, Response for HTML, unused imports ([0cb56e1](https://github.com/james2256/tweetfess/commit/0cb56e1a88a91ebc50c9c6d5d73de9214a0ed2d6))
+* **sast:** use safeAccess and consolidate const strings into objects ([744960f](https://github.com/james2256/tweetfess/commit/744960fea173e3a06d2e3f2c4a76a9b6229bc546))
+* security bypass, race conditions, info leaks, UX bugs ([99a6aa7](https://github.com/james2256/tweetfess/commit/99a6aa7d2fc2f17b98bd5fe68aaa4a49f2f9aeae))
+* **security:** SAST findings — object injection sink, unused var, regex combining chars ([5538e08](https://github.com/james2256/tweetfess/commit/5538e08262944d9513a513e6439d4d79eafec5cd))
+* sever server-only import chains leaking into client bundle ([5e1d411](https://github.com/james2256/tweetfess/commit/5e1d411a5587607d442e20406780b4f8480c3a64))
+* SSRF validation + cache invalidation for filter settings ([4bb6c60](https://github.com/james2256/tweetfess/commit/4bb6c603001e053601e1801c1233d776b1aa9bbe))
+* submit guard, actionLoading race, error handling, security ([cace644](https://github.com/james2256/tweetfess/commit/cace644d656201515936114c56b60bea2b695df3))
+* tag plaintext encrypt values, add Cache-Control to all autopost responses ([629a0c0](https://github.com/james2256/tweetfess/commit/629a0c03cefe55b61a955e2d9eec8a9cc07483ff))
+* use location.assign() instead of location.href to resolve XSS SAST warning ([da85b7a](https://github.com/james2256/tweetfess/commit/da85b7af02cff5e0ff419bdd2945ac1c9cf018fd))
+* use Map for SAST compliance in limits route and extract getUpdatedSubmissionOrWarning to deduplicate submission routes ([854ea35](https://github.com/james2256/tweetfess/commit/854ea35f2b4213914075f3fc7c8d049a0b2c6b43))
+* use Map instead of Record for editValues/customLimits to resolve SAST Object Injection Sink ([f888863](https://github.com/james2256/tweetfess/commit/f8888633b21693361336fe2876c34d3f9b17a6a2))
+* useSubmitters error handling, SSRF proxy validation, credential empty-check ([78ef5d1](https://github.com/james2256/tweetfess/commit/78ef5d1a264211ca3fccccd5d951eeb082d402f8))
+* whitelisted users see ∞ caps instead of enforced limits ([813fc94](https://github.com/james2256/tweetfess/commit/813fc94accb46892efa4ef8f6af6a8686758d46e))
+
 ## [1.1.0](https://github.com/james2256/tweetfess/compare/v1.0.0...v1.1.0) (2026-05-19)
 
 
