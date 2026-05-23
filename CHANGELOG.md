@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/james2256/tweetfess/compare/v1.2.0...v1.2.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* append hashtags on admin approve/retry & remove double scroll in users dialog ([a660805](https://github.com/james2256/tweetfess/commit/a66080512d9a49dc3e24755add81beab1149821d))
+
 ## [1.2.0](https://github.com/james2256/tweetfess/compare/v1.1.0...v1.2.0) (2026-05-22)
 
 
