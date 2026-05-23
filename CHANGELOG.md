@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2](https://github.com/james2256/tweetfess/compare/v1.2.1...v1.2.2) (2026-05-23)
+
+
+### Bug Fixes
+
+* add loading spinner and toast feedback to auth retry buttons ([e95ec14](https://github.com/james2256/tweetfess/commit/e95ec1493b35917342d6a5369bc56bf514d423b1))
+* show blocked screen immediately for blocked users on page load ([889b75f](https://github.com/james2256/tweetfess/commit/889b75f4a6d3ab103576781b90f2c93b50f04c6e))
+* toggle ([227a2cc](https://github.com/james2256/tweetfess/commit/227a2cc3cbd5c9af9b48043258bbf30f8e360c0c))
+
 ## [1.2.1](https://github.com/james2256/tweetfess/compare/v1.2.0...v1.2.1) (2026-05-23)
 
 
