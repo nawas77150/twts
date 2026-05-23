@@ -20,6 +20,10 @@ interface ConfessionFormProps {
   onCooldownExpired?: () => void
 }
 
+function fmtCap(cap: number, isWhitelisted: boolean): number | '∞' {
+  return isWhitelisted ? '∞' : cap
+}
+
 export function ConfessionForm({
   submitterUsername,
   submitterImage,
@@ -53,7 +57,6 @@ export function ConfessionForm({
   const valueColor = isWhitelisted ? 'text-green-700' : isCustom ? 'text-purple-700' : 'text-[#536471]'
   const dotColor = isWhitelisted ? 'text-green-400' : isCustom ? 'text-purple-400' : 'text-[#71767B]'
   const bgColor = isWhitelisted ? 'bg-green-50 border border-green-100' : isCustom ? 'bg-purple-50 border border-purple-100' : 'bg-[#F7F9F9] border border-[#EFF3F4]'
-  const fmtCap = (cap: number) => isWhitelisted ? '∞' : cap
 
   const cooldownRemaining = useCountdown(limits?.cooldownSeconds ?? 0)
 
@@ -148,16 +151,16 @@ export function ConfessionForm({
               </span>
             )}
             <span className={valueColor}>
-              {limits.dailyUsed}/{fmtCap(limits.dailyCap)} hari ini
+              {limits.dailyUsed}/{fmtCap(limits.dailyCap, isWhitelisted)} hari ini
             </span>
             <span className={dotColor}>&middot;</span>
             <span className={pendingOverCap ? 'text-red-500' : valueColor}>
-              antrean {limits.pendingUsed}/{fmtCap(limits.pendingCap)}
+              antrean {limits.pendingUsed}/{fmtCap(limits.pendingCap, isWhitelisted)}
               {pendingOverCap && <AlertTriangle className="w-3 h-3 inline ml-0.5" />}
             </span>
             <span className={dotColor}>&middot;</span>
             <span className={valueColor}>
-              post {limits.postUsed}/{fmtCap(limits.postCap)}
+              post {limits.postUsed}/{fmtCap(limits.postCap, isWhitelisted)}
             </span>
             <span className={dotColor}>&middot;</span>
             <span className={valueColor}>
