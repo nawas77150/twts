@@ -1,9 +1,11 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, AlertTriangle, RotateCcw, LogOut, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { XLogo } from '@/components/shared/x-logo'
+import { useToast } from '@/hooks/use-toast'
 import type { SubmitterInfo } from '@/types'
 
 interface AuthGateProps {
@@ -14,7 +16,7 @@ interface AuthGateProps {
   isAnonUser: boolean
   onLogin: () => void
   onLogout: () => void
-  onRetry: () => void
+  onRetry: () => Promise<boolean>
   children: React.ReactNode
 }
 
@@ -30,6 +32,29 @@ export function AuthGate({
   children,
 }: AuthGateProps) {
   const isLoggedOut = !submitter
+  const [isRetrying, setIsRetrying] = useState(false)
+  const retryDoneRef = useRef(false)
+  const { toast } = useToast()
+
+  const handleRetry = async () => {
+    setIsRetrying(true)
+    try {
+      await onRetry()
+    } finally {
+      retryDoneRef.current = true
+      setIsRetrying(false)
+    }
+  }
+
+  // After retry completes and React commits the new isBlocked state,
+  // show toast if the user is still blocked.
+  useEffect(() => {
+    if (!retryDoneRef.current) return
+    retryDoneRef.current = false
+    if (isBlocked) {
+      toast({ title: 'Akun masih diblokir', description: 'Hubungi admin jika kamu rasa ini salah.', variant: 'destructive' })
+    }
+  }, [isRetrying, isBlocked, toast])
 
   if (isChecking) {
     return (
@@ -46,8 +71,8 @@ export function AuthGate({
       <AlertCard icon={<AlertTriangle className="w-7 h-7 text-amber-500" />}>
         <h3 className="text-lg font-semibold text-[#0F1419]">Koneksi Bermasalah</h3>
         <p className="text-sm text-[#536471]">{authError}</p>
-        <Button onClick={onRetry} variant="outline" className="border-[#EFF3F4]">
-          <RotateCcw className="w-4 h-4 mr-2" /> Coba Lagi
+        <Button onClick={handleRetry} disabled={isRetrying} variant="outline" className="border-[#EFF3F4]">
+          {isRetrying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />} Coba Lagi
         </Button>
       </AlertCard>
     )
@@ -110,10 +135,10 @@ export function AuthGate({
             <span className="text-[#71767B] text-xs">Hubungi admin jika kamu rasa ini salah.</span>
           </p>
           <div className="flex items-center justify-center gap-3">
-            <Button onClick={onRetry} variant="outline" className="border-[#EFF3F4]">
-              <RotateCcw className="w-4 h-4 mr-2" /> Cek Ulang
+            <Button onClick={handleRetry} disabled={isRetrying} variant="outline" className="border-[#EFF3F4]">
+              {isRetrying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />} Cek Ulang
             </Button>
-            <Button onClick={onLogout} variant="outline" className="border-[#EFF3F4]">
+            <Button onClick={onLogout} disabled={isRetrying} variant="outline" className="border-[#EFF3F4]">
               <LogOut className="w-4 h-4 mr-2" /> Logout
             </Button>
           </div>
