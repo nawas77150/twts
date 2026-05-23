@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.3](https://github.com/james2256/tweetfess/compare/v1.2.2...v1.2.3) (2026-05-23)
+
+
+### Bug Fixes
+
+* deduplicate hashtags, remove unused import, fix SAST warning ([7210810](https://github.com/james2256/tweetfess/commit/7210810ecb3d677b1a153375ccd7b5cb8ab69ff8))
+* replace async handler with sync void and use retry counter instead of ref ([7d28c1c](https://github.com/james2256/tweetfess/commit/7d28c1cf06cf01ee43191efc5dd7e56bb31252f4))
+* resolve SAST non-serializable expressions and floating promise in auth-gate and confession-form ([b39ce0b](https://github.com/james2256/tweetfess/commit/b39ce0bf892e7e1ca0ec7b11ee3ecd9e3a72ac4e))
+
 ## [1.2.2](https://github.com/james2256/tweetfess/compare/v1.2.1...v1.2.2) (2026-05-23)
 
 
