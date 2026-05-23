@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/james2256/tweetfess/compare/v1.2.3...v1.2.4) (2026-05-23)
+
+
+### Bug Fixes
+
+* strip trailing punctuation in hashtag dedup to avoid false duplicates ([47acfc0](https://github.com/james2256/tweetfess/commit/47acfc0d47e0380495cc2517dac1e0a13f036ff6))
+
 ## [1.2.3](https://github.com/james2256/tweetfess/compare/v1.2.2...v1.2.3) (2026-05-23)
 
 
