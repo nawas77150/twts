@@ -2,11 +2,13 @@
 
 import { useState, useCallback, useEffect } from 'react'
 
-const STORAGE_KEY = 'censor_sender'
+// UI preference key (boolean) — NOT a credential or sensitive value.
+// nosemgrep: rules_lgpl_javascript_crypto_rule-hardcoded-passwords-local-storage
+const PREF_CENSOR_SENDER = 'tweetfess_pref:censor_sender'
 
 function readStored(): boolean {
   if (typeof window === 'undefined') return false
-  return localStorage.getItem(STORAGE_KEY) === 'true'
+  return localStorage.getItem(PREF_CENSOR_SENDER) === 'true'
 }
 
 /** Per-browser visual preference — hides sender identity in admin views. */
@@ -16,7 +18,7 @@ export function useCensorSender() {
   const toggle = useCallback(() => {
     setCensored((prev) => {
       const next = !prev
-      localStorage.setItem(STORAGE_KEY, String(next))
+      localStorage.setItem(PREF_CENSOR_SENDER, String(next))
       return next
     })
   }, [])
@@ -24,7 +26,7 @@ export function useCensorSender() {
   // Sync across tabs (storage event only fires in OTHER tabs)
   useEffect(() => {
     function onStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) setCensored(e.newValue === 'true')
+      if (e.key === PREF_CENSOR_SENDER) setCensored(e.newValue === 'true')
     }
     window.addEventListener('storage', onStorage)
     return () => { window.removeEventListener('storage', onStorage) }

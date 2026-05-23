@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { HelpCircle, User } from 'lucide-react'
+import { HelpCircle } from 'lucide-react'
 
 interface CensoredAvatarProps {
   src: string | null

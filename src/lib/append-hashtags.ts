@@ -6,6 +6,8 @@ const ELLIPSIS = '\u2026' // …
  * Appends hashtags to a message, truncating the message if the total
  * exceeds 280 characters. Hashtags always survive truncation.
  * Returns the message unchanged if hashtags is empty.
+ * Skips any hashtag already present in the message (case-insensitive,
+ * exact token match) to avoid duplicates.
  *
  * Used at post time (autopost + submit auto-post) as a safety net
  * for the case where admin changes hashtags after a submission was queued.
@@ -13,7 +15,13 @@ const ELLIPSIS = '\u2026' // …
 export function appendHashtags(message: string, hashtags: string): string {
   if (!hashtags.trim()) return message
 
-  const suffix = ` ${hashtags}`
+  const messageTokens = new Set(message.split(/\s+/).map(t => t.toLowerCase()))
+  const tags = hashtags.trim().split(/\s+/)
+  const missing = tags.filter(tag => !messageTokens.has(tag.toLowerCase()))
+
+  if (missing.length === 0) return message
+
+  const suffix = ` ${missing.join(' ')}`
   if (message.length + suffix.length <= MAX_TWEET_LENGTH) {
     return message + suffix
   }
