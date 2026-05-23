@@ -228,8 +228,7 @@ export function UsersDialog({
               </p>
             ) : (
               <div
-                className="max-h-96 overflow-y-auto space-y-1 pr-1"
-                style={{ scrollbarWidth: 'thin' }}
+                className="space-y-1"
               >
                 {(() => {
                   const filtered = submitters.filter((s) => {

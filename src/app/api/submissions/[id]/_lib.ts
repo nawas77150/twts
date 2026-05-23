@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { executePostAndRecord, type ExecutePostResult } from '@/lib/execute-post'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { checkStalePosting } from '@/lib/stale-posting'
+import { appendHashtags } from '@/lib/append-hashtags'
 import { debug } from '@/lib/debug'
 import type { Submission } from '@prisma/client'
 import { NextResponse } from 'next/server'
@@ -151,7 +152,7 @@ export async function executePostForSubmission(
 
   const postResult = await executePostAndRecord({
     submissionId: id,
-    message,
+    message: appendHashtags(message, filterSettings.postHashtags),
     rateLimits: filterSettings.rateLimits,
     casStatuses: ['pending', 'post_failed', 'censored'],
   })
