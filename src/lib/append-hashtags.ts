@@ -7,7 +7,7 @@ const ELLIPSIS = '\u2026' // …
  * exceeds 280 characters. Hashtags always survive truncation.
  * Returns the message unchanged if hashtags is empty.
  * Skips any hashtag already present in the message (case-insensitive,
- * exact token match) to avoid duplicates.
+ * exact token match, trailing punctuation stripped) to avoid duplicates.
  *
  * Used at post time (autopost + submit auto-post) as a safety net
  * for the case where admin changes hashtags after a submission was queued.
@@ -15,7 +15,7 @@ const ELLIPSIS = '\u2026' // …
 export function appendHashtags(message: string, hashtags: string): string {
   if (!hashtags.trim()) return message
 
-  const messageTokens = new Set(message.split(/\s+/).map(t => t.toLowerCase()))
+  const messageTokens = new Set(message.split(/\s+/).map(t => t.replace(/[.,;:!?]+$/, '').toLowerCase()))
   const tags = hashtags.trim().split(/\s+/)
   const missing = tags.filter(tag => !messageTokens.has(tag.toLowerCase()))
 
