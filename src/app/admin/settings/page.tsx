@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { usePostingSettings } from '@/hooks/use-posting-settings'
 import { useFilterSettings } from '@/hooks/use-filter-settings'
 import { useCircuitBreaker } from '@/hooks/use-circuit-breaker'
+import { useCensorSender } from '@/hooks/use-censor-sender'
 import { useAdminStats } from '@/contexts/admin-stats-context'
 import { useSettingsSync } from '@/hooks/use-settings-sync'
 import { DirectPostingCard } from '@/components/settings/direct-posting-card'
@@ -18,6 +19,7 @@ import { RateLimitCard } from '@/components/settings/rate-limit-card'
 import { CircuitBreakerCard } from '@/components/settings/circuit-breaker-card'
 import { WhitelistCard } from '@/components/settings/whitelist-card'
 import { BlocklistCard } from '@/components/settings/blocklist-card'
+import { CensorSenderCard } from '@/components/settings/censor-sender-card'
 import { LimitHealthCard } from '@/components/settings/limit-health-card'
 
 function TabPanel({ children }: { children: React.ReactNode }) {
@@ -53,6 +55,7 @@ export default function AdminSettingsPage() {
   const posting = usePostingSettings()
   const filterSettings = useFilterSettings()
   const circuitBreaker = useCircuitBreaker()
+  const { censored, toggle: toggleCensor } = useCensorSender()
 
   // Stats from context — single source for both settings data and badge
   const {
@@ -247,6 +250,8 @@ export default function AdminSettingsPage() {
               blockedUsernames={filterSettings.blockedUsernames}
               onBlocklistChange={() => { void refetchAdminStats({ refresh: true }) }}
             />
+
+            <CensorSenderCard censored={censored} onToggle={toggleCensor} />
           </TabPanel>
         </TabsContent>
 

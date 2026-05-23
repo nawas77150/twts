@@ -1,8 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 import { CheckCircle, AlertCircle, Loader2, ExternalLink, Trash2 } from 'lucide-react'
+import { CensoredAvatar } from '@/components/shared/censored-avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import { formatDate } from '@/types'
 
 interface SubmissionCardProps {
   submission: Submission
+  censored: boolean
   onApprove: (id: string) => void
   onReject: (id: string) => void
   onRetryPost: (id: string) => void
@@ -34,6 +35,7 @@ interface SubmissionCardProps {
 
 export function SubmissionCard({
   submission: sub,
+  censored,
   onApprove,
   onReject,
   onRetryPost,
@@ -53,23 +55,15 @@ export function SubmissionCard({
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1.5">
-                {sub.submitter.profileImage ? (
-                  <Image
-                    src={sub.submitter.profileImage}
-                    alt=""
-                    width={24}
-                    height={24}
-                    className="w-5 h-5 rounded-full border border-[#EFF3F4]"
-                  />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-[#272c30] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                    {sub.submitter.username.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <CensoredAvatar
+                  src={sub.submitter.profileImage}
+                  username={sub.submitter.username}
+                  censored={censored}
+                />
                 <span className="text-[11px] font-medium text-[#536471]">
-                  @{sub.submitter.username}
+                  {censored ? '@*****' : `@${sub.submitter.username}`}
                 </span>
-                {sub.submitter.twitterId && (
+                {!censored && sub.submitter.twitterId && (
                   <a
                     href={`https://x.com/i/user/${sub.submitter.twitterId}`}
                     target="_blank"

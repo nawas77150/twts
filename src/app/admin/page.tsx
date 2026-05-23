@@ -6,6 +6,7 @@ import { useAdminAuth } from '@/contexts/admin-auth-context'
 import { useAdminStats } from '@/contexts/admin-stats-context'
 import { useSubmissions } from '@/hooks/use-submissions'
 import { useSubmitters } from '@/hooks/use-submitters'
+import { useCensorSender } from '@/hooks/use-censor-sender'
 import { StatsGrid } from '@/components/dashboard/stats-grid'
 import { ConnectionBanner } from '@/components/dashboard/connection-banner'
 import { PostMethodRates } from '@/components/dashboard/post-method-rates'
@@ -23,6 +24,7 @@ const STAT_SKELETON_KEYS = [
 export default function AdminDashboardPage() {
   const { isAdmin } = useAdminAuth()
   const [usersDialogOpen, setUsersDialogOpen] = useState(false)
+  const { censored } = useCensorSender()
 
   // Stats from context (AdminStatsProvider handles fetch + 15s auto-refresh)
   const {
@@ -161,6 +163,7 @@ export default function AdminDashboardPage() {
         onOpenChange={setUsersDialogOpen}
         submitters={submitters}
         blockedUsernames={blockedUsernames}
+        censored={censored}
         isLoading={isLoadingSubmitters}
         onFetchSubmitters={fetchSubmitters}
         onBlock={block}
@@ -205,6 +208,7 @@ export default function AdminDashboardPage() {
 
         <SubmissionList
           submissions={submissions}
+          censored={censored}
           search={search}
           setSearch={setSearch}
           filterStatus={filterStatus}

@@ -9,6 +9,7 @@ import type { Submission } from '@/types'
 
 interface SubmissionListProps {
   submissions: Submission[]
+  censored: boolean
   search: string
   setSearch: (search: string) => void
   filterStatus: string
@@ -25,6 +26,7 @@ interface SubmissionListProps {
 
 export function SubmissionList({
   submissions,
+  censored,
   search,
   setSearch,
   filterStatus,
@@ -104,6 +106,7 @@ export function SubmissionList({
             <SubmissionCard
               key={sub.id}
               submission={sub}
+              censored={censored}
               onApprove={onApprove}
               onReject={onReject}
               onRetryPost={onRetryPost}

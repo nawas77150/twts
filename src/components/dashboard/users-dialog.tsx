@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import Image from 'next/image'
-import { Users, Ban, RefreshCw, Loader2, User, Settings2, X, ShieldOff } from 'lucide-react'
+import { Users, Ban, RefreshCw, Loader2, Settings2, X, ShieldOff } from 'lucide-react'
+import { CensoredAvatar } from '@/components/shared/censored-avatar'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ interface UsersDialogProps {
   onOpenChange: (open: boolean) => void
   submitters: SubmitterWithStats[]
   blockedUsernames: string[]
+  censored: boolean
   isLoading: boolean
   onFetchSubmitters: () => void
   onBlock: (username: string) => Promise<void>
@@ -38,6 +39,7 @@ export function UsersDialog({
   onOpenChange,
   submitters,
   blockedUsernames,
+  censored,
   isLoading,
   onFetchSubmitters,
   onBlock,
@@ -176,7 +178,7 @@ export function UsersDialog({
                         <Ban className="w-3.5 h-3.5 text-red-400" />
                       </div>
                       <span className="font-medium text-[#0F1419]">
-                        @{username}
+                        {censored ? '@*****' : `@${username}`}
                       </span>
                       <Button
                         variant="outline"
@@ -275,23 +277,16 @@ export function UsersDialog({
                       >
                         {/* User row */}
                         <div className="flex items-center gap-2 p-2">
-                          {s.profileImage ? (
-                            <Image
-                              src={s.profileImage}
-                              alt=""
-                              width={32}
-                              height={32}
-                              className="w-8 h-8 rounded-full flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-[#EFF3F4] flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 text-[#71767B]" />
-                            </div>
-                          )}
+                          <CensoredAvatar
+                            src={s.profileImage}
+                            username={s.username}
+                            censored={censored}
+                            size={32}
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
                               <span className="font-medium text-[#0F1419] truncate">
-                                @{s.username}
+                                {censored ? '@*****' : `@${s.username}`}
                               </span>
                               {isBlocked && (
                                 <Badge
