@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, AlertTriangle, RotateCcw, LogOut, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,28 +33,25 @@ export function AuthGate({
 }: AuthGateProps) {
   const isLoggedOut = !submitter
   const [isRetrying, setIsRetrying] = useState(false)
-  const retryDoneRef = useRef(false)
+  const [retryCount, setRetryCount] = useState(0)
   const { toast } = useToast()
 
-  const handleRetry = async () => {
+  const handleRetry = () => {
     setIsRetrying(true)
-    try {
-      await onRetry()
-    } finally {
-      retryDoneRef.current = true
+    onRetry().finally(() => {
       setIsRetrying(false)
-    }
+      setRetryCount((c) => c + 1)
+    })
   }
 
   // After retry completes and React commits the new isBlocked state,
   // show toast if the user is still blocked.
   useEffect(() => {
-    if (!retryDoneRef.current) return
-    retryDoneRef.current = false
+    if (retryCount === 0) return
     if (isBlocked) {
       toast({ title: 'Akun masih diblokir', description: 'Hubungi admin jika kamu rasa ini salah.', variant: 'destructive' })
     }
-  }, [isRetrying, isBlocked, toast])
+  }, [retryCount, isBlocked, toast])
 
   if (isChecking) {
     return (
