@@ -1,14 +1,17 @@
 name: Deploy Stable
-
 on:
   repository_dispatch:
-    types: [deploy-stable] # Triggered by release-please after a release is created
-  workflow_dispatch: # Manual trigger for first deploy or emergencies
+    types: [deploy-stable]
+  workflow_dispatch:
     inputs:
       tag:
         description: 'Tag to deploy (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
+
+concurrency:
+  group: deploy-stable
+  cancel-in-progress: true
 
 jobs:
   deploy-stable:
@@ -17,10 +20,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
-
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
-
       - name: Deploy to Vercel (Stable — Production)
         run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN_STABLE }}
         env:
