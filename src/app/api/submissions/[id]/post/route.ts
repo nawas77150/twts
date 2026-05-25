@@ -1,8 +1,9 @@
+import { db } from '@/lib/db'
 import { withErrorBoundary } from '@/lib/execute-post'
 import { withAdmin } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
-import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning } from '../_lib'
+import { fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getPostErrorHint } from '../_lib'
 import { NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — retry loop can take up to 15s
@@ -37,10 +38,22 @@ export const POST = withAdmin<{ params: Promise<{ id: string }> }>(async (req, {
       })
     } else {
       debug('retry', 'Post failed:', postResult.error, 'method:', postResult.method)
-      return NextResponse.json(
-        { error: `Gagal posting ke X: ${postResult.error}`, postMethod: postResult.method },
-        { status: 502 },
-      )
+      const errorMsg = postResult.error || ''
+      const hint = getPostErrorHint(errorMsg)
+
+      const updated = await db.submission.findUnique({ where: { id } })
+      if (!updated) {
+        return NextResponse.json({
+          error: `Gagal posting ke X: ${errorMsg}. ${hint} Submission tidak ditemukan — mungkin sudah dihapus.`,
+          postMethod: postResult.method,
+        }, { status: 404 })
+      }
+      return NextResponse.json({
+        submission: updated,
+        autoPosted: false,
+        error: `Gagal posting ke X: ${errorMsg}. ${hint}`,
+        postMethod: postResult.method,
+      })
     }
   })
 })

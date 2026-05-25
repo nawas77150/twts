@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { executePostAndRecord, createCooldownWindowChecks } from '@/lib/execute-post'
 import { isCircuitBreakerPaused, getCircuitBreakerStatus } from '@/lib/circuit-breaker'
+import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
@@ -86,6 +87,19 @@ export async function GET(req: NextRequest) {
         reason: 'circuit_breaker_paused',
         pausedUntil: cbStatus.pausedUntil,
         remainingMinutes: cbStatus.remainingMinutes,
+      })
+    }
+
+    // ── Gate: cookie auth must be configured ──────────────
+    // Pre-flight check avoids wasted lock acquisition + CAS cycling
+    // when cookie/bearer are not set. These failures are 'auth_failure'
+    // (handled by Change 1) but skipping them entirely saves DB writes.
+    const authStatus = await getCookieAuthStatus()
+    if (!authStatus.configured) {
+      return cronJson({
+        processed: false,
+        reason: 'auth_not_configured',
+        missing: authStatus.missing,
       })
     }
 

@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         error: 'Sistem sedang sibuk',
         message: 'Auto-post sedang dijeda karena gangguan pada X. Coba lagi dalam beberapa menit.',
-      }, { status: 400 })
+      }, { status: 503 })
     }
 
     // Auto-post cooldown — uses createQueuedSubmission

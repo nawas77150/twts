@@ -47,6 +47,73 @@ export async function getLastPostedTime(): Promise<Date | null> {
   return last?.updatedAt ?? null
 }
 
+// ── Phantom success recovery ───────────────────────────
+// When X returns error 187 ("Status is a duplicate"), the tweet was
+// already created by a previous Vercel invocation that crashed/502'd
+// before saving the tweetId. This helper detects that case and
+// recovers the submission to 'posted' status instead of 'post_failed'.
+
+/**
+ * Check if a duplicate_posted error is actually a phantom success.
+ * Error 187 means the tweet IS on X — we just don't have the tweetId.
+ *
+ * Logic:
+ * 1. Read the submission's normalizedMessage from DB (already computed at submit time)
+ * 2. Look for another 'posted' submission with the same normalizedMessage
+ *    - Found → true duplicate (another submission already posted this) → not phantom
+ *    - Not found → phantom success (this submission's tweet IS on X) → recover
+ *
+ * @returns true if this was a phantom success (submission recovered to 'posted')
+ */
+async function handleDuplicatePosted(
+  submissionId: string,
+): Promise<boolean> {
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    select: { normalizedMessage: true },
+  })
+  if (!submission?.normalizedMessage) return false
+
+  // Check if another submission already posted the same content
+  const alreadyPosted = await db.submission.findFirst({
+    where: {
+      normalizedMessage: submission.normalizedMessage,
+      status: 'posted',
+      id: { not: submissionId },
+    },
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true },
+  })
+
+  if (alreadyPosted) {
+    // True duplicate — different submission already posted same content
+    debug('execute-post', 'Error 187 is a true duplicate — submission', alreadyPosted.id, 'already posted this content')
+    return false
+  }
+
+  // Phantom success — the tweet IS on X but we lost the tweetId
+  debug('execute-post', 'Phantom success detected — recovering submission', submissionId, 'to posted')
+  const result = await db.submission.updateMany({
+    where: { id: submissionId, status: 'posting' },
+    data: {
+      status: 'posted',
+      tweetId: null,
+      postMethod: 'direct',
+      postError: '[Phantom success] Tweet posted on X but tweetId was lost due to server crash. Check X account for the tweet.',
+    },
+  })
+
+  if (result.count > 0) {
+    // Successfully recovered — reset circuit breaker (this was actually a success)
+    await recordPostSuccess()
+    return true
+  }
+
+  // CAS failed — status changed between our check and update (race condition)
+  debug('execute-post', 'Phantom success CAS failed — status changed before recovery')
+  return false
+}
+
 // ── Input ──────────────────────────────────────────────
 
 export interface ExecutePostInput {
@@ -217,7 +284,19 @@ export async function executePostAndRecord(
           retriesUsed: tweetResult.retriesUsed,
         })
       } else {
-        // Post failed — CAS posting→post_failed
+        // Post failed — check for phantom success before marking as failed
+        if (tweetResult.errorClass === 'duplicate_posted') {
+          const recovered = await handleDuplicatePosted(submissionId)
+          if (recovered) {
+            return await releaseAndReturn({
+              success: true,
+              method: tweetResult.method,
+              retriesUsed: tweetResult.retriesUsed,
+            })
+          }
+        }
+
+        // Normal failure — CAS posting→post_failed
         const errorMsg = tweetResult.error || 'Unknown error'
         debug('execute-post', 'Post failed:', errorMsg)
         await db.submission.updateMany({

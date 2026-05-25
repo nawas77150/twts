@@ -204,9 +204,10 @@ export async function recordPostFailure(
   errorClass: ErrorClass,
   rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }
 ): Promise<void> {
-  // Don't count these toward circuit breaker — they need admin intervention, not cooldown.
-  // Pausing auto-post won't fix an expired cookie, a rate limit, or a shadowban.
-  if (errorClass === 'auth_failure' || errorClass === 'rate_limit' || errorClass === 'stealth_ban') {
+  // Don't count these toward circuit breaker:
+  // - auth_failure / rate_limit / stealth_ban: need admin intervention, not cooldown
+  // - duplicate_posted: the tweet IS on X (phantom success), not a real failure
+  if (errorClass === 'auth_failure' || errorClass === 'rate_limit' || errorClass === 'stealth_ban' || errorClass === 'duplicate_posted') {
     debug('circuit-breaker', 'Skipping failure record —', errorClass, '(requires admin intervention)')
     return
   }

@@ -201,6 +201,7 @@ export function buildPostWarningResponse(postResult: ExecutePostResult): NextRes
 
 const HINT_PATTERNS: Array<{ patterns: string[]; hint: string }> = [
   { patterns: ['code: 344', 'daily limit'], hint: 'Batas harian tweet tercapai. Coba lagi besok.' },
+  { patterns: ['code: 187', 'duplicate'], hint: 'Tweet sudah pernah diposting (phantom success). Cek akun X — tweet mungkin sudah ada.' },
   { patterns: ['code: 32', 'Could not authenticate'], hint: 'Cookie expired. Perbarui cookie di X Settings lalu klik "Post to X".' },
   { patterns: ['code: 88', 'Rate limit'], hint: 'Rate limit tercapai. Tunggu beberapa menit lalu coba lagi.' },
   { patterns: ['226', 'automated'], hint: 'X mendeteksi otomatisasi (226). Semua retry gagal. Coba lagi dalam 1-2 menit.' },
@@ -210,8 +211,8 @@ const HINT_PATTERNS: Array<{ patterns: string[]; hint: string }> = [
 
 /**
  * Get a context-aware hint for a post-to-X failure error message.
- * Used only by the approve (PATCH) route, which provides richer
- * error feedback than the manual retry (POST) route.
+ * Used by the approve (PATCH) and retry (POST) routes to provide
+ * actionable context in error responses.
  */
 export function getPostErrorHint(errorMsg: string): string {
   const match = HINT_PATTERNS.find(({ patterns }) =>
