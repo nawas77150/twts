@@ -103,17 +103,26 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
       <p className="text-[9px] text-[#71767B]">{config.description}</p>
 
       {/* Add user input */}
-      <div className="flex gap-2">
-        <Input
-          id={`${config.title.toLowerCase()}-add`}
-          name="username"
-          value={addInput}
-          onChange={(e) => { setAddInput(e.target.value) }}
-          onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
-          placeholder="username"
-          className="text-xs h-8 font-mono border-[#EFF3F4]"
-          disabled={isAdding}
-        />
+      <div className="space-y-1.5">
+        <div className="flex gap-2">
+          <Input
+            id={`${config.title.toLowerCase()}-add`}
+            name="username"
+            value={addInput}
+            onChange={(e) => { setAddInput(e.target.value) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
+            placeholder="username"
+            className="text-xs h-8 font-mono border-[#EFF3F4] flex-1 min-w-0"
+            disabled={isAdding}
+          />
+          <Button
+            onClick={handleAdd}
+            disabled={isAdding || !addInput.trim()}
+            className={`h-8 shrink-0 ${config.addButtonClass}`}
+          >
+            {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+          </Button>
+        </div>
         {config.reasonPlaceholder && (
           <Input
             id={`${config.title.toLowerCase()}-reason`}
@@ -122,17 +131,10 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
             onChange={(e) => { setReasonInput(e.target.value) }}
             onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
             placeholder={config.reasonPlaceholder}
-            className="text-xs h-8 border-[#EFF3F4] flex-1 min-w-0"
+            className="text-xs h-8 border-[#EFF3F4] w-full"
             disabled={isAdding}
           />
         )}
-        <Button
-          onClick={handleAdd}
-          disabled={isAdding || !addInput.trim()}
-          className={`h-8 shrink-0 ${config.addButtonClass}`}
-        >
-          {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-        </Button>
       </div>
 
       {/* Users list */}
