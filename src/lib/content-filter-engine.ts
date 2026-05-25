@@ -247,52 +247,23 @@ export function runContentFilter(
 
 // --- Display Helpers ---
 
-// Get user-facing error message for always-on rejections
+// Get user-facing error message for always-on rejections (hardblock only)
+// Only called when hasAlwaysOnReason() returns true — caps_spam, too_short, duplicate_24h
 export function getRejectionMessage(reasons: string[]): string {
   const messages: string[] = []
 
   for (const reason of reasons) {
-    // Extract prefix for matching — reasons may be 'self_harm:bunuh diri'
     const prefix = reason.includes(':') ? reason.split(':')[0] : reason
 
     switch (prefix) {
       case 'caps_spam':
         messages.push('Pesan menggunakan huruf kapital semua (ALL CAPS). Gunakan huruf biasa.')
         break
-      case 'repeated_characters':
-        messages.push('Pesan mengandung karakter berulang berlebihan.')
-        break
       case 'too_short':
         messages.push('Pesan terlalu pendek. Minimal 5 karakter.')
         break
       case 'duplicate_24h':
         messages.push('Pesan ini sudah dikirim dalam 24 jam terakhir.')
-        break
-      case 'self_harm':
-        messages.push('Pesan terdeteksi mengandung konten yang berhubungan dengan menyakiti diri. Jika kamu butuh bantuan, hubungi 119 atau Into The Light Indonesia.')
-        break
-      case 'csam_sexual':
-      case 'csam_age':
-        messages.push('Pesan terdeteksi mengandung konten yang melanggar keamanan anak.')
-        break
-      case 'solicitation_sexual':
-      case 'solicitation_payment':
-        messages.push('Pesan terdeteksi mengandung konten yang melanggar kebijakan X.')
-        break
-      case 'contains_email':
-        messages.push('Pesan mengandung alamat email.')
-        break
-      case 'contains_nik':
-        messages.push('Pesan mengandung nomor identitas (NIK).')
-        break
-      case 'contains_ip_address':
-        messages.push('Pesan mengandung alamat IP.')
-        break
-      case 'contains_npwp':
-        messages.push('Pesan mengandung nomor NPWP.')
-        break
-      case 'contains_phone':
-        messages.push('Pesan mengandung nomor telepon.')
         break
     }
   }
