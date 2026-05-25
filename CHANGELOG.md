@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/james2256/tweetfess/compare/v1.4.0...v1.4.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* prevent circuit breaker false triggers from phantom success and missing auth ([6034895](https://github.com/james2256/tweetfess/commit/603489598224597ae71f4345ab804e5d67b1d2b5))
+
 ## [1.4.0](https://github.com/james2256/tweetfess/compare/v1.3.0...v1.4.0) (2026-05-25)
 
 
