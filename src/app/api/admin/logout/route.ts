@@ -2,7 +2,7 @@ import { withAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/logout — Clear the HttpOnly admin cookie
-export const POST = withAdmin(async (req: NextRequest) => {
+export const POST = withAdmin(async (_req: NextRequest) => {
   const response = NextResponse.json({ success: true })
   response.cookies.set('admin_token', '', {
     httpOnly: true,

@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { withAdmin } from '@/lib/admin-auth'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { safeAccess } from '@/lib/utils'
+import { debugError } from '@/lib/debug'
 import { NextRequest, NextResponse } from 'next/server'
 
 const LIMIT_TYPE_LABELS: Record<string, string> = {
@@ -13,7 +14,7 @@ const LIMIT_TYPE_LABELS: Record<string, string> = {
 }
 
 // GET /api/admin/limit-hits — Limit health stats for today (calendar day WIB)
-export const GET = withAdmin(async (req: NextRequest) => {
+export const GET = withAdmin(async (_req: NextRequest) => {
   try {
     const startOfToday = getStartOfTodayWIB()
 
@@ -71,7 +72,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
       windowLabel: 'hari ini (WIB)',
     })
   } catch (error) {
-    console.error('[limit-hits] Error:', error)
+    debugError('limit-hits', 'Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

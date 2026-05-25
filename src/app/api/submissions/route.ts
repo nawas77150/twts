@@ -3,7 +3,7 @@ import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { executePostAndRecord, createCooldownWindowChecks, countGlobalPostsToday, getLastPostedTime } from '@/lib/execute-post'
 import type { PerUserCheck } from '@/lib/execute-post'
 import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
-import { debug } from '@/lib/debug'
+import { debug, debugError } from '@/lib/debug'
 import { normalizeText, decodeHtmlEntities, DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS, DEFAULT_FILTER_RULES } from '@/lib/content-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { appendHashtags } from '@/lib/append-hashtags'
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (e) {
-    console.error('[submissions/GET] Error:', e)
+    debugError('submissions', 'GET error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }
@@ -336,7 +336,7 @@ export async function POST(req: NextRequest) {
       }, { status: 201 })
     }
   } catch (e) {
-    console.error('[submit] Unexpected error:', e)
+    debugError('submit', 'Unexpected error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

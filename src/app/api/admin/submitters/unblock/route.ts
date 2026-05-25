@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbRemove, atomicJsonbRemoveKey, checkUserInList } from '../_lib'
+import { debugError } from '@/lib/debug'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/unblock — Unblock a user
@@ -41,7 +42,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, unblocked: normalizedUsername })
   } catch (error) {
-    console.error('Unblock user error:', error)
+    debugError('submitters/unblock', 'Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { withAdmin } from '@/lib/admin-auth'
+import { debugError } from '@/lib/debug'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 
@@ -91,7 +92,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
     hasMore: page < totalPages,
   })
   } catch (error) {
-    console.error('Submitters GET error:', error)
+    debugError('submitters', 'GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

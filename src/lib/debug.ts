@@ -32,12 +32,12 @@ function timestamp(): string {
 
 export function debug(namespace: string, ...args: unknown[]): void {
   if (isNamespaceEnabled(namespace)) {
-    console.log(`${timestamp()} [${namespace}]`, ...args)
+    console.log(`${timestamp()} [${namespace}]`, ...args) // eslint-disable-line no-console
   }
 }
 
 export function debugError(namespace: string, ...args: unknown[]): void {
   if (isNamespaceEnabled(namespace)) {
-    console.error(`${timestamp()} [${namespace}]`, ...args)
+    console.error(`${timestamp()} [${namespace}]`, ...args) // eslint-disable-line no-console
   }
 }

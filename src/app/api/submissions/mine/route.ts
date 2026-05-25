@@ -5,6 +5,7 @@ import { getEffectiveMaxLength } from '@/lib/append-hashtags'
 import { resolveEffectiveLimits, hasCustomLimits } from '@/lib/limit-resolver'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { NextRequest, NextResponse } from 'next/server'
+import { debugError } from '@/lib/debug'
 
 // GET /api/submissions/mine - Get current user's submissions + limits
 export async function GET(req: NextRequest) {
@@ -154,7 +155,7 @@ export async function GET(req: NextRequest) {
       limits: limitsData,
     })
   } catch (error) {
-    console.error('[submissions/mine] Error:', error)
+    debugError('submissions/mine', 'Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@
 // Auth is handled by the withAdmin wrapper in each route — not here.
 
 import { db } from '@/lib/db'
+import { debugError } from '@/lib/debug'
 import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -54,7 +55,7 @@ export async function atomicJsonbAppend(settingKey: string, username: string, tx
       "updatedAt" = NOW()
     `
   } catch (error) {
-    console.error('[submitters] atomicJsonbAppend failed:', error)
+    debugError('submitters', 'atomicJsonbAppend failed:', error)
     throw error
   }
 }
@@ -76,7 +77,7 @@ export async function atomicJsonbRemove(settingKey: string, username: string, tx
       WHERE "key" = ${settingKey}
     `
   } catch (error) {
-    console.error('[submitters] atomicJsonbRemove failed:', error)
+    debugError('submitters', 'atomicJsonbRemove failed:', error)
     throw error
   }
 }
@@ -130,7 +131,7 @@ export async function atomicJsonbSetKey(
           "updatedAt" = NOW()
     `
   } catch (error) {
-    console.error('[submitters] atomicJsonbSetKey failed:', error)
+    debugError('submitters', 'atomicJsonbSetKey failed:', error)
     throw error
   }
 }
@@ -152,7 +153,7 @@ export async function atomicJsonbRemoveKey(
       WHERE "key" = ${settingKey}
     `
   } catch (error) {
-    console.error('[submitters] atomicJsonbRemoveKey failed:', error)
+    debugError('submitters', 'atomicJsonbRemoveKey failed:', error)
     throw error
   }
 }

@@ -8,6 +8,7 @@ import {
   getOAuth2Credentials,
 } from '@/lib/twitter-auth'
 import { db } from '@/lib/db'
+import { debug, debugError } from '@/lib/debug'
 
 // Helper: redirect to error page and clear OAuth temp cookies
 function authErrorRedirect(baseUrl: string, path: string = '/?auth=error'): NextResponse {
@@ -28,7 +29,7 @@ async function cleanupExpiredFlows() {
     })
   } catch (error) {
     // Non-critical — don't block the login flow
-    console.error('[oauth] Expired flow cleanup failed:', error)
+    debugError('oauth', 'Expired flow cleanup failed:', error)
   }
 }
 
@@ -53,12 +54,12 @@ export async function GET(req: NextRequest) {
 
   // User denied access
   if (error) {
-    console.warn('OAuth denied:', error, errorDescription)
+    debugError('oauth', 'OAuth denied:', error, errorDescription)
     return authErrorRedirect(baseUrl, '/?auth=denied')
   }
 
   if (!code || !state) {
-    console.error('OAuth callback missing code or state')
+    debugError('oauth', 'Callback missing code or state')
     return authErrorRedirect(baseUrl)
   }
 
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
         // Verify the full state matches (CSRF protection)
         const expectedState = `${flow.id}.${flow.state}`
         if (state !== expectedState) {
-          console.error('OAuth state mismatch (DB) — possible CSRF attack')
+          debugError('oauth', 'State mismatch (DB) — possible CSRF attack')
           // Delete the flow to prevent reuse
           await db.oAuthFlow.delete({ where: { id: flowId } }).catch(() => {})
           return authErrorRedirect(baseUrl)
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
 
         // Check expiry
         if (flow.expiresAt < new Date()) {
-          console.error('OAuth flow expired')
+          debugError('oauth', 'Flow expired')
           await db.oAuthFlow.delete({ where: { id: flowId } }).catch(() => {})
           return authErrorRedirect(baseUrl)
         }
@@ -97,10 +98,10 @@ export async function GET(req: NextRequest) {
         // Opportunistic cleanup of expired flows
         void cleanupExpiredFlows() // fire-and-forget — don't await
 
-        console.log('[oauth] State resolved from DB (flowId:', flowId, ')')
+        debug('oauth', 'State resolved from DB (flowId:', flowId, ')')
       }
     } catch (dbError) {
-      console.error('[oauth] DB lookup failed, falling back to cookies:', dbError)
+      debugError('oauth', 'DB lookup failed, falling back to cookies:', dbError)
     }
   }
 
@@ -108,23 +109,23 @@ export async function GET(req: NextRequest) {
   if (!codeVerifier) {
     const storedState = req.cookies.get('twitter_oauth_state')?.value
     if (state !== storedState) {
-      console.error('OAuth state mismatch (cookie) — possible CSRF attack or cross-browser-context redirect')
+      debugError('oauth', 'State mismatch (cookie) — possible CSRF attack or cross-browser-context redirect')
       return authErrorRedirect(baseUrl)
     }
 
     codeVerifier = req.cookies.get('twitter_oauth_verifier')?.value
     if (!codeVerifier) {
-      console.error('Missing OAuth code verifier cookie — may have expired or cross-browser-context redirect')
+      debugError('oauth', 'Missing OAuth code verifier cookie — may have expired or cross-browser-context redirect')
       return authErrorRedirect(baseUrl)
     }
 
-    console.log('[oauth] State resolved from cookies (fallback)')
+    debug('oauth', 'State resolved from cookies (fallback)')
   }
 
   // Get OAuth2 credentials (supports both OAUTH2_* and TWITTER_* env var names)
   const creds = getOAuth2Credentials()
   if (!creds) {
-    console.error('Missing OAuth2 credentials. Set OAUTH2_CLIENT_ID + OAUTH2_CLIENT_SECRET (or TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET) in Vercel env vars.')
+    console.error('Missing OAuth2 credentials. Set OAUTH2_CLIENT_ID + OAUTH2_CLIENT_SECRET (or TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET) in Vercel env vars.') // eslint-disable-line no-console
     return authErrorRedirect(baseUrl)
   }
 
@@ -140,7 +141,7 @@ export async function GET(req: NextRequest) {
   )
 
   if (!tokenData?.access_token) {
-    console.error('Failed to exchange code for token - check server logs for details')
+    debugError('oauth', 'Failed to exchange code for token - check server logs for details')
     return authErrorRedirect(baseUrl)
   }
 
@@ -157,7 +158,7 @@ export async function GET(req: NextRequest) {
   // With a fixed identity, upsert finds the existing record on re-login.
   // This is safe because anon users are blocked from posting at the API level.
   if (!twitterUser) {
-    console.warn(
+    debugError('oauth',
       'Failed to fetch Twitter user profile — using anon fallback. ' +
       'This usually means the OAuth token is missing the tweet.read scope. ' +
       'The user should log out and re-login to get a token with the correct scope.'
@@ -182,7 +183,7 @@ export async function GET(req: NextRequest) {
     // Validate session token format before embedding in HTML (SAST: prevent XSS).
     // Session tokens are JWT-like: base64url segments separated by dots.
     if (!/^[A-Za-z0-9._-]+$/.test(sessionToken)) {
-      console.error('[oauth] Invalid session token format — possible injection')
+      debugError('oauth', 'Invalid session token format — possible injection')
       return authErrorRedirect(baseUrl)
     }
 
@@ -221,11 +222,11 @@ export async function GET(req: NextRequest) {
         if (res.ok) {
           window.location.href = '/?auth=success';
         } else {
-          console.error('Failed to set session:', await res.text());
+          console.error('Failed to set session:', await res.text()) // eslint-disable-line no-console
           window.location.href = '/?auth=error';
         }
       } catch (err) {
-        console.error('Set session error:', err);
+        console.error('Set session error:', err) // eslint-disable-line no-console
         window.location.href = '/?auth=error';
       }
     })();
@@ -246,7 +247,7 @@ export async function GET(req: NextRequest) {
 
     return new Response(pageContent, { status: 200, headers: responseHeaders })
   } catch (error) {
-    console.error('Error creating submitter:', error)
+    debugError('oauth', 'Error creating submitter:', error)
     return authErrorRedirect(baseUrl)
   }
 }

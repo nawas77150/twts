@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { debug } from '@/lib/debug'
 
 const DEBUG_DB = !!process.env.DEBUG_DB
 
@@ -20,7 +21,7 @@ if (DEBUG_DB && !globalForPrisma.prisma) {
   // Type assertion: $on('query') is only typed when log includes { emit: 'event', level: 'query' }.
   // The guard above guarantees this configuration, but TS can't infer it through the conditional.
   ;(db as unknown as { $on: (event: 'query', handler: (e: { query: string; duration: number; params: string }) => void) => void }).$on('query', (e) => {
-    console.log(`[db] ${e.query} — ${e.duration}ms`)
+    debug('db', `${e.query} — ${e.duration}ms`)
   })
 }
 

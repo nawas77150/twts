@@ -28,7 +28,7 @@
 // ============================================================
 
 import * as crypto from 'crypto'
-import { debug } from '@/lib/debug'
+import { debug, debugError } from '@/lib/debug'
 import { buildTransactionId } from '@/lib/x-transaction-id-shared'
 
 // --- Types ---
@@ -81,13 +81,13 @@ async function fetchPairs(): Promise<PairDict[]> {
     throw new Error('pair.json contains no valid entries')
   }
   if (validPairs.length < pairs.length) {
-    console.warn(`[pair-dict] ${pairs.length - validPairs.length} invalid entries filtered out of ${pairs.length} total`)
+    debugError('pair-dict', `${pairs.length - validPairs.length} invalid entries filtered out of ${pairs.length} total`)
   }
 
   // Drastic-change warning: if cached pairs exist and the new count is < 50% of the cached count,
   // log a warning and keep the old cache
   if (cachedPairs && validPairs.length < cachedPairs.length * 0.5) {
-    console.warn(`[pair-dict] Drastic change detected: ${validPairs.length} entries vs previous ${cachedPairs.length}. Keeping old cache.`)
+    debugError('pair-dict', `Drastic change detected: ${validPairs.length} entries vs previous ${cachedPairs.length}. Keeping old cache.`)
     return structuredClone(cachedPairs)
   }
 

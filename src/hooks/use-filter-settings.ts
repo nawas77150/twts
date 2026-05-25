@@ -160,7 +160,7 @@ export function useFilterSettings() {
   const saveRateLimits = useCallback(async () => {
     if (!isAdmin) return
     setIsSavingRateLimits(true)
-    const { circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes: _cbWindow, ...rateOnly } = rateLimits
+    const { circuitBreakerThreshold: _circuitBreakerThreshold, circuitBreakerCooldownMinutes: _circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes: _cbWindow, ...rateOnly } = rateLimits
     await persistFilterSetting(
       { rateLimits: rateOnly },
       () => { toast({ title: 'Rate limits saved!', description: `Cooldown: ${rateLimits.submissionCooldown}m, Daily cap: ${rateLimits.submissionDailyCap}` }) },

@@ -24,6 +24,7 @@ const _encryptionKeyAvailable = !!process.env.ENCRYPTION_KEY;
 
 // Warn once at startup if ENCRYPTION_KEY is not configured
 if (!_encryptionKeyAvailable) {
+  // eslint-disable-next-line no-console
   console.error(
     '[ENCRYPTION] ⚠️  ENCRYPTION_KEY is not set. Sensitive data (API keys, cookies, passwords) will be stored with a {PLAINTEXT} tag (not encrypted, but distinguishable from encrypted values). ' +
     'Generate a key with: openssl rand -hex 32  —  Then set ENCRYPTION_KEY in your environment variables.'
@@ -66,6 +67,7 @@ export function encrypt(plaintext: string): string {
     const now = Date.now();
     if (now - _lastEncryptWarnTime > 60_000) {
       _lastEncryptWarnTime = now;
+      // eslint-disable-next-line no-console
       console.warn(
         `[ENCRYPTION] encrypt() called without ENCRYPTION_KEY — value stored as {PLAINTEXT}-tagged string (not encrypted). ` +
         `Set ENCRYPTION_KEY to enable encryption. (This warning is throttled to once per minute)`

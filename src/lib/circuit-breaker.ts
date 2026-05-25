@@ -62,7 +62,7 @@ async function setSettingValue(key: string, value: string): Promise<void> {
  * If the pause has expired, auto-resets the state with conditional
  * multi-statement SQL to prevent race conditions with concurrent recordPostFailure().
  */
-export async function isCircuitBreakerPaused(rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }): Promise<boolean> {
+export async function isCircuitBreakerPaused(_rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }): Promise<boolean> {
   const pausedUntilStr = await getSettingValue(CB_KEYS.pausedUntil)
   if (!pausedUntilStr || pausedUntilStr === '0') return false
 

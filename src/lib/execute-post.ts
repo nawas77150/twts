@@ -21,7 +21,7 @@ import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getStartOfTodayWIB } from '@/lib/constants'
-import { debug } from '@/lib/debug'
+import { debug, debugError } from '@/lib/debug'
 import type { RateLimitSettings } from '@/lib/rate-limit-defaults'
 import { NextResponse } from 'next/server'
 
@@ -273,7 +273,7 @@ export async function withErrorBoundary(
   try {
     return await fn()
   } catch (e) {
-    console.error('[withErrorBoundary] Unexpected error:', e)
+    debugError('execute-post', 'Unexpected error:', e)
     return NextResponse.json(
       { error: 'Terjadi kesalahan server' },
       { status: 500 },

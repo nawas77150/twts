@@ -6,7 +6,7 @@ import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { appendHashtags } from '@/lib/append-hashtags'
 import { getStartOfTodayWIB } from '@/lib/constants'
-import { debug } from '@/lib/debug'
+import { debug, debugError } from '@/lib/debug'
 import { recoverStalePostings } from '@/lib/stale-posting'
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     // ── Authentication ──────────────────────────────────────
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
-      console.error('[autopost] CRON_SECRET env var not set')
+      console.error('[autopost] CRON_SECRET env var not set') // eslint-disable-line no-console
       return cronJson({ error: 'CRON_SECRET not configured' }, { status: 500 })
     }
 
@@ -207,7 +207,7 @@ export async function GET(req: NextRequest) {
       })
     }
   } catch (e) {
-    console.error('[autopost] Unexpected error:', e)
+    debugError('autopost', 'Unexpected error:', e)
     return cronJson({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

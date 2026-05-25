@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/twitter-auth'
 import { db } from '@/lib/db'
+import { debugError } from '@/lib/debug'
 
 // POST /api/auth/set-session - Set the httpOnly session cookie
 // Called by the intermediate HTML page after OAuth callback
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     return response
   } catch (error) {
-    console.error('[set-session] Error:', error)
+    debugError('auth/set-session', 'Error:', error)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

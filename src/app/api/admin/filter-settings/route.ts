@@ -8,6 +8,7 @@ import {
   type FilterRules,
 } from '@/lib/content-filter'
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
+import { debugError } from '@/lib/debug'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
@@ -81,7 +82,7 @@ async function saveEncryptedWordList(
 }
 
 // GET /api/admin/filter-settings — Return filter settings
-export const GET = withAdmin(async (req: NextRequest) => {
+export const GET = withAdmin(async (_req: NextRequest) => {
   try {
     const settings = await getFilterSettings()
     const circuitBreaker = await getCircuitBreakerStatus(settings.rateLimits)
@@ -107,7 +108,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
       },
     })
   } catch (e) {
-    console.error('[filter-settings/GET] Error:', e)
+    debugError('filter-settings', 'GET error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })
@@ -222,7 +223,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, results })
   } catch (e) {
-    console.error('[filter-settings] Save error:', e)
+    debugError('filter-settings', 'Save error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

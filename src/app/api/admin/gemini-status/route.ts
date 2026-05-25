@@ -4,7 +4,7 @@ import { getFilterSettings } from '@/lib/filter-settings'
 import { getErrorMessage } from '@/lib/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
-export const GET = withAdmin(async (req: NextRequest) => {
+export const GET = withAdmin(async (_req: NextRequest) => {
   const { geminiApiKey, geminiModel: model } = await getFilterSettings()
 
   if (!geminiApiKey) {

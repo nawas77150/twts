@@ -38,6 +38,8 @@ export function useSettingsSync({
 
   // Phase 1: Sync stats → filter settings, circuit breaker, posting method
   // Only runs on initial load (when stats first arrive)
+  // -- exhaustive-deps: intentionally excludes circuitBreaker/filterSettings/posting objects
+  //    to avoid re-running on every render; hasLoadedRef guards against duplicate execution
   useEffect(() => {
     if (!stats) return
     if (hasLoadedRef.current) return
@@ -57,18 +59,22 @@ export function useSettingsSync({
     if (stats.circuitBreaker) {
       circuitBreaker.setStatus(stats.circuitBreaker)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats, circuitBreaker.setStatus, filterSettings.loadFromFilterSettings, posting.setPostMethodSetting, posting.setV2LoginEnabled, posting.setPostHashtags])
 
   // Phase 2: Always sync circuit breaker status (read-only display, safe to update)
+  // -- exhaustive-deps: intentionally excludes circuitBreaker object; only setStatus (stable ref) is needed
   useEffect(() => {
     if (!stats?.circuitBreaker) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
     circuitBreaker.setStatus(stats.circuitBreaker)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.circuitBreaker, circuitBreaker.setStatus])
 
   // Phase 3: Sync blocklist/whitelist after mutations (display-only, safe to overwrite)
   // Unlike text inputs/toggles, these lists are never edited in-place —
   // they change atomically via API calls that trigger refetchAdminStats().
+  // -- exhaustive-deps: intentionally excludes filterSettings object; only setters (stable refs) are needed
   useEffect(() => {
     if (!stats?.filterSettings) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
@@ -76,5 +82,6 @@ export function useSettingsSync({
     if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
     if (blockedReasons) filterSettings.setBlockedReasons(blockedReasons)
     if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.filterSettings, filterSettings.setBlockedUsernames, filterSettings.setBlockedReasons, filterSettings.setWhitelistUsernames])
 }

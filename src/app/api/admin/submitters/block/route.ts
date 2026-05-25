@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, atomicJsonbSetKey } from '../_lib'
+import { debugError } from '@/lib/debug'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/block — Block a user from submitting
@@ -66,7 +67,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, blocked: normalizedUsername })
   } catch (error) {
-    console.error('Block user error:', error)
+    debugError('submitters/block', 'Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

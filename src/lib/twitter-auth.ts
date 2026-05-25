@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { encrypt } from '@/lib/encrypt'
+import { debugError } from '@/lib/debug'
 
 // Twitter OAuth 2.0 with PKCE implementation
 
@@ -89,14 +90,14 @@ export async function exchangeCodeForToken(
 
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('Token exchange failed:', res.status, errorText)
+      debugError('twitter-auth', 'Token exchange failed:', res.status, errorText)
       return null
     }
 
     const data = await res.json()
     return data
   } catch (error) {
-    console.error('Token exchange error:', error)
+    debugError('twitter-auth', 'Token exchange error:', error)
     return null
   }
 }
@@ -145,10 +146,10 @@ export async function fetchTwitterUser(accessToken: string): Promise<{
       }
     }
 
-    console.error('Fetch user failed:', res.status, body.slice(0, 200))
+    debugError('twitter-auth', 'Fetch user failed:', res.status, body.slice(0, 200))
     return null
   } catch (error) {
-    console.error('Fetch user error:', error)
+    debugError('twitter-auth', 'Fetch user error:', error)
     return null
   }
 }
@@ -231,7 +232,7 @@ export async function upsertSubmitterFromTwitter(twitterUser: {
       throw error
     }
   } catch (error: unknown) {
-    console.error('[twitter-auth] OAuth callback error:', error)
+    debugError('twitter-auth', 'OAuth callback error:', error)
     throw error
   }
 }

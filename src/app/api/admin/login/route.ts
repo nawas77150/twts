@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { generateAdminToken, ADMIN_TOKEN_TTL } from '@/lib/admin-auth'
 import { getClientIp, checkLoginRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/login-rate-limit'
+import { debugError } from '@/lib/debug'
 
 // POST /api/admin/login - Verify admin password
 // Uses crypto.timingSafeEqual to prevent timing side-channel attacks.
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     recordFailedAttempt(ip)
     return NextResponse.json({ error: 'Password salah' }, { status: 401 })
   } catch (e) {
-    console.error('[admin/login] Error:', e)
+    debugError('admin/login', 'Error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan' }, { status: 500 })
   }
 }

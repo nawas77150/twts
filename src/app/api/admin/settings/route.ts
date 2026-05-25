@@ -5,6 +5,7 @@ import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { withAdmin } from '@/lib/admin-auth'
 import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
 import { isPrivateIP } from '@/lib/is-private-ip'
+import { debugError } from '@/lib/debug'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_KEYS = [
@@ -35,7 +36,7 @@ const LOGIN_TRIGGER_KEYS = [
 const SENSITIVE_KEYS = ['x_password', 'x_totp_secret', 'twitterapi_login_cookie']
 
 // GET /api/admin/settings — Return all settings (values masked)
-export const GET = withAdmin(async (req: NextRequest) => {
+export const GET = withAdmin(async (_req: NextRequest) => {
   try {
     const settings = await db.setting.findMany()
 
@@ -84,7 +85,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
 
   return NextResponse.json({ settings: masked, encryptionEnabled: isEncryptionEnabled() })
   } catch (error) {
-    console.error('Settings GET error:', error)
+    debugError('admin/settings', 'GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })
@@ -298,7 +299,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
     autoLogin: autoLoginResult,
   })
   } catch (error) {
-    console.error('Settings POST error:', error)
+    debugError('admin/settings', 'POST error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })
@@ -335,7 +336,7 @@ export const DELETE = withAdmin(async (req: NextRequest) => {
 
   return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Settings DELETE error:', error)
+    debugError('admin/settings', 'DELETE error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

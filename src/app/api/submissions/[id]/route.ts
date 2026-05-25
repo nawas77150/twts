@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { withErrorBoundary } from '@/lib/execute-post'
 import { withAdmin } from '@/lib/admin-auth'
-import { debug } from '@/lib/debug'
+import { debug, debugError } from '@/lib/debug'
 import { decodeHtmlEntities } from '@/lib/content-filter'
 import { checkStalePosting } from '@/lib/stale-posting'
 import { findSubmissionOr404, fetchSubmissionForPosting, executePostForSubmission, getUpdatedSubmissionOrWarning, getMethodDescription, getPostErrorHint } from './_lib'
@@ -112,7 +112,7 @@ export const DELETE = withAdmin<{ params: Promise<{ id: string }> }>(async (req,
 
     return NextResponse.json({ success: true })
   } catch (e) {
-    console.error('[submissions] Delete error:', e)
+    debugError('submissions', 'Delete error:', e)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

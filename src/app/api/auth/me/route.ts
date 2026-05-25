@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { debugError } from '@/lib/debug'
 import { safeGet } from '@/lib/utils'
 
 // GET /api/auth/me - Check if user is logged in via Twitter OAuth
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
       blockReason,
     })
   } catch (error) {
-    console.error('[auth/me] Error:', error)
+    debugError('auth/me', 'Error:', error)
     return NextResponse.json({ authenticated: false, error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

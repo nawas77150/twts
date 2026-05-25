@@ -5,6 +5,7 @@ import { withAdmin } from '@/lib/admin-auth'
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
+import { debugError } from '@/lib/debug'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -87,7 +88,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
     encryptionEnabled: isEncryptionEnabled(),
   })
   } catch (error) {
-    console.error('Stats GET error:', error)
+    debugError('admin/stats', 'GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

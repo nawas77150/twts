@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { db } from '@/lib/db'
 import { PER_USER_LIMIT_KEYS } from '@/types'
+import { debugError } from '@/lib/debug'
 import { Prisma } from '@prisma/client'
 
 // PATCH /api/admin/submitters/limits — Set/clear custom limits for a submitter
@@ -114,7 +115,7 @@ export const PATCH = withAdmin(async (req: NextRequest) => {
       previousCustomLimits: submitter.customLimits,
     })
   } catch (error) {
-    console.error('Submitters limits PATCH error:', error)
+    debugError('submitters/limits', 'PATCH error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { debugError } from '@/lib/debug'
 import { decryptSetting } from '@/lib/encrypt'
 import {
   DEFAULT_BLOCKED_WORDS,
@@ -39,7 +40,7 @@ function parseJsonSetting<T>(
     const result = validate(parsed)
     return result ?? fallback
   } catch (e) {
-    console.error('[filter-settings] Failed to parse setting:', e)
+    debugError('filter-settings', 'Failed to parse setting:', e)
     return fallback
   }
 }

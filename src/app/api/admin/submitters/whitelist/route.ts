@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, checkUserInList } from '../_lib'
+import { debugError } from '@/lib/debug'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/whitelist — Add a user to the whitelist
@@ -34,7 +35,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, whitelisted: normalizedUsername })
   } catch (error) {
-    console.error('Whitelist POST error:', error)
+    debugError('submitters/whitelist', 'POST error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })
@@ -57,7 +58,7 @@ export const DELETE = withAdmin(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, removed: normalizedUsername })
   } catch (error) {
-    console.error('Whitelist DELETE error:', error)
+    debugError('submitters/whitelist', 'DELETE error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 })

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // (placeholder, queryId, transaction ID config, HTML cache, filter settings).
 // Deleting DB rows forces a fresh GitHub fetch on next post.
 // Useful when X updates their frontend and cached data becomes stale.
-export const POST = withAdmin(async (req: NextRequest) => {
+export const POST = withAdmin(async (_req: NextRequest) => {
   await clearAllCaches()
   invalidateFilterSettingsCache()
 
