@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/james2256/tweetfess/compare/v1.4.1...v1.4.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* execute ([9bc9895](https://github.com/james2256/tweetfess/commit/9bc9895070c9aff18603c37a5c230b3e09a2b411))
+
 ## [1.4.1](https://github.com/james2256/tweetfess/compare/v1.4.0...v1.4.1) (2026-05-25)
 
 
