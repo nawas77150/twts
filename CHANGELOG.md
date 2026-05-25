@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/james2256/tweetfess/compare/v1.2.4...v1.3.0) (2026-05-25)
+
+
+### Features
+
+* custom block message with per-user reasons ([6be3aa4](https://github.com/james2256/tweetfess/commit/6be3aa414e1aa408e2aba531a7120545f335c818))
+
+
+### Bug Fixes
+
+* pass initialBlockReason through server render path ([f27fa72](https://github.com/james2256/tweetfess/commit/f27fa72ea517965fc7baebdc8a9e06c2a2b8be32))
+* replace unsafe Record bracket access with safeGet(); fix dead-code ?? in 403 handler ([f5878f9](https://github.com/james2256/tweetfess/commit/f5878f9e572376cfbdd2252dec476161cb1c4be5))
+* use RELEASE_PLEASE_TOKEN instead of GITHUB_TOKEN to trigger deploy-stable ([c6f46a9](https://github.com/james2256/tweetfess/commit/c6f46a9c1aeaabb0b75ca507cce123f86db169e1))
+
 ## [1.2.4](https://github.com/james2256/tweetfess/compare/v1.2.3...v1.2.4) (2026-05-23)
 
 
