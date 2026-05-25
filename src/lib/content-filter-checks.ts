@@ -9,13 +9,17 @@
 // of reason codes. They use normalizeText or normalizeForFilter
 // from content-filter-normalize depending on their needs.
 //
+// checkCsam and checkSolicitation use checkBlockedWords for their
+// two-list intersection pattern (sexual ∩ age, sexual ∩ payment).
+//
 // Also contains checkDuplicate24h (async, DB-dependent) and its
 // return type DuplicateCheckResult.
 //
-// Imports from: content-filter-normalize, @/lib/constants
+// Imports from: content-filter-normalize, content-filter-blocked, @/lib/constants
 // ============================================================
 
 import { normalizeText, normalizeForFilter } from './content-filter-normalize'
+import { checkBlockedWords } from './content-filter-blocked'
 import { MS_24H } from '@/lib/constants'
 
 // --- Marketplace Tag Check ---
@@ -172,6 +176,86 @@ export async function checkDuplicate24h(
   return { isDuplicate: false }
 }
 
+// --- CSAM Check (two-list intersection) ---
+
+/**
+ * Check for CSAM (child sexual abuse material) by two-list intersection:
+ * a submission is flagged ONLY when BOTH sexual terms AND age indicators
+ * are present. This avoids false positives on either category alone
+ * (e.g. "anak anjing" has "anak" but no sexual context).
+ *
+ * Reuses checkBlockedWords for word matching — same normalization,
+ * bypass prevention, and multi-word substring matching.
+ */
+function checkCsam(
+  message: string,
+  sexualTerms: string[],
+  ageIndicators: string[],
+): string[] {
+  const sexualResult = checkBlockedWords(message, sexualTerms, 'csam_sexual')
+  const ageResult = checkBlockedWords(message, ageIndicators, 'csam_age')
+  if (sexualResult.matched.length > 0 && ageResult.matched.length > 0) {
+    return [...sexualResult.reasons, ...ageResult.reasons]
+  }
+  return []
+}
+
+// --- Solicitation Check (two-list intersection) ---
+
+/**
+ * Check for paid sexual solicitation by two-list intersection:
+ * a submission is flagged ONLY when BOTH sexual euphemisms AND payment
+ * indicators are present. This avoids false positives on either alone
+ * (e.g. "jasa desain berbayar" has "berbayar" but no sexual context).
+ *
+ * Same intersection pattern as checkCsam — proven low false-positive rate.
+ */
+function checkSolicitation(
+  message: string,
+  sexualTerms: string[],
+  paymentTerms: string[],
+): string[] {
+  const sexualResult = checkBlockedWords(message, sexualTerms, 'solicitation_sexual')
+  const paymentResult = checkBlockedWords(message, paymentTerms, 'solicitation_payment')
+  if (sexualResult.matched.length > 0 && paymentResult.matched.length > 0) {
+    return [...sexualResult.reasons, ...paymentResult.reasons]
+  }
+  return []
+}
+
+// --- PII Check (regex-based) ---
+
+/**
+ * Check for private identifiable information: email, NIK (Indonesian
+ * national ID — 16+ consecutive digits), IPv4 addresses, NPWP
+ * (Indonesian tax number).
+ *
+ * Uses normalizeForFilter (lighter — preserves structure for regex).
+ * Same pattern as checkUrls/checkPhoneNumbers.
+ */
+function checkPii(message: string): string[] {
+  const reasons: string[] = []
+  const normalized = normalizeForFilter(message)
+  // Email addresses
+  if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(normalized)) {
+    reasons.push('contains_email')
+  }
+  // Indonesian NIK / ID numbers — 16+ consecutive digits (strip common separators)
+  const digits = normalized.replace(/[\s.\-]/g, '')
+  if (/\d{16,}/.test(digits)) {
+    reasons.push('contains_nik')
+  }
+  // IPv4 addresses
+  if (/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/.test(normalized)) {
+    reasons.push('contains_ip_address')
+  }
+  // NPWP (Indonesian tax number: XX.XXX.XXX.X-XXX.XXX)
+  if (/\b\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}\b/.test(normalized)) {
+    reasons.push('contains_npwp')
+  }
+  return reasons
+}
+
 // --- Re-export check functions for engine ---
 // These are used by RULE_CHECKERS in content-filter-engine.ts.
 // They are not exported to external consumers — only to engine.
@@ -184,4 +268,7 @@ export {
   checkCapsSpam,
   checkRepeatedChars,
   checkTooShort,
+  checkCsam,
+  checkSolicitation,
+  checkPii,
 }

@@ -1,22 +1,56 @@
 import { db } from '@/lib/db'
 import { withAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 
-// GET /api/admin/submitters — List all submitters with their submission counts (cursor-based pagination)
+// GET /api/admin/submitters — List all submitters with their submission counts (page-based pagination + server-side search)
 export const GET = withAdmin(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
-    const cursor = searchParams.get('cursor') || undefined
+    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1)
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10) || 50, 1), 200)
+    const search = searchParams.get('search')?.trim() || undefined
 
-  // Single GROUP BY query instead of 4 COUNT × N submitters (N+1 problem)
-  const statusCounts = await db.$queryRaw<
-    { submitterId: string; status: string; count: bigint }[]
-  >`
-    SELECT "submitterId", status, COUNT(*) as count
-    FROM "Submission"
-    GROUP BY "submitterId", status
-  `
+  const where: Prisma.SubmitterWhereInput | undefined = search
+    ? {
+        OR: [
+          { username: { contains: search, mode: 'insensitive' } },
+          { displayName: { contains: search, mode: 'insensitive' } },
+        ],
+      }
+    : undefined
+
+  // Run count + data queries in parallel
+  const [totalCount, statusCounts, submitters] = await Promise.all([
+    db.submitter.count({ where }),
+    db.$queryRaw<
+      { submitterId: string; status: string; count: bigint }[]
+    >`
+      SELECT "submitterId", status, COUNT(*) as count
+      FROM "Submission"
+      GROUP BY "submitterId", status
+    `,
+    db.submitter.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        profileImage: true,
+        twitterId: true,
+        customLimits: true,
+        createdAt: true,
+        _count: {
+          select: {
+            submissions: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ])
 
   // Build a lookup map: submitterId → { posted, pending, rejected, post_failed }
   const countMap = new Map<string, Record<string, number>>()
@@ -26,32 +60,9 @@ export const GET = withAdmin(async (req: NextRequest) => {
     countMap.set(row.submitterId, existing)
   }
 
-  const submitters = await db.submitter.findMany({
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      profileImage: true,
-      twitterId: true,
-      customLimits: true,
-      createdAt: true,
-      _count: {
-        select: {
-          submissions: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit + 1,
-    skip: cursor ? 1 : 0,
-    cursor: cursor ? { id: cursor } : undefined,
-  })
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit))
 
-  const hasMore = submitters.length > limit
-  const slicedSubmitters = hasMore ? submitters.slice(0, limit) : submitters
-  const nextCursor = hasMore ? slicedSubmitters[slicedSubmitters.length - 1].id : null
-
-  const submittersWithStats = slicedSubmitters.map((s) => {
+  const submittersWithStats = submitters.map((s) => {
     const counts = countMap.get(s.id) || {}
     return {
       id: s.id,
@@ -71,7 +82,14 @@ export const GET = withAdmin(async (req: NextRequest) => {
     }
   })
 
-  return NextResponse.json({ submitters: submittersWithStats, nextCursor, hasMore })
+  return NextResponse.json({
+    submitters: submittersWithStats,
+    totalCount,
+    totalPages,
+    page,
+    limit,
+    hasMore: page < totalPages,
+  })
   } catch (error) {
     console.error('Submitters GET error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })

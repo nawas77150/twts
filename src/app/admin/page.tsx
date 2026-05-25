@@ -90,7 +90,13 @@ export default function AdminDashboardPage() {
     submitters,
     blockedUsernames,
     isLoading: isLoadingSubmitters,
+    page: submittersPage,
+    totalPages: submittersTotalPages,
+    totalCount: submittersTotalCount,
+    search: submittersSearch,
     fetchSubmitters,
+    goToPage: goSubmittersPage,
+    setSearch: setSubmittersSearch,
     block,
     unblock,
     setCustomLimits,
@@ -165,7 +171,13 @@ export default function AdminDashboardPage() {
         blockedUsernames={blockedUsernames}
         censored={censored}
         isLoading={isLoadingSubmitters}
+        page={submittersPage}
+        totalPages={submittersTotalPages}
+        totalCount={submittersTotalCount}
+        search={submittersSearch}
+        onSearchChange={setSubmittersSearch}
         onFetchSubmitters={fetchSubmitters}
+        onGoToPage={goSubmittersPage}
         onBlock={block}
         onUnblock={unblock}
         onSetCustomLimits={setCustomLimits}

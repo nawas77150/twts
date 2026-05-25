@@ -219,10 +219,11 @@ class ApiClient {
     return this.request('/api/admin/circuit-breaker/reset', { method: 'POST' })
   }
 
-  async getSubmitters(params?: { cursor?: string; limit?: number }): Promise<{ submitters: SubmitterWithStats[]; nextCursor: string | null; hasMore: boolean }> {
+  async getSubmitters(params?: { page?: number; limit?: number; search?: string }): Promise<{ submitters: SubmitterWithStats[]; totalCount: number; totalPages: number; page: number; limit: number; hasMore: boolean }> {
     const searchParams = new URLSearchParams()
-    if (params?.cursor) searchParams.set('cursor', params.cursor)
+    if (params?.page) searchParams.set('page', String(params.page))
     if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.search) searchParams.set('search', params.search)
     const query = searchParams.toString()
     return this.request(`/api/admin/submitters${query ? `?${query}` : ''}`)
   }

@@ -12,7 +12,7 @@
 // Imports from: content-filter-blocked, content-filter-checks
 // ============================================================
 
-import { checkBlockedWords } from './content-filter-blocked'
+import { checkBlockedWords, DEFAULT_SELF_HARM_KEYWORDS, DEFAULT_CSAM_SEXUAL_TERMS, DEFAULT_CSAM_AGE_INDICATORS, DEFAULT_SOLICITATION_SEXUAL_TERMS, DEFAULT_SOLICITATION_PAYMENT_TERMS } from './content-filter-blocked'
 import {
   checkJualan,
   checkUrls,
@@ -21,6 +21,9 @@ import {
   checkCapsSpam,
   checkRepeatedChars,
   checkTooShort,
+  checkCsam,
+  checkSolicitation,
+  checkPii,
 } from './content-filter-checks'
 
 // --- Filter Rule Types ---
@@ -36,6 +39,10 @@ export interface FilterRules {
   repeatedChars: boolean  // Repeated characters (6+ in a row)
   tooShort: boolean       // Too short (< 5 chars)
   duplicate24h: boolean   // Exact duplicate within 24h
+  selfHarm: boolean       // Self-harm / suicide keywords (always-on)
+  csam: boolean           // CSAM / child safety (always-on)
+  solicitation: boolean   // Paid sexual solicitation (always-on)
+  pii: boolean            // PII: email, NIK, IP, NPWP
 }
 
 export type FilterSeverity = 'none' | 'low' | 'medium' | 'high'
@@ -60,26 +67,44 @@ export const DEFAULT_FILTER_RULES: FilterRules = {
   repeatedChars: true,
   tooShort: true,
   duplicate24h: true,
+  selfHarm: true,       // Always-on — cannot be disabled
+  csam: true,           // Always-on — cannot be disabled
+  solicitation: true,   // Always-on — cannot be disabled
+  pii: true,            // ON by default, admin can toggle
 }
 
 // Non-toggleable rules (always enforced regardless of settings)
-// These cause outright rejection (not pending) — spam/low-quality with zero chance of approval
+// These cause outright rejection (not pending) — spam/low-quality or safety-critical
 const ALWAYS_ON_RULES: (keyof FilterRules)[] = [
   'capsSpam',
   'tooShort',
   'duplicate24h',
+  'selfHarm',       // X ban risk + user safety
+  'csam',           // X ban risk + child safety
+  'solicitation',   // X ban risk — account restriction trigger
 ]
 
-// Reason strings produced by always-on rules
-export const ALWAYS_ON_REASONS: string[] = [
+// Reason prefixes produced by always-on rules.
+// Used by hasAlwaysOnReason() — reasons may be exact ('caps_spam')
+// or prefixed ('self_harm:bunuh diri'), so we match by prefix.
+const ALWAYS_ON_REASON_PREFIXES: string[] = [
   'caps_spam',
   'too_short',
   'duplicate_24h',
+  'self_harm',
+  'csam_sexual',
+  'csam_age',
+  'solicitation_sexual',
+  'solicitation_payment',
 ]
 
+// Exported for reference — the canonical list of always-on reason prefixes
+export const ALWAYS_ON_REASONS = ALWAYS_ON_REASON_PREFIXES
+
 // Check if any of the given reasons come from always-on rules
+// Uses prefix matching: 'self_harm:bunuh diri'.startsWith('self_harm') → true
 export function hasAlwaysOnReason(reasons: string[]): boolean {
-  return reasons.some(r => ALWAYS_ON_REASONS.includes(r))
+  return reasons.some(r => ALWAYS_ON_REASON_PREFIXES.some(p => r.startsWith(p)))
 }
 
 // --- Table-Driven Rule Engine ---
@@ -115,6 +140,36 @@ const RULE_CHECKERS: RuleChecker[] = [
       const result = checkBlockedWords(message, extra.nsfwWords, 'nsfw_word')
       return { reasons: result.reasons, matched: result.matched }
     },
+  },
+  {
+    ruleKey: 'selfHarm',
+    severity: 'high',
+    alwaysOverrideSeverity: true,  // Always high — user safety
+    check: (message) => {
+      const result = checkBlockedWords(message, DEFAULT_SELF_HARM_KEYWORDS, 'self_harm')
+      return { reasons: result.reasons, matched: result.matched }
+    },
+  },
+  {
+    ruleKey: 'csam',
+    severity: 'high',
+    alwaysOverrideSeverity: true,  // Always high — child safety
+    check: (message) => {
+      return { reasons: checkCsam(message, DEFAULT_CSAM_SEXUAL_TERMS, DEFAULT_CSAM_AGE_INDICATORS) }
+    },
+  },
+  {
+    ruleKey: 'solicitation',
+    severity: 'high',
+    alwaysOverrideSeverity: true,  // Always high — X ban risk
+    check: (message) => {
+      return { reasons: checkSolicitation(message, DEFAULT_SOLICITATION_SEXUAL_TERMS, DEFAULT_SOLICITATION_PAYMENT_TERMS) }
+    },
+  },
+  {
+    ruleKey: 'pii',
+    severity: 'high',
+    check: (message) => ({ reasons: checkPii(message) }),
   },
   {
     ruleKey: 'jualan',
@@ -213,7 +268,10 @@ export function getRejectionMessage(reasons: string[]): string {
   const messages: string[] = []
 
   for (const reason of reasons) {
-    switch (reason) {
+    // Extract prefix for matching — reasons may be 'self_harm:bunuh diri'
+    const prefix = reason.includes(':') ? reason.split(':')[0] : reason
+
+    switch (prefix) {
       case 'caps_spam':
         messages.push('Pesan menggunakan huruf kapital semua (ALL CAPS). Gunakan huruf biasa.')
         break
@@ -225,6 +283,17 @@ export function getRejectionMessage(reasons: string[]): string {
         break
       case 'duplicate_24h':
         messages.push('Pesan ini sudah dikirim dalam 24 jam terakhir.')
+        break
+      case 'self_harm':
+        messages.push('Pesan terdeteksi mengandung konten yang berhubungan dengan menyakiti diri. Jika kamu butuh bantuan, hubungi 119 atau Into The Light Indonesia.')
+        break
+      case 'csam_sexual':
+      case 'csam_age':
+        messages.push('Pesan terdeteksi mengandung konten yang melanggar keamanan anak.')
+        break
+      case 'solicitation_sexual':
+      case 'solicitation_payment':
+        messages.push('Pesan terdeteksi mengandung konten yang melanggar kebijakan X.')
         break
     }
   }

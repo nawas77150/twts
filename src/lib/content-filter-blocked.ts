@@ -2,9 +2,10 @@
 // content-filter-blocked.ts — Blocked word lists + word matching
 //
 // Contains the default blocked words (Indonesian profanity + English
-// profanity + leet-speak variants) and the default NSFW words list.
-// Also contains checkBlockedWords() — the word-boundary matching
-// function used by both the blockedWords and nsfw rule checkers.
+// profanity + leet-speak variants), the default NSFW words list,
+// and keyword lists for always-on safety rules (self-harm, CSAM,
+// solicitation). Also contains checkBlockedWords() — the word-
+// boundary matching function reused by multiple rule checkers.
 //
 // Imports from: content-filter-normalize (normalizeText only)
 // ============================================================
@@ -42,6 +43,56 @@ export const DEFAULT_BLOCKED_WORDS: string[] = [
 export const DEFAULT_NSFW_WORDS: string[] = [
   'ngentod', 'entot', 'entod', 'colmek', 'coli', 'bokep',
   'telanjang', 'gangbang', 'sange', 'horny',
+]
+
+// --- Always-on Safety Rule Keyword Lists ---
+// These are NOT admin-configurable — hardcoded to prevent weakening.
+
+// Self-harm / suicide keywords — always-on rule
+// Multi-word phrases use substring match in checkBlockedWords()
+export const DEFAULT_SELF_HARM_KEYWORDS: string[] = [
+  // Phrases (multi-word — checkBlockedWords uses substring match)
+  'bunuh diri', 'mau mati', 'mau bunuh diri', 'pengen mati',
+  'nggak mau hidup lagi', 'udah capek hidup', 'mau pergi aja',
+  'gantung diri', 'minum racun', 'tidak ada alasan hidup',
+  'pengen mati aja', 'udah gak tahan', 'nyawa udah habis',
+  'lompat dari', 'udah nyerah', 'udah males hidup',
+  // Single words (token match)
+  'suicide', 'kill myself', 'end it all',
+]
+
+// CSAM — sexual term triggers (combined with age indicators via two-list intersection)
+export const DEFAULT_CSAM_SEXUAL_TERMS: string[] = [
+  'colmek', 'coli', 'coliin', 'colmekan', 'bokep',
+  'ngentot', 'ngentod', 'entot', 'entod',
+  'telanjang', 'sange', 'horny',
+]
+
+// CSAM — age indicator triggers (combined with sexual terms via two-list intersection)
+export const DEFAULT_CSAM_AGE_INDICATORS: string[] = [
+  // Multi-word phrases
+  'anak kecil', 'anak smp', 'anak sd', 'anak tk',
+  '10 tahun', '11 tahun', '12 tahun', '13 tahun',
+  '14 tahun', '15 tahun', '16 tahun',
+  'umur 10', 'umur 11', 'umur 12', 'umur 13',
+  'umur 14', 'umur 15', 'umur 16',
+  // Single words
+  'underage', 'minor',
+  // Abbreviations
+  '10thn', '11thn', '12thn', '13thn', '14thn', '15thn',
+]
+
+// Solicitation — sexual euphemisms (combined with payment terms via two-list intersection)
+// Only includes unambiguous terms — "temenin" alone is innocent, so it's not here
+export const DEFAULT_SOLICITATION_SEXUAL_TERMS: string[] = [
+  'beu', 'open bo', 'open booking', 'bookingan',
+  'sepong', 'escort', 'ml', 'ons', 'fwb',
+]
+
+// Solicitation — payment indicators (combined with sexual euphemisms via two-list intersection)
+export const DEFAULT_SOLICITATION_PAYMENT_TERMS: string[] = [
+  'fee', 'berbayar', 'tarif', 'mahar', 'rate',
+  'harga', 'donasi', 'dp', 'full bayar',
 ]
 
 // --- Blocked Word Matching ---

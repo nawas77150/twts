@@ -41,6 +41,7 @@ const TOGGLEABLE_RULES: { key: keyof FilterRules; label: string; desc: string }[
   { key: 'urls', label: 'Block links/URLs', desc: 'Prevents spam links and phishing' },
   { key: 'mentions', label: 'Block @mentions', desc: 'Prevents targeted harassment via @username' },
   { key: 'phoneNumbers', label: 'Block phone numbers', desc: 'Prevents doxxing and privacy leaks' },
+  { key: 'pii', label: 'Block PII (email, NIK, IP, NPWP)', desc: 'Prevents sharing of private identifiable information' },
   { key: 'nsfw', label: 'Block NSFW/explicit content', desc: 'OFF by default for Alter menfess — toggle on if needed' },
   { key: 'repeatedChars', label: 'Block repeated characters', desc: '6+ consecutive identical characters (e.g. aaaaaa)' },
 ]
@@ -49,6 +50,9 @@ const ALWAYS_ON_RULES = [
   { key: 'capsSpam', label: 'ALL CAPS spam' },
   { key: 'tooShort', label: 'Too short (<5)' },
   { key: 'duplicate24h', label: 'Duplicate (24h)' },
+  { key: 'selfHarm', label: 'Self-harm / suicide' },
+  { key: 'csam', label: 'Child safety (CSAM)' },
+  { key: 'solicitation', label: 'Sexual solicitation' },
 ]
 
 export function FilterCard({

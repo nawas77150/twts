@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Users, Ban, RefreshCw, Loader2, Settings2, X, ShieldOff } from 'lucide-react'
+import { Users, Ban, RefreshCw, Loader2, Settings2, X, ShieldOff, Search } from 'lucide-react'
 import { CensoredAvatar } from '@/components/shared/censored-avatar'
 import {
   Dialog,
@@ -21,7 +21,6 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
-import { SearchInput } from '@/components/ui/search-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -37,7 +36,13 @@ interface UsersDialogProps {
   blockedUsernames: string[]
   censored: boolean
   isLoading: boolean
+  page: number
+  totalPages: number
+  totalCount: number
+  search: string
+  onSearchChange: (search: string) => void
   onFetchSubmitters: () => void
+  onGoToPage: (page: number) => void
   onBlock: (username: string, reason?: string) => Promise<void>
   onUnblock: (username: string) => Promise<void>
   onSetCustomLimits: (username: string, customLimits: Record<string, number | null> | null) => Promise<boolean>
@@ -51,13 +56,18 @@ export function UsersDialog({
   blockedUsernames,
   censored,
   isLoading,
+  page,
+  totalPages,
+  totalCount,
+  search,
+  onSearchChange,
   onFetchSubmitters,
+  onGoToPage,
   onBlock,
   onUnblock,
   onSetCustomLimits,
   globalRateLimits,
 }: UsersDialogProps) {
-  const [search, setSearch] = useState('')
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Map<string, string>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
@@ -69,13 +79,13 @@ export function UsersDialog({
   const handleOpenChange = useCallback((isOpen: boolean) => {
     onOpenChange(isOpen)
     if (!isOpen) {
-      setSearch('')
+      onSearchChange('')
       setEditingUsername(null)
       setEditValues(new Map())
       setPendingBlockUsername(null)
       setBlockReasonInput('')
     }
-  }, [onOpenChange])
+  }, [onOpenChange, onSearchChange])
 
   // Map (not Record) avoids the "Generic Object Injection Sink" SAST warning:
   // plain objects have a prototype chain (__proto__, constructor) that SAST
@@ -153,12 +163,27 @@ export function UsersDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Search */}
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Cari username..."
-        />
+        {/* Search + Refresh inline (matches submissions panel style) */}
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 text-[#71767B] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Input
+              className="text-xs border-[#EFF3F4] pl-7 h-7 w-full"
+              placeholder="Cari username..."
+              value={search}
+              onChange={(e) => { onSearchChange(e.target.value) }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 w-7 p-0 text-[#71767B] hover:text-accent-foreground shrink-0"
+            onClick={onFetchSubmitters}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin-reverse' : ''}`} />
+          </Button>
+        </div>
 
         <div
           className="flex-1 overflow-y-auto space-y-4 pr-1"
@@ -171,220 +196,255 @@ export function UsersDialog({
               <span className="text-sm font-semibold text-[#0F1419]">
                 Semua Pengguna
               </span>
-              {submitters.length > 0 && (
+              {totalCount > 0 && (
                 <Badge
                   variant="secondary"
                   className="text-[9px] px-1.5 py-0"
                 >
-                  {submitters.length}
+                  {totalCount}
                 </Badge>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-[10px] h-6 px-2 ml-auto"
-                onClick={onFetchSubmitters}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin-reverse' : ''}`} />
-              </Button>
             </div>
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-[#536471]" />
+              </div>
+            ) : submitters.length === 0 && search ? (
+              <div className="text-center py-6">
+                <div className="w-10 h-10 rounded-xl bg-[#F7F9F9] flex items-center justify-center mx-auto mb-2">
+                  <Search className="w-5 h-5 text-[#71767B]" />
+                </div>
+                <p className="text-xs text-[#536471]">
+                  Tidak ada hasil untuk &ldquo;{search}&rdquo;
+                </p>
+                <Button
+                  variant="link"
+                  className="text-xs text-[#71767B] mt-1"
+                  onClick={() => { onSearchChange('') }}
+                >
+                  Hapus pencarian
+                </Button>
               </div>
             ) : submitters.length === 0 ? (
               <p className="text-xs text-[#71767B] text-center py-6">
                 Klik refresh untuk memuat daftar pengguna
               </p>
             ) : (
-              <div
-                className="space-y-1"
-              >
-                {(() => {
-                  const filtered = submitters.filter((s) => {
-                    if (!search) return true
-                    const q = search.toLowerCase()
-                    return (
-                      s.username.toLowerCase().includes(q) ||
-                      (s.displayName?.toLowerCase().includes(q) ?? false)
-                    )
-                  })
-                  if (filtered.length === 0 && search) {
-                    return (
-                      <div className="text-center py-6">
-                        <p className="text-xs text-[#536471]">
-                          Tidak ada hasil untuk &ldquo;{search}&rdquo;
-                        </p>
-                        <Button
-                          variant="link"
-                          className="text-xs text-[#71767B] mt-1"
-                          onClick={() => { setSearch('') }}
-                        >
-                          Hapus pencarian
-                        </Button>
-                      </div>
-                    )
-                  }
-                  return filtered.map((s) => {
-                    const isBlocked = blockedUsernames.includes(
-                      s.username.toLowerCase()
-                    )
-                    const isEditing = editingUsername === s.username
-                    const hasCustom = s.customLimits && Object.keys(s.customLimits).length > 0
+              <div className="space-y-1">
+                {submitters.map((s) => {
+                  const isBlocked = blockedUsernames.includes(
+                    s.username.toLowerCase()
+                  )
+                  const isEditing = editingUsername === s.username
+                  const hasCustom = s.customLimits && Object.keys(s.customLimits).length > 0
 
-                    return (
-                      <div
-                        key={s.id}
-                        className={`rounded-lg text-xs ${
-                          isEditing
-                            ? 'bg-purple-50 border border-purple-200'
-                            : isBlocked
-                            ? 'bg-red-50 border border-red-200'
-                            : 'bg-[#F7F9F9] border border-[#EFF3F4]'
-                        }`}
-                      >
-                        {/* User row */}
-                        <div className="flex items-center gap-2 p-2">
-                          <CensoredAvatar
-                            src={s.profileImage}
-                            username={s.username}
-                            censored={censored}
-                            size={32}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-[#0F1419] truncate">
-                                {censored ? '@*****' : `@${s.username}`}
-                              </span>
-                              {isBlocked && (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-[8px] px-1 py-0"
-                                >
-                                  BLOCKED
-                                </Badge>
-                              )}
-                              {hasCustom && !isBlocked && (
-                                <Badge
-                                  className="text-[8px] px-1.5 py-0 bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100"
-                                >
-                                  CUSTOM
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-[#71767B]">
-                              {s.totalSubmissions} pesan · {s.posted} posted ·{' '}
-                              {s.pending} pending
+                  return (
+                    <div
+                      key={s.id}
+                      className={`rounded-lg text-xs ${
+                        isEditing
+                          ? 'bg-purple-50 border border-purple-200'
+                          : isBlocked
+                          ? 'bg-red-50 border border-red-200'
+                          : 'bg-[#F7F9F9] border border-[#EFF3F4]'
+                      }`}
+                    >
+                      {/* User row */}
+                      <div className="flex items-center gap-2 p-2">
+                        <CensoredAvatar
+                          src={s.profileImage}
+                          username={s.username}
+                          censored={censored}
+                          size={32}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-[#0F1419] truncate">
+                              {censored ? '@*****' : `@${s.username}`}
                             </span>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {!isBlocked && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={`text-[10px] h-6 px-2 ${
-                                  isEditing
-                                    ? 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200'
-                                    : 'text-[#536471] hover:text-purple-600 hover:bg-purple-50 border-[#EFF3F4]'
-                                }`}
-                                onClick={() => { if (isEditing) { setEditingUsername(null) } else { startEditing(s) } }}
+                            {isBlocked && (
+                              <Badge
+                                variant="destructive"
+                                className="text-[8px] px-1 py-0"
                               >
+                                BLOCKED
+                              </Badge>
+                            )}
+                            {hasCustom && !isBlocked && (
+                              <Badge
+                                className="text-[8px] px-1.5 py-0 bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100"
+                              >
+                                CUSTOM
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[#71767B]">
+                            {s.totalSubmissions} pesan · {s.posted} posted ·{' '}
+                            {s.pending} pending
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!isBlocked && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={`text-[10px] h-6 px-2 ${
+                                isEditing
+                                  ? 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200'
+                                  : 'text-[#536471] hover:text-purple-600 hover:bg-purple-50 border-[#EFF3F4]'
+                              }`}
+                              onClick={() => { if (isEditing) { setEditingUsername(null) } else { startEditing(s) } }}
+                            >
                             <Settings2 className="w-3 h-3 mr-0.5" />
                             <span className="hidden sm:inline">{isEditing ? 'Tutup' : 'Limits'}</span>
-                              </Button>
-                            )}
-                            {!isBlocked ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                onClick={() => { setPendingBlockUsername(s.username) }}
-                              >
-                              <Ban className="w-3 h-3 mr-0.5 sm:mr-1" />
-                              <span className="hidden sm:inline">Block</span>
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                                onClick={() => { void onUnblock(s.username) }}
-                              >
-                              <ShieldOff className="w-3 h-3 mr-0.5 sm:mr-1" />
-                              <span className="hidden sm:inline">Unblock</span>
-                              </Button>
-                            )}
-                          </div>
+                            </Button>
+                          )}
+                          {!isBlocked ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              onClick={() => { setPendingBlockUsername(s.username) }}
+                            >
+                            <Ban className="w-3 h-3 mr-0.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Block</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-[10px] h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                              onClick={() => { void onUnblock(s.username) }}
+                            >
+                            <ShieldOff className="w-3 h-3 mr-0.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Unblock</span>
+                            </Button>
+                          )}
                         </div>
+                      </div>
 
-                        {/* Limits editor (expandable) */}
-                        {isEditing && (
-                          <div className="px-2 pb-2 pt-1">
-                            <Separator className="mb-2" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {PER_USER_LIMIT_KEYS.map((key) => (
-                                <div key={key} className="space-y-0.5">
-                                  <label htmlFor={`limit-${key}`} className="text-[10px] text-[#536471] font-medium flex items-center gap-1">
-                                    {safeAccess(PER_USER_LIMIT_LABELS, key)}
-                                    {globalRateLimits && (
-                                      <span className="text-[9px] text-[#71767B]">
-                                        (default: {safeAccess(globalRateLimits, key)})
-                                      </span>
-                                    )}
-                                  </label>
-                                  <Input
-                                    id={`limit-${key}`}
-                                    type="number"
-                                    min="0"
-                                    placeholder={globalRateLimits ? String(safeAccess(globalRateLimits, key)) : '—'}
-                                    value={editValues.get(key) ?? ''}
-                                    onChange={(e) => { setEditValues(prev => { const next = new Map(prev); next.set(key, e.target.value); return next }) }}
-                                    className="h-7 text-xs border-[#EFF3F4]"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
+                      {/* Limits editor (expandable) */}
+                      {isEditing && (
+                        <div className="px-2 pb-2 pt-1">
+                          <Separator className="mb-2" />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {PER_USER_LIMIT_KEYS.map((key) => (
+                              <div key={key} className="space-y-0.5">
+                                <label htmlFor={`limit-${key}`} className="text-[10px] text-[#536471] font-medium flex items-center gap-1">
+                                  {safeAccess(PER_USER_LIMIT_LABELS, key)}
+                                  {globalRateLimits && (
+                                    <span className="text-[9px] text-[#71767B]">
+                                      (default: {safeAccess(globalRateLimits, key)})
+                                    </span>
+                                  )}
+                                </label>
+                                <Input
+                                  id={`limit-${key}`}
+                                  type="number"
+                                  min="0"
+                                  placeholder={globalRateLimits ? String(safeAccess(globalRateLimits, key)) : '—'}
+                                  value={editValues.get(key) ?? ''}
+                                  onChange={(e) => { setEditValues(prev => { const next = new Map(prev); next.set(key, e.target.value); return next }) }}
+                                  className="h-7 text-xs border-[#EFF3F4]"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              className="text-[10px] h-6 px-3 bg-purple-600 hover:bg-purple-700 text-white"
+                              onClick={() => { void handleSaveLimits(s.username) }}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                              Simpan
+                            </Button>
+                            {hasCustom && (
                               <Button
+                                variant="outline"
                                 size="sm"
-                                className="text-[10px] h-6 px-3 bg-purple-600 hover:bg-purple-700 text-white"
-                                onClick={() => { void handleSaveLimits(s.username) }}
+                                className="text-[10px] h-6 px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                                onClick={() => { void handleClearLimits(s.username) }}
                                 disabled={isSaving}
                               >
-                                {isSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                                Simpan
+                                Reset ke Default
                               </Button>
-                              {hasCustom && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-[10px] h-6 px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
-                                  onClick={() => { void handleClearLimits(s.username) }}
-                                  disabled={isSaving}
-                                >
-                                  Reset ke Default
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-[10px] h-6 px-2 ml-auto text-[#71767B]"
-                                onClick={() => { setEditingUsername(null) }}
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[10px] h-6 px-2 ml-auto text-[#71767B]"
+                              onClick={() => { setEditingUsername(null) }}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
                           </div>
-                        )}
-                      </div>
-                    )
-                  })
-                })()}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
         </div>
+
+        {/* Pagination — matches submissions panel style */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 pt-2 border-t border-[#EFF3F4]">
+            <Button
+              variant="outline"
+              className="h-7 w-7 p-0 text-xs"
+              disabled={page <= 1}
+              onClick={() => { onGoToPage(page - 1) }}
+            >
+              ‹
+            </Button>
+            {(() => {
+              const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = []
+              const tp = totalPages
+              const cp = page
+              if (tp <= 7) {
+                for (let i = 1; i <= tp; i++) pages.push(i)
+              } else {
+                pages.push(1)
+                if (cp > 3) pages.push('ellipsis-start')
+                const start = Math.max(2, cp - 1)
+                const end = Math.min(tp - 1, cp + 1)
+                for (let i = start; i <= end; i++) pages.push(i)
+                if (cp < tp - 2) pages.push('ellipsis-end')
+                pages.push(tp)
+              }
+              return pages.map((p) =>
+                typeof p !== 'number' ? (
+                  <span key={p} className="px-1 text-xs text-[#71767B]">
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={p === page ? 'default' : 'outline'}
+                    className={`h-7 w-7 p-0 text-xs ${
+                      p === page ? 'bg-[#0F1419] hover:bg-[#272c30]' : ''
+                    }`}
+                    onClick={() => { onGoToPage(p) }}
+                  >
+                    {p}
+                  </Button>
+                )
+              )
+            })()}
+            <Button
+              variant="outline"
+              className="h-7 w-7 p-0 text-xs"
+              disabled={page >= totalPages}
+              onClick={() => { onGoToPage(page + 1) }}
+            >
+              ›
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
 
