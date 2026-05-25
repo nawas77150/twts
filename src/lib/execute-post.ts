@@ -70,14 +70,17 @@ async function handleDuplicatePosted(
 ): Promise<boolean> {
   const submission = await db.submission.findUnique({
     where: { id: submissionId },
-    select: { normalizedMessage: true },
+    select: { message: true },
   })
-  if (!submission?.normalizedMessage) return false
+  if (!submission?.message) return false
 
-  // Check if another submission already posted the same content
+  // Check if another submission already posted the exact same tweet text.
+  // Uses `message` (exact text) not `normalizedMessage` because error 187
+  // only fires when X sees the identical tweet — aggressive normalization
+  // (strip emoji, punctuation, lowercase) can match unrelated submissions.
   const alreadyPosted = await db.submission.findFirst({
     where: {
-      normalizedMessage: submission.normalizedMessage,
+      message: submission.message,
       status: 'posted',
       id: { not: submissionId },
     },
