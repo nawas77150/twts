@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
         rateLimits: { ...DEFAULT_RATE_LIMITS },
         whitelistUsernames: [],
         blockedUsernames: [],
+        blockedReasons: {},
         postHashtags: '',
       }
     }

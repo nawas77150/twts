@@ -97,6 +97,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
       rateLimits: settings.rateLimits,
       whitelistUsernames: settings.whitelistUsernames,
       blockedUsernames: settings.blockedUsernames,
+      blockedReasons: settings.blockedReasons,
       circuitBreaker,
       defaults: {
         blockedWords: DEFAULT_BLOCKED_WORDS,

@@ -12,8 +12,8 @@ import { NextRequest, NextResponse } from 'next/server'
 // bodies are caught by the handler's catch clause.
 // NOTE: Auth is handled by withAdmin() wrapper in the route — this function
 // only parses and validates the request body.
-export async function parseUsernameRequest(req: NextRequest): Promise<{ normalizedUsername: string } | NextResponse> {
-  const { username } = await req.json()
+export async function parseUsernameRequest(req: NextRequest): Promise<{ normalizedUsername: string; reason?: string } | NextResponse> {
+  const { username, reason } = await req.json() as { username?: string; reason?: string }
   if (!username || typeof username !== 'string' || !username.trim()) {
     return NextResponse.json({ error: 'Username wajib diisi' }, { status: 400 })
   }
@@ -21,7 +21,10 @@ export async function parseUsernameRequest(req: NextRequest): Promise<{ normaliz
   // Strip leading @ before normalizing — Twitter OAuth returns bare usernames ("alice"),
   // but admins often paste "@alice". Without stripping, the includes() check in
   // _rate-limits.ts silently fails: ['@alice'].includes('alice') → false.
-  return { normalizedUsername: username.toLowerCase().trim().replace(/^@/, '') }
+  return {
+    normalizedUsername: username.toLowerCase().trim().replace(/^@/, ''),
+    reason: typeof reason === 'string' ? (reason.trim() || undefined) : undefined,
+  }
 }
 
 // --- Helper 2: Atomic JSONB append ---
@@ -99,4 +102,57 @@ export async function checkUserInList(
   }
 
   return null // user found, no error
+}
+
+// --- Helper 5: Atomic JSONB object key set ---
+// Sets obj[key] = value using PostgreSQL jsonb_set().
+// Used by block route to store per-user block reasons.
+// `key` is a normalized username (no { or } chars — safe as jsonpath).
+// COALESCE(NULLIF(...), '{}') guard: if the existing row's value is corrupt
+// (empty string, invalid JSON), the ::jsonb cast would throw. This fallback
+// treats corrupt data as empty object instead of breaking every block action.
+export async function atomicJsonbSetKey(
+  settingKey: string,
+  key: string,
+  value: string,
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const client = tx ?? db
+  try {
+    const initialValue = JSON.stringify({ [key]: value })
+    const jsonPath = `{${key}}`
+    const jsonValue = JSON.stringify(value)  // Must be valid JSON — string needs quotes
+    await client.$executeRaw`
+      INSERT INTO "Setting" (id, key, value, "updatedAt")
+      VALUES (${settingKey}, ${settingKey}, ${initialValue}, NOW())
+      ON CONFLICT (key) DO UPDATE
+      SET "value" = jsonb_set(COALESCE(NULLIF("Setting"."value", ''), '{}')::jsonb, ${jsonPath}::text[], ${jsonValue}::jsonb)::text,
+          "updatedAt" = NOW()
+    `
+  } catch (error) {
+    console.error('[submitters] atomicJsonbSetKey failed:', error)
+    throw error
+  }
+}
+
+// --- Helper 6: Atomic JSONB object key remove ---
+// Removes obj[key] using PostgreSQL `-` operator.
+// Used by unblock route to clean up block reasons.
+export async function atomicJsonbRemoveKey(
+  settingKey: string,
+  key: string,
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const client = tx ?? db
+  try {
+    await client.$executeRaw`
+      UPDATE "Setting"
+      SET "value" = (COALESCE(NULLIF("Setting"."value", ''), '{}')::jsonb - ${key})::text,
+          "updatedAt" = NOW()
+      WHERE "key" = ${settingKey}
+    `
+  } catch (error) {
+    console.error('[submitters] atomicJsonbRemoveKey failed:', error)
+    throw error
+  }
 }

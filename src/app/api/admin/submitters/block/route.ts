@@ -6,7 +6,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
-import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove } from '../_lib'
+import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, atomicJsonbSetKey } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/block — Block a user from submitting
@@ -16,7 +16,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const parsed = await parseUsernameRequest(req)
     if (parsed instanceof NextResponse) return parsed
-    const { normalizedUsername } = parsed
+    const { normalizedUsername, reason } = parsed
 
     // Wrap all mutations in a transaction so that a DB connection drop mid-operation
     // cannot leave blocked_usernames updated but whitelist_usernames untouched (partial state).
@@ -33,6 +33,11 @@ export const POST = withAdmin(async (req: NextRequest) => {
       // COALESCE ensures empty array becomes '[]' instead of NULL
       // (jsonb_agg returns NULL when no rows remain after filtering)
       await atomicJsonbRemove('whitelist_usernames', normalizedUsername, tx)
+
+      // Store custom block reason (if provided)
+      if (reason) {
+        await atomicJsonbSetKey('blocked_reasons', normalizedUsername, reason, tx)
+      }
 
       // Auto-reject all queued submissions from this blocked user.
       // Keeps the queue clean so the cron autopost never encounters

@@ -20,7 +20,7 @@ interface HomeClientProps {
 }
 
 export function HomeClient({ initialSubmitter, initialIsBlocked, initialLimits }: HomeClientProps) {
-  const { submitter, isChecking, authError, isBlocked, setBlocked, logout, checkAuth } = useSubmitterAuth(initialSubmitter, initialIsBlocked)
+  const { submitter, isChecking, authError, isBlocked, blockReason, setBlocked, logout, checkAuth } = useSubmitterAuth(initialSubmitter, initialIsBlocked)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
@@ -63,7 +63,12 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialLimits }
       return true
     } catch (err: unknown) {
       const status = (err as { status?: number }).status
-      if (status === 403) setBlocked(true)
+      if (status === 403) {
+        // The 403 response body includes blockReason from the server — use it
+        // to update the displayed reason in case it changed since the last auth check.
+        const errData = (err as { data?: Record<string, unknown> }).data
+        setBlocked(true, (errData?.blockReason as string) ?? undefined)
+      }
       if (status === 409) {
         // Status changed by another process — tell user to check their submission list
         toast({ title: 'Status berubah', description: (err as { message?: string }).message || 'Status pesan berubah sebelum diproses. Cek riwayat submission-mu.', variant: 'destructive' })
@@ -100,6 +105,7 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialLimits }
             isChecking={isChecking}
             authError={authError}
             isBlocked={isBlocked}
+            blockReason={blockReason}
             isAnonUser={isAnonUser}
             onLogin={handleLogin}
             onLogout={handleLogout}

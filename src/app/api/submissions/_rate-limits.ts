@@ -122,6 +122,7 @@ export async function checkSubmissionRateLimits(
     return NextResponse.json({
       error: 'Akun diblokir',
       message: 'Akun kamu tidak diperbolehkan mengirim pesan.',
+      blockReason: filterSettings.blockedReasons[submitter.username.toLowerCase()] || undefined,
     }, { status: 403 })
   }
 

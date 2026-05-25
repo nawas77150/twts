@@ -3,9 +3,10 @@
 // no practical benefit. The PostgreSQL ::jsonb cast used for atomic add/remove operations
 // requires plaintext values. Do NOT apply encrypt() to these settings.
 
+import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
-import { parseUsernameRequest, atomicJsonbRemove, checkUserInList } from '../_lib'
+import { parseUsernameRequest, atomicJsonbRemove, atomicJsonbRemoveKey, checkUserInList } from '../_lib'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 
 // POST /api/admin/submitters/unblock — Unblock a user
@@ -21,12 +22,21 @@ export const POST = withAdmin(async (req: NextRequest) => {
     const notFound = await checkUserInList('blocked_usernames', normalizedUsername, 'User tidak ditemukan di blocklist')
     if (notFound) return notFound
 
-    // Atomic removal from blocked_usernames JSON array using PostgreSQL jsonb.
-    // This prevents the read-modify-write race condition where concurrent
-    // requests could overwrite each other's changes.
-    // jsonb_agg filters out the username, and returns NULL if the array
-    // becomes empty (which we convert back to an empty array).
-    await atomicJsonbRemove('blocked_usernames', normalizedUsername)
+    // Wrap both removals in a transaction so that a DB connection drop mid-operation
+    // cannot leave blocked_usernames updated but blocked_reasons untouched (partial state).
+    // Matches the block route's transaction pattern exactly.
+    await db.$transaction(async (tx) => {
+      // Atomic removal from blocked_usernames JSON array using PostgreSQL jsonb.
+      // This prevents the read-modify-write race condition where concurrent
+      // requests could overwrite each other's changes.
+      // jsonb_agg filters out the username, and returns NULL if the array
+      // becomes empty (which we convert back to an empty array).
+      await atomicJsonbRemove('blocked_usernames', normalizedUsername, tx)
+
+      // Also remove the block reason (if any) — harmless if no reason was set
+      await atomicJsonbRemoveKey('blocked_reasons', normalizedUsername, tx)
+    })
+
     invalidateFilterSettingsCache()
 
     return NextResponse.json({ success: true, unblocked: normalizedUsername })

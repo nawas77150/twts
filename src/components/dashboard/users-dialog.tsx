@@ -10,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { SearchInput } from '@/components/ui/search-input'
 import { Badge } from '@/components/ui/badge'
@@ -25,10 +35,11 @@ interface UsersDialogProps {
   onOpenChange: (open: boolean) => void
   submitters: SubmitterWithStats[]
   blockedUsernames: string[]
+  blockedReasons: Record<string, string>
   censored: boolean
   isLoading: boolean
   onFetchSubmitters: () => void
-  onBlock: (username: string) => Promise<void>
+  onBlock: (username: string, reason?: string) => Promise<void>
   onUnblock: (username: string) => Promise<void>
   onSetCustomLimits: (username: string, customLimits: Record<string, number | null> | null) => Promise<boolean>
   globalRateLimits: PerUserLimits | null
@@ -39,6 +50,7 @@ export function UsersDialog({
   onOpenChange,
   submitters,
   blockedUsernames,
+  blockedReasons,
   censored,
   isLoading,
   onFetchSubmitters,
@@ -51,6 +63,8 @@ export function UsersDialog({
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Map<string, string>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
+  const [pendingBlockUsername, setPendingBlockUsername] = useState<string | null>(null)
+  const [blockReasonInput, setBlockReasonInput] = useState('')
   const { toast } = useToast()
 
   // Reset state when dialog closes
@@ -60,6 +74,8 @@ export function UsersDialog({
       setSearch('')
       setEditingUsername(null)
       setEditValues(new Map())
+      setPendingBlockUsername(null)
+      setBlockReasonInput('')
     }
   }, [onOpenChange])
 
@@ -127,6 +143,7 @@ export function UsersDialog({
   }, [onSetCustomLimits])
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
@@ -180,6 +197,11 @@ export function UsersDialog({
                       <span className="font-medium text-[#0F1419]">
                         {censored ? '@*****' : `@${username}`}
                       </span>
+                      {blockedReasons[username] && (
+                        <span className="text-[10px] text-red-500 truncate max-w-[120px]" title={blockedReasons[username]}>
+                          — {blockedReasons[username]}
+                        </span>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -330,7 +352,7 @@ export function UsersDialog({
                                 variant="outline"
                                 size="sm"
                                 className="text-[10px] h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                onClick={() => { void onBlock(s.username) }}
+                                onClick={() => { setPendingBlockUsername(s.username) }}
                               >
                               <Ban className="w-3 h-3 mr-0.5 sm:mr-1" />
                               <span className="hidden sm:inline">Block</span>
@@ -418,5 +440,49 @@ export function UsersDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Block Confirmation Dialog */}
+    {pendingBlockUsername && (
+      <AlertDialog open onOpenChange={(open) => { if (!open) { setPendingBlockUsername(null); setBlockReasonInput('') } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Ban className="w-4 h-4 text-red-500" />
+              Block @{pendingBlockUsername}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              User yang diblokir tidak bisa mengirim pesan. Pesan yang menunggu akan otomatis ditolak.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              value={blockReasonInput}
+              onChange={(e) => { setBlockReasonInput(e.target.value) }}
+              placeholder="Alasan pemblokiran (opsional, dilihat user)"
+              className="text-xs h-8 border-[#EFF3F4]"
+            />
+            <p className="text-[9px] text-[#71767B] mt-1">
+              Jika diisi, alasan ini akan ditampilkan ke user yang diblokir.
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setPendingBlockUsername(null); setBlockReasonInput('') }}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                void onBlock(pendingBlockUsername, blockReasonInput.trim() || undefined)
+                setPendingBlockUsername(null)
+                setBlockReasonInput('')
+              }}
+            >
+              Block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )}
+    </>
   )
 }

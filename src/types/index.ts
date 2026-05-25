@@ -91,6 +91,7 @@ export interface FilterSettings {
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
   blockedUsernames: string[]
+  blockedReasons: Record<string, string>
   postHashtags: string
   defaultBlockedWords?: string[]
   defaultNsfwWords?: string[]
@@ -232,6 +233,7 @@ export interface AuthCheckResponse {
   authenticated: boolean
   submitter?: SubmitterInfo
   blocked?: boolean
+  blockReason?: string
 }
 
 export interface AdminLoginResponse {

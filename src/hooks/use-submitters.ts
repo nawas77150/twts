@@ -36,10 +36,11 @@ export function useSubmitters() {
   const toggleBlock = useCallback(async (
     username: string,
     action: 'block' | 'unblock',
+    reason?: string,
   ) => {
     if (!isAdmin) return
     const apiCall = action === 'block'
-      ? apiClient.blockUser(username)
+      ? apiClient.blockUser(username, reason)
       : apiClient.unblockUser(username)
     try {
       const data = await apiCall
@@ -59,7 +60,7 @@ export function useSubmitters() {
     }
   }, [isAdmin, fetchSubmitters, toast])
 
-  const block = useCallback((username: string) => toggleBlock(username, 'block'), [toggleBlock])
+  const block = useCallback((username: string, reason?: string) => toggleBlock(username, 'block', reason), [toggleBlock])
   const unblock = useCallback((username: string) => toggleBlock(username, 'unblock'), [toggleBlock])
 
   const setCustomLimits = useCallback(async (username: string, customLimits: Record<string, number | null> | null): Promise<boolean> => {

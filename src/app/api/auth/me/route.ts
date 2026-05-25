@@ -14,10 +14,14 @@ export async function GET(req: NextRequest) {
     // Check if user is blocked — use canonical getFilterSettings() which
     // handles decryption and normalization, instead of raw JSON.parse
     let blocked = false
+    let blockReason: string | undefined
     if (submitter.username) {
       try {
         const settings = await getFilterSettings()
         blocked = settings.blockedUsernames.includes(submitter.username.toLowerCase())
+        if (blocked) {
+          blockReason = settings.blockedReasons[submitter.username.toLowerCase()] || undefined
+        }
       } catch {
         // If settings can't be loaded, treat as not blocked
       }
@@ -27,6 +31,7 @@ export async function GET(req: NextRequest) {
       authenticated: true,
       submitter,
       blocked,
+      blockReason,
     })
   } catch (error) {
     console.error('[auth/me] Error:', error)

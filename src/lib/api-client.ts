@@ -227,10 +227,10 @@ class ApiClient {
     return this.request(`/api/admin/submitters${query ? `?${query}` : ''}`)
   }
 
-  async blockUser(username: string): Promise<{ error?: string }> {
+  async blockUser(username: string, reason?: string): Promise<{ error?: string }> {
     return this.request('/api/admin/submitters/block', {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, reason }),
     })
   }
 

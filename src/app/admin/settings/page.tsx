@@ -248,6 +248,7 @@ export default function AdminSettingsPage() {
 
             <BlocklistCard
               blockedUsernames={filterSettings.blockedUsernames}
+              blockedReasons={filterSettings.blockedReasons}
               onBlocklistChange={() => { void refetchAdminStats({ refresh: true }) }}
             />
 

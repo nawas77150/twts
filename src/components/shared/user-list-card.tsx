@@ -16,7 +16,9 @@ export interface UserListCardConfig {
   emptyText: string
   duplicateText: string
   addErrorText: string
-  addApi: (username: string) => Promise<{ error?: string }>
+  addApi: (username: string, reason?: string) => Promise<{ error?: string }>
+  reasonPlaceholder?: string  // If set, shows a reason input alongside username
+  getRowMeta?: (username: string) => string | undefined  // If set, shows meta text per row (e.g. block reason)
   removeApi: (username: string) => Promise<{ error?: string }>
   addSuccessText: (username: string) => string
   removeSuccessText: (username: string) => string
@@ -36,6 +38,7 @@ interface UserListCardProps {
 
 export function UserListCard({ config, usernames, onChange }: UserListCardProps) {
   const [addInput, setAddInput] = useState('')
+  const [reasonInput, setReasonInput] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [removingUser, setRemovingUser] = useState<string | null>(null)
   const { toast } = useToast()
@@ -53,11 +56,12 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
 
     setIsAdding(true)
     try {
-      const result = await config.addApi(username)
+      const result = await config.addApi(username, reasonInput.trim() || undefined)
       if (result.error) {
         toast({ title: 'Gagal', description: result.error, variant: 'destructive' })
       } else {
         setAddInput('')
+        setReasonInput('')
         toast({ title: config.addSuccessText(username) })
         onChange()
       }
@@ -66,7 +70,7 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
     } finally {
       setIsAdding(false)
     }
-  }, [addInput, usernames, config, onChange, toast])
+  }, [addInput, reasonInput, usernames, config, onChange, toast])
 
   const handleRemove = useCallback(async (username: string) => {
     setRemovingUser(username)
@@ -110,6 +114,18 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
           className="text-xs h-8 font-mono border-[#EFF3F4]"
           disabled={isAdding}
         />
+        {config.reasonPlaceholder && (
+          <Input
+            id={`${config.title.toLowerCase()}-reason`}
+            name="reason"
+            value={reasonInput}
+            onChange={(e) => { setReasonInput(e.target.value) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd() }}
+            placeholder={config.reasonPlaceholder}
+            className="text-xs h-8 border-[#EFF3F4] flex-1 min-w-0"
+            disabled={isAdding}
+          />
+        )}
         <Button
           onClick={handleAdd}
           disabled={isAdding || !addInput.trim()}
@@ -129,7 +145,14 @@ export function UserListCard({ config, usernames, onChange }: UserListCardProps)
               key={username}
               className={`flex items-center justify-between rounded-md px-2.5 py-1.5 ${config.rowClass}`}
             >
-              <span className={`text-xs font-mono ${config.usernameClass}`}>@{username}</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={`text-xs font-mono ${config.usernameClass}`}>@{username}</span>
+                {config.getRowMeta?.(username) && (
+                  <span className="text-[10px] text-[#71767B] truncate" title={config.getRowMeta(username)}>
+                    — {config.getRowMeta(username)}
+                  </span>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 onClick={() => { void handleRemove(username) }}

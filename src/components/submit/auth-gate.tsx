@@ -13,6 +13,7 @@ interface AuthGateProps {
   isChecking: boolean
   authError: string | null
   isBlocked: boolean
+  blockReason?: string | null
   isAnonUser: boolean
   onLogin: () => void
   onLogout: () => void
@@ -25,6 +26,7 @@ export function AuthGate({
   isChecking,
   authError,
   isBlocked,
+  blockReason,
   isAnonUser,
   onLogin,
   onLogout,
@@ -128,7 +130,7 @@ export function AuthGate({
           </div>
           <h3 className="text-lg font-semibold text-[#0F1419]">Akun Diblokir</h3>
           <p className="text-sm text-[#536471]">
-            Akun kamu tidak diperbolehkan mengirim pesan. <br />
+            {blockReason || 'Akun kamu tidak diperbolehkan mengirim pesan.'} <br />
             <span className="text-[#71767B] text-xs">Hubungi admin jika kamu rasa ini salah.</span>
           </p>
           <div className="flex items-center justify-center gap-3">

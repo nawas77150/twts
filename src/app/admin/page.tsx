@@ -163,6 +163,7 @@ export default function AdminDashboardPage() {
         onOpenChange={setUsersDialogOpen}
         submitters={submitters}
         blockedUsernames={blockedUsernames}
+        blockedReasons={stats?.filterSettings?.blockedReasons ?? {}}
         censored={censored}
         isLoading={isLoadingSubmitters}
         onFetchSubmitters={fetchSubmitters}

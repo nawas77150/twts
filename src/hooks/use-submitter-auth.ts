@@ -10,6 +10,7 @@ export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initia
   const [isChecking, setIsChecking] = useState(initialSubmitter === undefined)
   const [authError, setAuthError] = useState<string | null>(null)
   const [isBlocked, setIsBlocked] = useState(initialIsBlocked ?? false)
+  const [blockReason, setBlockReason] = useState<string | null>(null)
   const { toast } = useToast()
 
   const checkAuth = useCallback(async () => {
@@ -19,14 +20,17 @@ export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initia
       if (data.authenticated && data.submitter) {
         setSubmitter(data.submitter)
         setIsBlocked(!!data.blocked)
+        setBlockReason(data.blockReason ?? null)
         return true
       }
       setSubmitter(null)
       setIsBlocked(false)
+      setBlockReason(null)
     } catch {
       setAuthError('Tidak dapat terhubung ke server')
       setSubmitter(null)
       setIsBlocked(false)
+      setBlockReason(null)
     }
     return false
   }, [])
@@ -111,6 +115,7 @@ export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initia
     setSubmitter(null)
     setAuthError(null)
     setIsBlocked(false)
+    setBlockReason(null)
     try {
       await apiClient.logout()
     } catch {
@@ -126,7 +131,12 @@ export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initia
     }
   }, [toast])
 
-  const setBlocked = useCallback((val: boolean) => { setIsBlocked(val) }, [])
+  // Also accepts an optional blockReason — used when a 403 response includes
+  // the latest reason (e.g. admin updated it after the user's auth check).
+  const setBlocked = useCallback((val: boolean, reason?: string | null) => {
+    setIsBlocked(val)
+    setBlockReason(val ? (reason ?? null) : null)
+  }, [])
 
-  return { submitter, isChecking, authError, isBlocked, setBlocked, logout, checkAuth }
+  return { submitter, isChecking, authError, isBlocked, blockReason, setBlocked, logout, checkAuth }
 }

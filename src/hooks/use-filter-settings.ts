@@ -26,6 +26,7 @@ export function useFilterSettings() {
   const [rateLimits, setRateLimits] = useState<RateLimitSettings>({ ...DEFAULT_RATE_LIMITS })
   const [whitelistUsernames, setWhitelistUsernames] = useState<string[]>([])
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([])
+  const [blockedReasons, setBlockedReasons] = useState<Record<string, string>>({})
   const [defaultBlockedWords, setDefaultBlockedWords] = useState<string[]>([])
   const [defaultNsfwWords, setDefaultNsfwWords] = useState<string[]>([])
   const { toast } = useToast()
@@ -46,6 +47,7 @@ export function useFilterSettings() {
     if (settings.rateLimits) setRateLimits(settings.rateLimits)
     if (settings.whitelistUsernames) setWhitelistUsernames(settings.whitelistUsernames)
     if (settings.blockedUsernames) setBlockedUsernames(settings.blockedUsernames)
+    if (settings.blockedReasons) setBlockedReasons(settings.blockedReasons)
     if (settings.defaultBlockedWords) setDefaultBlockedWords(settings.defaultBlockedWords)
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
     setIsLoaded(true)
@@ -194,6 +196,7 @@ export function useFilterSettings() {
     setRateLimits({ ...DEFAULT_RATE_LIMITS })
     setWhitelistUsernames([])
     setBlockedUsernames([])
+    setBlockedReasons({})
     setDefaultBlockedWords([])
     setDefaultNsfwWords([])
     // Reset loading/visibility flags
@@ -231,6 +234,7 @@ export function useFilterSettings() {
     rateLimits,
     whitelistUsernames,
     blockedUsernames,
+    blockedReasons,
     defaultBlockedWords,
     defaultNsfwWords,
     saveAutoApprove,
@@ -247,6 +251,7 @@ export function useFilterSettings() {
     setRateLimits,
     setWhitelistUsernames,
     setBlockedUsernames,
+    setBlockedReasons,
     saveGeminiKey,
     geminiKeySaving,
     saveGeminiModel,

@@ -11,6 +11,7 @@ interface UseSettingsSyncParams {
   filterSettings: {
     loadFromFilterSettings: (fs: NonNullable<Stats['filterSettings']>) => void
     setBlockedUsernames: (v: string[]) => void
+    setBlockedReasons: (v: Record<string, string>) => void
     setWhitelistUsernames: (v: string[]) => void
   }
   circuitBreaker: {
@@ -71,8 +72,9 @@ export function useSettingsSync({
   useEffect(() => {
     if (!stats?.filterSettings) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
-    const { blockedUsernames, whitelistUsernames } = stats.filterSettings
+    const { blockedUsernames, blockedReasons, whitelistUsernames } = stats.filterSettings
     if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
+    if (blockedReasons) filterSettings.setBlockedReasons(blockedReasons)
     if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
-  }, [stats?.filterSettings, filterSettings.setBlockedUsernames, filterSettings.setWhitelistUsernames])
+  }, [stats?.filterSettings, filterSettings.setBlockedUsernames, filterSettings.setBlockedReasons, filterSettings.setWhitelistUsernames])
 }

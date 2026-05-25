@@ -19,6 +19,7 @@ export const FILTER_SETTING_KEYS = [
   'global_submission_daily_cap',
   'circuit_breaker_threshold', 'circuit_breaker_cooldown_minutes', 'circuit_breaker_failure_window_minutes',
   'whitelist_usernames', 'blocked_usernames',
+  'blocked_reasons',
   'post_hashtags',
 ]
 
@@ -62,6 +63,22 @@ function validateLowercaseStringArray(parsed: unknown): string[] | null {
   return filtered.map((u: string) => u.toLowerCase().trim())
 }
 
+/**
+ * Validate blocked_reasons as Record<string, string>.
+ * Returns empty {} as valid — no reasons set yet is normal state.
+ * Keys are normalized to lowercase to match blocked_usernames convention.
+ */
+function validateBlockedReasons(parsed: unknown): Record<string, string> | null {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const result: Record<string, string> = {}
+  for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof val === 'string') {
+      result[key.toLowerCase().trim()] = val
+    }
+  }
+  return result
+}
+
 // --- TTL Cache for getFilterSettings() ---
 
 let cachedSettings: { data: Awaited<ReturnType<typeof getFilterSettings>>; ts: number } | null = null
@@ -87,6 +104,7 @@ export async function getFilterSettings(): Promise<{
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]  // Twitter usernames bypassing rate limits
   blockedUsernames: string[]    // Twitter usernames blocked from submitting
+  blockedReasons: Record<string, string>  // Per-user custom block messages (companion to blocked_usernames)
   postHashtags: string          // Hashtags appended to auto-posted tweets
 }> {
   if (isCacheValid()) return structuredClone(cachedSettings!.data)
@@ -152,6 +170,12 @@ export async function getFilterSettings(): Promise<{
     getRaw('blocked_usernames'), validateLowercaseStringArray, [] as string[],
   )
 
+  // Blocked reasons (companion to blocked_usernames — optional per-user block message)
+  // Stored as {"username": "reason text"}. Missing key = default message.
+  const blockedReasons = parseJsonSetting(
+    getRaw('blocked_reasons'), validateBlockedReasons, {} as Record<string, string>,
+  )
+
   // Post hashtags (appended to auto-posted tweets)
   const postHashtags = getRaw('post_hashtags')?.trim() || ''
 
@@ -167,6 +191,7 @@ export async function getFilterSettings(): Promise<{
     rateLimits: { submissionCooldown, submissionDailyCap, autoPostCooldown, autoPostWindowCap, autoPostWindowMinutes, globalPostDailyCap, userPostDailyCap, userPendingCap, globalSubmissionDailyCap, circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes },
     whitelistUsernames,
     blockedUsernames,
+    blockedReasons,
     postHashtags,
   }
 
