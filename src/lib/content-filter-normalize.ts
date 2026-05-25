@@ -129,7 +129,7 @@ export function normalizeText(text: string): string {
  * mentions, combining grapheme joiner \u034F between characters).
  *
  * Lighter than normalizeText() — preserves case and structure for regex matching.
- * Used by checkUrls, checkMentions, checkPhoneNumbers, checkCapsSpam,
+ * Used by checkUrls, checkMentions, checkPii, checkCapsSpam,
  * checkRepeatedChars.
  */
 export function normalizeForFilter(text: string): string {

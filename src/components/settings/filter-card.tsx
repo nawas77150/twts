@@ -40,9 +40,11 @@ const TOGGLEABLE_RULES: { key: keyof FilterRules; label: string; desc: string }[
   { key: 'jualan', label: 'Block jualan/promosi (WTS/WTB/WTT/LF)', desc: 'Marketplace tags are not confessions' },
   { key: 'urls', label: 'Block links/URLs', desc: 'Prevents spam links and phishing' },
   { key: 'mentions', label: 'Block @mentions', desc: 'Prevents targeted harassment via @username' },
-  { key: 'phoneNumbers', label: 'Block phone numbers', desc: 'Prevents doxxing and privacy leaks' },
-  { key: 'pii', label: 'Block PII (email, NIK, IP, NPWP)', desc: 'Prevents sharing of private identifiable information' },
+  { key: 'pii', label: 'Flag PII (email, NIK, IP, NPWP, phone)', desc: 'Flagged for admin review — prevents sharing of private identifiable information' },
   { key: 'nsfw', label: 'Block NSFW/explicit content', desc: 'OFF by default for Alter menfess — toggle on if needed' },
+  { key: 'selfHarm', label: 'Flag self-harm / suicide', desc: 'Keyword list (19 phrases) — flagged for admin review' },
+  { key: 'csam', label: 'Flag child safety (CSAM)', desc: 'Two-list intersection (sexual ∩ age) — flagged for admin review' },
+  { key: 'solicitation', label: 'Flag sexual solicitation', desc: 'Two-list intersection (sexual ∩ payment) — flagged for admin review' },
   { key: 'repeatedChars', label: 'Block repeated characters', desc: '6+ consecutive identical characters (e.g. aaaaaa)' },
 ]
 
@@ -50,9 +52,6 @@ const ALWAYS_ON_RULES = [
   { key: 'capsSpam', label: 'ALL CAPS spam' },
   { key: 'tooShort', label: 'Too short (<5)' },
   { key: 'duplicate24h', label: 'Duplicate (24h)' },
-  { key: 'selfHarm', label: 'Self-harm / suicide' },
-  { key: 'csam', label: 'Child safety (CSAM)' },
-  { key: 'solicitation', label: 'Sexual solicitation' },
 ]
 
 export function FilterCard({

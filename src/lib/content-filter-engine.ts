@@ -17,7 +17,6 @@ import {
   checkJualan,
   checkUrls,
   checkMentions,
-  checkPhoneNumbers,
   checkCapsSpam,
   checkRepeatedChars,
   checkTooShort,
@@ -33,16 +32,15 @@ export interface FilterRules {
   jualan: boolean          // WTS/WTB/WTT/LF marketplace tags
   urls: boolean            // Links/URLs
   mentions: boolean        // @username tagging
-  phoneNumbers: boolean   // Doxxing: phone number patterns
   nsfw: boolean           // NSFW/explicit content (OFF by default)
   capsSpam: boolean       // ALL CAPS spam (>80% uppercase)
   repeatedChars: boolean  // Repeated characters (6+ in a row)
   tooShort: boolean       // Too short (< 5 chars)
   duplicate24h: boolean   // Exact duplicate within 24h
-  selfHarm: boolean       // Self-harm / suicide keywords (always-on)
-  csam: boolean           // CSAM / child safety (always-on)
-  solicitation: boolean   // Paid sexual solicitation (always-on)
-  pii: boolean            // PII: email, NIK, IP, NPWP
+  selfHarm: boolean       // Self-harm / suicide keywords — flagged for admin review
+  csam: boolean           // CSAM / child safety — flagged for admin review
+  solicitation: boolean   // Paid sexual solicitation — flagged for admin review
+  pii: boolean            // PII: email, NIK, IP, NPWP, phone numbers
 }
 
 export type FilterSeverity = 'none' | 'low' | 'medium' | 'high'
@@ -61,41 +59,32 @@ export const DEFAULT_FILTER_RULES: FilterRules = {
   jualan: true,
   urls: true,
   mentions: true,
-  phoneNumbers: true,
   nsfw: false,          // OFF by default for Alter menfess
   capsSpam: true,
   repeatedChars: true,
   tooShort: true,
   duplicate24h: true,
-  selfHarm: true,       // Always-on — cannot be disabled
-  csam: true,           // Always-on — cannot be disabled
-  solicitation: true,   // Always-on — cannot be disabled
+  selfHarm: true,       // ON by default, admin can toggle — flagged for admin review
+  csam: true,           // ON by default, admin can toggle — flagged for admin review
+  solicitation: true,   // ON by default, admin can toggle — flagged for admin review
   pii: true,            // ON by default, admin can toggle
 }
 
 // Non-toggleable rules (always enforced regardless of settings)
-// These cause outright rejection (not pending) — spam/low-quality or safety-critical
+// These cause outright rejection (not pending) — spam/low-quality only
 const ALWAYS_ON_RULES: (keyof FilterRules)[] = [
   'capsSpam',
   'tooShort',
   'duplicate24h',
-  'selfHarm',       // X ban risk + user safety
-  'csam',           // X ban risk + child safety
-  'solicitation',   // X ban risk — account restriction trigger
 ]
 
 // Reason prefixes produced by always-on rules.
 // Used by hasAlwaysOnReason() — reasons may be exact ('caps_spam')
-// or prefixed ('self_harm:bunuh diri'), so we match by prefix.
+// or prefixed ('blocked_word:kontol'), so we match by prefix.
 const ALWAYS_ON_REASON_PREFIXES: string[] = [
   'caps_spam',
   'too_short',
   'duplicate_24h',
-  'self_harm',
-  'csam_sexual',
-  'csam_age',
-  'solicitation_sexual',
-  'solicitation_payment',
 ]
 
 // Exported for reference — the canonical list of always-on reason prefixes
@@ -117,7 +106,7 @@ interface RuleCheckResult {
 interface RuleChecker {
   ruleKey: keyof FilterRules
   severity: FilterSeverity
-  alwaysOverrideSeverity?: boolean  // Only blockedWords sets this
+  alwaysOverrideSeverity?: boolean  // blockedWords, selfHarm, csam, solicitation, pii
   check: (message: string, extra?: { blockedWords?: string[]; nsfwWords?: string[] }) => RuleCheckResult
 }
 
@@ -169,6 +158,7 @@ const RULE_CHECKERS: RuleChecker[] = [
   {
     ruleKey: 'pii',
     severity: 'high',
+    alwaysOverrideSeverity: true,  // Always high — privacy/doxxing
     check: (message) => ({ reasons: checkPii(message) }),
   },
   {
@@ -185,12 +175,6 @@ const RULE_CHECKERS: RuleChecker[] = [
     ruleKey: 'mentions',
     severity: 'medium',
     check: (message) => ({ reasons: checkMentions(message) }),
-  },
-  {
-    ruleKey: 'phoneNumbers',
-    severity: 'high',
-    // NO alwaysOverrideSeverity — if (severity === 'none') severity = 'high'
-    check: (message) => ({ reasons: checkPhoneNumbers(message) }),
   },
   {
     ruleKey: 'capsSpam',
@@ -294,6 +278,21 @@ export function getRejectionMessage(reasons: string[]): string {
       case 'solicitation_sexual':
       case 'solicitation_payment':
         messages.push('Pesan terdeteksi mengandung konten yang melanggar kebijakan X.')
+        break
+      case 'contains_email':
+        messages.push('Pesan mengandung alamat email.')
+        break
+      case 'contains_nik':
+        messages.push('Pesan mengandung nomor identitas (NIK).')
+        break
+      case 'contains_ip_address':
+        messages.push('Pesan mengandung alamat IP.')
+        break
+      case 'contains_npwp':
+        messages.push('Pesan mengandung nomor NPWP.')
+        break
+      case 'contains_phone':
+        messages.push('Pesan mengandung nomor telepon.')
         break
     }
   }

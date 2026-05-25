@@ -82,27 +82,6 @@ function checkMentions(message: string): string[] {
   return reasons
 }
 
-// --- Phone Number Check ---
-
-function checkPhoneNumbers(message: string): string[] {
-  const reasons: string[] = []
-  // Normalize to strip zero-width chars between digits that bypass \d patterns
-  const normalized = normalizeForFilter(message)
-  // Indonesian phone numbers: 08xx, +62xx, 62xx
-  const phonePatterns = [
-    /(?:^|\s|\()(08\d{8,12})(?:\s|\)|$)/,
-    /(?:^|\s|\()(\+62\d{8,12})(?:\s|\)|$)/,
-    /(?:^|\s|\()(62\d{8,12})(?:\s|\)|$)/,
-  ]
-  for (const pattern of phonePatterns) {
-    if (pattern.test(normalized)) {
-      reasons.push('contains_phone_number')
-      break
-    }
-  }
-  return reasons
-}
-
 // --- Caps Spam Check ---
 
 function checkCapsSpam(message: string): string[] {
@@ -231,7 +210,7 @@ function checkSolicitation(
  * (Indonesian tax number).
  *
  * Uses normalizeForFilter (lighter — preserves structure for regex).
- * Same pattern as checkUrls/checkPhoneNumbers.
+ * Same pattern as checkUrls.
  */
 function checkPii(message: string): string[] {
   const reasons: string[] = []
@@ -253,6 +232,18 @@ function checkPii(message: string): string[] {
   if (/\b\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}\b/.test(normalized)) {
     reasons.push('contains_npwp')
   }
+  // Phone numbers: Indonesian 08xx, +62xx, 62xx
+  const phonePatterns = [
+    /(?:^|\s|\()(08\d{8,12})(?:\s|\)|$)/,
+    /(?:^|\s|\()(\+62\d{8,12})(?:\s|\)|$)/,
+    /(?:^|\s|\()(62\d{8,12})(?:\s|\)|$)/,
+  ]
+  for (const pattern of phonePatterns) {
+    if (pattern.test(normalized)) {
+      reasons.push('contains_phone')
+      break
+    }
+  }
   return reasons
 }
 
@@ -264,7 +255,6 @@ export {
   checkJualan,
   checkUrls,
   checkMentions,
-  checkPhoneNumbers,
   checkCapsSpam,
   checkRepeatedChars,
   checkTooShort,

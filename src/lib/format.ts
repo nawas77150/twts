@@ -53,7 +53,11 @@ export function getFilterReasonLabel(reason: string): string {
 
   if (reason === 'contains_url') return 'Link'
   if (reason.startsWith('contains_mention')) return '@Mention'
-  if (reason === 'contains_phone_number') return 'No. HP'
+  if (reason === 'contains_email') return 'Email'
+  if (reason === 'contains_nik') return 'NIK'
+  if (reason === 'contains_ip_address') return 'IP'
+  if (reason === 'contains_npwp') return 'NPWP'
+  if (reason === 'contains_phone') return 'No. HP'
   if (reason === 'caps_spam') return 'ALL CAPS'
   if (reason === 'repeated_characters') return 'Spam chars'
   if (reason === 'too_short') return 'Terlalu pendek'
