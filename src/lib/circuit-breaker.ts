@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { upsertSetting } from '@/lib/db-helpers'
 import { debug } from '@/lib/debug'
-import type { ErrorClass } from '@/lib/twitter-post-cookie'
+import type { ErrorClass } from '@/lib/twitter-post-error'
 
 // Circuit breaker protects against cascading X API failures.
 // After N consecutive post failures within a configurable time window,

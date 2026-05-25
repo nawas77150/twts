@@ -1,12 +1,26 @@
 import crypto from 'crypto'
 import { db } from '@/lib/db'
-import { generateTransactionId, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
-import { generateTransactionIdFromPair, clearPairCache } from '@/lib/x-transaction-id-pair'
+import { clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
+import { clearPairCache } from '@/lib/x-transaction-id-pair'
 import { postViaCookieApi, postViaTwitterApi, isV2LoginEnabled } from '@/lib/twitter-api-fallback'
 import { readSettingsMap, X_DIRECT_SETTINGS_KEYS } from '@/lib/twitter-api-shared'
 import { getCreateTweetSpec, clearCreateTweetSpecCache } from '@/lib/create-tweet-spec'
-import { BROWSER_UA, SEC_CH_UA } from '@/lib/x-browser-constants'
 import { debug } from '@/lib/debug'
+
+// From new split files
+import {
+  type ErrorClass,
+  type TweetResult,
+  classifyError,
+  parseDirectPostResponse,
+  shouldRetry,
+  MAX_DIRECT_ATTEMPTS,
+} from '@/lib/twitter-post-error'
+import {
+  parseXCookies,
+  buildCreateTweetHeaders,
+  resolveTransactionId,
+} from '@/lib/twitter-post-request'
 
 // ============================================================
 // Cookie-based tweet posting via X's internal GraphQL API
@@ -55,8 +69,6 @@ import { debug } from '@/lib/debug'
 // 5-step priority: memory → DB → GitHub placeholder.json → x.com JS → hardcoded.
 // Never returns null. Bearer token must be set via Admin → X Settings.
 
-// BROWSER_UA + SEC_CH_UA imported from @/lib/x-browser-constants
-
 /**
  * Batch-read all X-related settings from DB in one query.
  * Uses the shared readSettingsMap helper to avoid duplicating the
@@ -66,152 +78,17 @@ async function getSettings(): Promise<Record<string, string>> {
   return readSettingsMap(X_DIRECT_SETTINGS_KEYS)
 }
 
-/**
- * Parse the full cookie string from the browser.
- * Extracts auth_token, ct0, and twid which are required for X API calls.
- *
- * The cookie string looks like:
- *   "auth_token=abc123; ct0=xyz789; twid=...; kdt=..."
- *
- * We store the FULL string because:
- * - X may require additional cookies in the future
- * - ct0 cannot be reliably derived from a live request
- * - One copy-paste from browser gives us everything
- */
-export function parseXCookies(cookieString: string): {
-  auth_token: string | null
-  ct0: string | null
-  twid: string | null
-  raw: string
-} {
-  const auth_token = cookieString.match(/auth_token=([^;]+)/)?.[1] || null
-  const ct0 = cookieString.match(/ct0=([^;]+)/)?.[1] || null
-  const twid = cookieString.match(/twid=([^;]+)/)?.[1] || null
-  return { auth_token, ct0, twid, raw: cookieString }
-}
-
-// ── Error Classification ───────────────────────────────
-
-/**
- * Classified error types from X API responses.
- * Used to drive retry logic and circuit breaker filtering.
- *
- * - stale_cache: X rotated queryId → clear caches and retry
- * - transient: Temporary issue (226, empty results) → retry with backoff
- * - auth_failure: Cookie/bearer expired → needs admin intervention
- * - rate_limit: X imposed rate limit → needs admin to wait
- * - stealth_ban: Account shadowbanned → needs admin to check account
- * - duplicate_posted: Error 187 — tweet already exists on X (phantom success)
- * - terminal: Unrecognized/unrecoverable error → no retry
- */
-export type ErrorClass = 'stale_cache' | 'transient' | 'auth_failure' | 'rate_limit' | 'stealth_ban' | 'duplicate_posted' | 'terminal'
-
-/**
- * Table-driven error classifier. Replaces isStaleCacheError() + is226Error().
- * Adding new error patterns = adding 1 row to ERROR_PATTERNS. Zero CC increase.
- */
-const ERROR_PATTERNS: [RegExp, ErrorClass][] = [
-  [/code: 48|HTTP 404/, 'stale_cache'],
-  [/HTTP 226|code: 226|might be automated/, 'transient'],
-  [/HTTP 401|Could not authenticate/, 'auth_failure'],
-  [/HTTP 429|code: 88|Rate limit exceeded/, 'rate_limit'],
-  // code: 187 = "Status is a duplicate" — X rejected because the tweet already
-  // exists (phantom success from a previous crash). Not a real failure — the tweet
-  // IS on X. Must not penalize circuit breaker. Recovered in execute-post.ts
-  // via handleDuplicatePosted().
-  [/code: 187/, 'duplicate_posted'],
-  // Best-effort — not definitive. code: 64 is a hard suspension (not stealth),
-  // code: 353 is poorly documented, and "suspended" may appear in non-ban messages.
-  // Misclassifying as stealth_ban is safe: it just skips circuit-breaker retry,
-  // which is the conservative (fail-open) failure mode.
-  [/code: 353|suspended|code: 64/, 'stealth_ban'],
-]
-
-function classifyError(error: string): ErrorClass {
-  for (const [pattern, cls] of ERROR_PATTERNS) {
-    if (pattern.test(error)) return cls
-  }
-  return 'terminal'
-}
-
-/**
- * Detect empty tweet_results — X silently rejects the tweet.
- * V3: Always resolves on retry.
- * The response body has: {"create_tweet":{"tweet_results":{}}}
- * No error code, no HTTP error — just empty data.
- */
-function isEmptyResults(body: unknown): boolean {
-  const data = body as { data?: { create_tweet?: { tweet_results?: Record<string, unknown> } } } | null
-  if (!data?.data?.create_tweet) return false
-  const results = data.data.create_tweet.tweet_results
-  // tweet_results exists but is empty object {} or null
-  return !results || Object.keys(results).length === 0
-}
-
 /** Sleep helper for retry delays */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-// ── Shared types & constants (hoisted from postTweetViaCookie) ──
-
-/** Result type for tweet posting operations */
-export type TweetResult = {
-  success: boolean
-  tweetId?: string
-  error?: string
-  errorClass?: ErrorClass     // classified error type for circuit breaker filtering
-  method: 'direct' | 'retry' | 'fallback_cookie' | 'fallback_login'
-  retriesUsed?: number
-}
-
-/** Maximum direct posting attempts before falling back */
-const MAX_DIRECT_ATTEMPTS = 4
+// ── Shared constants (hoisted from postTweetViaCookie) ──
 
 /** Retry delay bases (ms) — indexed by failed attempt number */
 const RETRY_DELAYS = [1000, 2000, 4000]
 
-// Base headers for CreateTweet — static portion that never changes.
-// Dynamic headers (Authorization, Cookie, X-Csrf-Token, x-client-transaction-id)
-// are added by buildCreateTweetHeaders().
-const BASE_CREATE_TWEET_HEADERS: Record<string, string> = {
-  'Content-Type': 'application/json',
-  'X-Twitter-Auth-Type': 'OAuth2Session',
-  'X-Twitter-Active-User': 'yes',
-  'X-Twitter-Client-Language': 'en',
-  'User-Agent': BROWSER_UA,
-  Referer: 'https://x.com/',
-  'sec-ch-ua': SEC_CH_UA,
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Linux"',
-  origin: 'https://x.com',
-  'sec-fetch-dest': 'empty',
-  'sec-fetch-mode': 'cors',
-  'sec-fetch-site': 'same-origin',
-  'cache-control': 'no-cache',
-  pragma: 'no-cache',
-  priority: 'u=1, i',
-  Accept: '*/*',
-  'Accept-Language': 'en-US,en;q=0.9',
-}
-
-/** Build complete headers for CreateTweet, merging static + dynamic values */
-function buildCreateTweetHeaders(
-  bearerToken: string,
-  cookieRaw: string,
-  ct0: string,
-  transactionId: string | null,
-): Record<string, string> {
-  return {
-    ...BASE_CREATE_TWEET_HEADERS,
-    Authorization: `Bearer ${bearerToken}`,
-    Cookie: cookieRaw,
-    'X-Csrf-Token': ct0,
-    ...(transactionId ? { 'x-client-transaction-id': transactionId } : {}),
-  }
-}
-
-// ── Module-level helpers (extracted from postTweetViaCookie) ──
+// ── Module-level helpers ──
 
 /**
  * Wait after a failed attempt before trying again.
@@ -319,6 +196,11 @@ async function fallbackOrFail(opts: {
 
 // ── Main posting function ──
 
+/** Map attempt number to method label — eliminates 5 repeated ternaries */
+function methodLabel(attempt: number): 'direct' | 'retry' {
+  return attempt > 0 ? 'retry' : 'direct'
+}
+
 /**
  * Post a tweet to X using cookie-based authentication.
  *
@@ -421,19 +303,8 @@ export async function postTweetViaCookie(
       }
 
       // Generate x-client-transaction-id (X's primary anti-bot header)
-      // Primary: pair-dict approach (0 x.com fetches, includes WebRTC SDP bytes)
-      // Fallback: live SVG + cubic-bezier (3 x.com fetches, missing WebRTC bytes)
       const apiPath = `/i/api/graphql/${queryId}/CreateTweet`
-      let transactionId: string | null = null
-      transactionId = await generateTransactionIdFromPair('POST', apiPath)
-      if (!transactionId) {
-        debug('direct', 'Pair-dict failed, falling back to live SVG approach')
-        try {
-          transactionId = await generateTransactionId('POST', apiPath)
-        } catch {
-          // Non-fatal: if both methods fail, continue without transaction ID
-        }
-      }
+      const transactionId = await resolveTransactionId(apiPath)
 
       // Build headers — matches Chrome 148 on Linux per fa0311 captures
       const headers = buildCreateTweetHeaders(bearerToken, cookies.raw, cookies.ct0, transactionId)
@@ -451,83 +322,61 @@ export async function postTweetViaCookie(
 
       debug('direct', 'Attempt', attempt, '- X API response status:', response.status)
 
-      // Layer 1: HTTP status
+      // ── HTTP error ──
       if (!response.ok) {
         const errorText = await response.text()
         lastError = `X API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`
 
         const ec = classifyError(lastError)
-        // Stale cache → clear caches and retry (no delay needed)
-        if (attempt === 0 && ec === 'stale_cache') {
+        const decision = shouldRetry(attempt, ec)
+        if (decision === 'clear_and_continue') {
           await clearAllCaches()
           continue
         }
-        // Transient (226, etc.) → wait then retry
-        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && ec === 'transient') {
+        if (decision === 'continue') {
           await waitBeforeRetry(attempt)
           continue
         }
-
-        // auth_failure, rate_limit, stealth_ban, terminal → don't retry, try fallback in auto mode
-        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: ec, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: ec, method: methodLabel(attempt), retriesUsed: attempt })
       }
 
+      // ── Success or classified error ──
       const body = await response.json()
       debug('direct', 'Attempt', attempt, '- Response body keys:', Object.keys(body).join(','))
 
-      // Layer 2: Extract tweetId FIRST (gallery-dl pattern).
-      // X can return HTTP 200 with BOTH data AND errors — standard GraphQL
-      // partial success. If tweetId exists, the tweet WAS created regardless
-      // of any accompanying errors. Only fall through to error handling
-      // when no tweetId is present.
-      const tweetId = body?.data?.create_tweet?.tweet_results?.result?.rest_id
+      const outcome = parseDirectPostResponse(body)
 
-      if (tweetId) {
-        // Success! tweetId present = tweet created, even if errors[] exists.
-        debug('direct', 'Attempt', attempt, '- Tweet posted! tweetId:', tweetId)
-        return {
-          success: true,
-          tweetId,
-          method: attempt > 0 ? 'retry' : 'direct',
-          retriesUsed: attempt,
-        }
+      if (outcome.kind === 'success') {
+        debug('direct', 'Attempt', attempt, '- Tweet posted! tweetId:', outcome.tweetId)
+        return { success: true, tweetId: outcome.tweetId, method: methodLabel(attempt), retriesUsed: attempt }
       }
 
-      // Layer 3: No tweetId — check for empty tweet_results (silent rejection)
-      if (isEmptyResults(body)) {
+      if (outcome.kind === 'empty_results') {
         lastError = 'Empty tweet_results — X silently rejected the tweet'
         if (attempt < MAX_DIRECT_ATTEMPTS - 1) {
           await waitBeforeRetry(attempt)
           continue
         }
-        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: methodLabel(attempt), retriesUsed: attempt })
       }
 
-      // Layer 4: GraphQL errors array (only when no tweetId and no empty results)
-      if (body.errors?.length) {
-        const errorMessages = body.errors
-          .map((e: { message: string; code?: number }) => `${e.message} (code: ${e.code || 'unknown'})`)
-          .join('; ')
-        lastError = `X GraphQL error: ${errorMessages}`
-
-        const ec = classifyError(lastError)
-        // Stale cache → clear caches and retry (no delay needed)
-        if (attempt === 0 && ec === 'stale_cache') {
+      if (outcome.kind === 'graphql_error') {
+        lastError = outcome.error
+        const decision = shouldRetry(attempt, outcome.errorClass)
+        if (decision === 'clear_and_continue') {
           await clearAllCaches()
           continue
         }
-        // Transient (226, etc.) → wait then retry
-        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && ec === 'transient') {
+        if (decision === 'continue') {
           await waitBeforeRetry(attempt)
           continue
         }
-
-        // duplicate_posted, auth_failure, rate_limit, stealth_ban, terminal → don't retry
-        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: ec, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: outcome.errorClass, method: methodLabel(attempt), retriesUsed: attempt })
       }
 
-      // Layer 5: No tweetId, no errors, no empty results — unknown failure
-      return fallbackOrFail({ text, postMethod, error: `Tweet was not created. Response: ${JSON.stringify(body).slice(0, 300)}`, errorClass: 'terminal', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+      // unknown_failure
+      lastError = `Tweet was not created. Response: ${JSON.stringify(outcome.body).slice(0, 300)}`
+      return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'terminal', method: methodLabel(attempt), retriesUsed: attempt })
     } catch (error) {
       lastError = `Network error: ${error instanceof Error ? error.message : String(error)}`
       // Network errors are transient — wait then retry
@@ -537,7 +386,7 @@ export async function postTweetViaCookie(
       }
 
       // All retries exhausted on network errors — try fallback in auto mode
-      return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+      return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: methodLabel(attempt), retriesUsed: attempt })
     }
   }
 

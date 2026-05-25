@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { parseXCookies } from '@/lib/twitter-post-cookie'
+import { parseXCookies } from '@/lib/twitter-post-request'
 import { encrypt, decryptSetting, isEncryptionEnabled } from '@/lib/encrypt'
 import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { withAdmin } from '@/lib/admin-auth'
