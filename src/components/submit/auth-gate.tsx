@@ -130,7 +130,10 @@ export function AuthGate({
           </div>
           <h3 className="text-lg font-semibold text-[#0F1419]">Akun Diblokir</h3>
           <p className="text-sm text-[#536471]">
-            {blockReason || 'Akun kamu tidak diperbolehkan mengirim pesan.'} <br />
+            {blockReason && (
+              <><span className="font-medium text-red-600">Alasan: {blockReason}</span><br /></>
+            )}
+            Akun kamu tidak diperbolehkan mengirim pesan. <br />
             <span className="text-[#71767B] text-xs">Hubungi admin jika kamu rasa ini salah.</span>
           </p>
           <div className="flex items-center justify-center gap-3">

@@ -35,7 +35,6 @@ interface UsersDialogProps {
   onOpenChange: (open: boolean) => void
   submitters: SubmitterWithStats[]
   blockedUsernames: string[]
-  blockedReasons: Record<string, string>
   censored: boolean
   isLoading: boolean
   onFetchSubmitters: () => void
@@ -50,7 +49,6 @@ export function UsersDialog({
   onOpenChange,
   submitters,
   blockedUsernames,
-  blockedReasons,
   censored,
   isLoading,
   onFetchSubmitters,
@@ -166,57 +164,6 @@ export function UsersDialog({
           className="flex-1 overflow-y-auto space-y-4 pr-1"
           style={{ scrollbarWidth: 'thin' }}
         >
-          {/* Blocklist */}
-          {blockedUsernames.filter((u) =>
-            u.includes(search.toLowerCase())
-          ).length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Ban className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-semibold text-[#0F1419]">
-                  Blocklist
-                </span>
-                <Badge
-                  variant="destructive"
-                  className="text-[9px] px-1.5 py-0"
-                >
-                  {blockedUsernames.length} diblokir
-                </Badge>
-              </div>
-              <div className="space-y-1">
-                {blockedUsernames
-                  .filter((u) => u.includes(search.toLowerCase()))
-                  .map((username) => (
-                    <div
-                      key={username}
-                      className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <Ban className="w-3.5 h-3.5 text-red-400" />
-                      </div>
-                      <span className="font-medium text-[#0F1419]">
-                        {censored ? '@*****' : `@${username}`}
-                      </span>
-                      {blockedReasons[username] && (
-                        <span className="text-[10px] text-red-500 truncate max-w-[120px]" title={blockedReasons[username]}>
-                          — {blockedReasons[username]}
-                        </span>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-[10px] h-6 px-2 ml-auto text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
-                        onClick={() => { void onUnblock(username) }}
-                      >
-                        <ShieldOff className="w-3 h-3 sm:mr-1" />
-                        <span className="hidden sm:inline">Unblock</span>
-                      </Button>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
           {/* All Users */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
