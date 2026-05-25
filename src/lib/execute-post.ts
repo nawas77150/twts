@@ -29,11 +29,11 @@ import { NextResponse } from 'next/server'
 // Used by both execute-post.ts (under-lock checks) and
 // submissions/route.ts (pre-lock fast-path checks).
 
-/** Count posted submissions today (WIB). */
+/** Count posted submissions today (WIB). Uses updatedAt to match actual post time. */
 export async function countGlobalPostsToday(): Promise<number> {
   const startOfToday = getStartOfTodayWIB()
   return db.submission.count({
-    where: { status: 'posted', createdAt: { gte: startOfToday } },
+    where: { status: 'posted', updatedAt: { gte: startOfToday } },
   })
 }
 
@@ -437,7 +437,7 @@ export function createCooldownWindowChecks(
         where: {
           submitterId: perUserCheck.submitterId,
           status: 'posted',
-          createdAt: { gte: startOfToday },
+          updatedAt: { gte: startOfToday },
         },
       })
       if (userPostCount >= perUserCheck.effectivePostCap) {

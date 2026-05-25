@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
         where: {
           submitterId: submitter.id,
           status: 'posted',
-          createdAt: { gte: startOfToday },
+          updatedAt: { gte: startOfToday },
         },
       })
       if (userPostCount >= effectivePostCap) {

@@ -199,70 +199,6 @@ async function ensureLoginCookie(settings: Record<string, string>): Promise<stri
   return loginResult.loginCookie
 }
 
-/**
- * Handle login_cookies error by re-logging in and retrying with the same API key.
- * Always returns — never continues the key-rotation loop.
- *
- * All 5 exit paths from the original inline block are preserved:
- * 1. Re-login success + retry success → return success with rotation
- * 2. Re-login success + retry failure → return "failed after re-login"
- * 3. Re-login failure → return "re-login failed"
- */
-async function retryWithNewLogin(opts: {
-  text: string
-  apiKey: string
-  proxy: string | null
-  keyIndex: number
-  apiKeysLength: number
-}): Promise<FallbackResult> {
-  const { text, apiKey, proxy, keyIndex, apiKeysLength } = opts
-
-  // Re-login once to get a fresh login_cookie
-  const loginResult = await loginViaTwitterApi()
-  if (!loginResult.success) {
-    return {
-      success: false,
-      error: `API fallback: login_cookie expired and re-login failed: ${loginResult.error}`,
-      method: 'fallback_login',
-    }
-  }
-
-  const newCookie = loginResult.loginCookie
-  if (!newCookie) {
-    return { success: false, error: 'Re-login succeeded but login_cookie was missing from response', method: 'fallback_login' as const }
-  }
-  // Retry with new login_cookie using same API key
-  const retryBody: Record<string, string> = {
-    login_cookies: newCookie,
-    tweet_text: text,
-  }
-  if (proxy) retryBody.proxy = proxy
-
-  const { response: retryResponse, data: retryData } = await callCreateTweetV2(
-    apiKey, retryBody, 'twitterapi'
-  )
-
-  const retryTweetId = extractTweetId(retryData)
-
-  if (retryResponse.ok && retryTweetId) {
-    await setRotationIndex((keyIndex + 1) % apiKeysLength)
-    return {
-      success: true,
-      tweetId: retryTweetId,
-      method: 'fallback_login',
-      apiKeyUsed: maskApiKey(apiKey),
-    }
-  }
-
-  // Retry also failed — stop, don't try other keys (same login_cookie issue)
-  const retryError = extractApiError(retryData)
-  return {
-    success: false,
-    error: `API fallback failed after re-login: ${retryError}`,
-    method: 'fallback_login',
-  }
-}
-
 // --- Layer 3: V2 Login API Posting ---
 
 /**
@@ -294,7 +230,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
   // Get or generate login_cookie
   const loginCookieResult = await ensureLoginCookie(settings)
   if (typeof loginCookieResult !== 'string') return loginCookieResult
-  const loginCookie = loginCookieResult
+  let loginCookie = loginCookieResult
 
   const proxy = settings.twitterapi_proxy || null
 
@@ -340,7 +276,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
       lastApiError = `HTTP ${response.status}: ${errorMsg}`
       debug('twitterapi', 'create_tweet_v2 failed:', lastApiError)
 
-      // login_cookies expired/invalid → re-login and retry ONCE (always returns, never continues)
+      // login_cookies expired/invalid → re-login, update cookie, continue key rotation
       // Only match specific login_cookie errors — broad matches cause false positives
       if (
         errorMsg.includes('login_cookies is not valid') ||
@@ -348,7 +284,16 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
         errorMsg.includes('login_cookie is not valid') ||
         errorMsg.includes('login_cookie is required')
       ) {
-        return retryWithNewLogin({ text, apiKey, proxy, keyIndex, apiKeysLength: apiKeys.length })
+        const loginResult = await loginViaTwitterApi()
+        if (!loginResult.success || !loginResult.loginCookie) {
+          return {
+            success: false,
+            error: `API fallback: login_cookie expired and re-login failed: ${loginResult.error || 'no login_cookie in response'}`,
+            method: 'fallback_login',
+          }
+        }
+        loginCookie = loginResult.loginCookie
+        continue
       }
 
       // All other errors (invalid key, rate limit, etc.) — try next key

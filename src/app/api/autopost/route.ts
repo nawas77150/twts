@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
     // query below. Recover them so they become eligible again.
     void recoverStalePostings().catch(() => {})
 
-    // ── Find up to 5 candidate submissions (FIFO) ──────────
+    // ── Find up to 20 candidate submissions (FIFO) ──────────
     // If the first candidate is per-user-capped, we skip and try
     // the next one. Blocked users are already excluded —
     // block/route.ts auto-rejects their submissions.
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: 'asc' },
-      take: 5,
+      take: 20,
     })
 
     if (candidates.length === 0) {
@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
           where: {
             submitterId: candidate.submitter.id,
             status: 'posted',
-            createdAt: { gte: startOfToday },
+            updatedAt: { gte: startOfToday },
           },
         })
         if (userPostCount >= effectivePostCap) {

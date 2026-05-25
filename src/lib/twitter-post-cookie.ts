@@ -217,7 +217,10 @@ function methodLabel(attempt: number): 'direct' | 'retry' {
 export async function postTweetViaCookie(
   text: string
 ): Promise<TweetResult> {
-  // Input validation — prevent wasting retries on empty tweets
+  // Input validation — prevent wasting retries on empty tweets.
+  // Uses 'auth_failure' (not 'terminal') so the circuit breaker skips it — empty tweets
+  // are an application-level guard, not an X API failure. Tripping the breaker on app
+  // bugs would pause ALL auto-posting, which is disproportionate.
   if (!text || !text.trim()) {
     return { success: false, error: 'Empty tweet text', method: 'direct', errorClass: 'auth_failure' }
   }
@@ -284,6 +287,7 @@ export async function postTweetViaCookie(
     // On retry for stale cache: clear caches and re-resolve
     if (attempt === 1 && classifyError(lastError) === 'stale_cache') {
       await clearAllCaches()
+      delete settings['x_placeholder_json'] // Force step-2 miss so getCreateTweetSpec falls through to GitHub fetch
       spec = await getCreateTweetSpec(settings)
     }
 
@@ -331,6 +335,8 @@ export async function postTweetViaCookie(
         const decision = shouldRetry(attempt, ec)
         if (decision === 'clear_and_continue') {
           await clearAllCaches()
+          delete settings['x_placeholder_json'] // Force step-2 miss so getCreateTweetSpec falls through to GitHub fetch
+          spec = await getCreateTweetSpec(settings)
           continue
         }
         if (decision === 'continue') {
@@ -365,6 +371,8 @@ export async function postTweetViaCookie(
         const decision = shouldRetry(attempt, outcome.errorClass)
         if (decision === 'clear_and_continue') {
           await clearAllCaches()
+          delete settings['x_placeholder_json'] // Force step-2 miss so getCreateTweetSpec falls through to GitHub fetch
+          spec = await getCreateTweetSpec(settings)
           continue
         }
         if (decision === 'continue') {

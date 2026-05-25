@@ -70,6 +70,7 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockRea
         const errData = (err as { data?: Record<string, unknown> }).data
         const blockReason = typeof errData?.blockReason === 'string' ? errData.blockReason : undefined
         setBlocked(true, blockReason)
+        return false
       }
       if (status === 409) {
         // Status changed by another process — tell user to check their submission list

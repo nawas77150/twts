@@ -135,7 +135,7 @@ export async function readSettingsMap(keys: string[]): Promise<Record<string, st
   })
   const map: Record<string, string> = {}
   for (const s of settings) {
-    if (s.value) map[s.key] = decryptSetting(s.value)
+    if (s.value) map[s.key] = decryptSetting(s.value, '')
   }
   return map
 }

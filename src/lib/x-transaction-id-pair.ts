@@ -88,6 +88,7 @@ async function fetchPairs(): Promise<PairDict[]> {
   // log a warning and keep the old cache
   if (cachedPairs && validPairs.length < cachedPairs.length * 0.5) {
     debugError('pair-dict', `Drastic change detected: ${validPairs.length} entries vs previous ${cachedPairs.length}. Keeping old cache.`)
+    cachedPairsTime = now
     return structuredClone(cachedPairs)
   }
 

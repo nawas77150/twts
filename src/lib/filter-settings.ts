@@ -141,7 +141,7 @@ export async function getFilterSettings(): Promise<{
   function getRaw(key: string): string | null {
     const s = settings.find((s) => s.key === key)
     if (!s) return null
-    return decryptSetting(s.value)
+    return decryptSetting(s.value, '')
   }
 
   // Auto-approve: default false

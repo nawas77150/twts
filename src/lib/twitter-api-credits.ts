@@ -94,9 +94,10 @@ export function getApiCreditsNonBlocking(): KeyCredits[] | null {
   }
   // Cache is stale or empty — fire background fetch for next request
   void getAllKeyCredits().then((fresh) => {
-    // Only cache if all entries are error-free (getKeyCredits never throws,
-    // it resolves with an error field — so .catch is dead code)
-    if (fresh.length > 0 && fresh.every((k) => !k.error)) {
+    // Cache if at least one entry is error-free (getKeyCredits never throws,
+    // it resolves with an error field — so .catch is dead code).
+    // One bad key no longer blocks cache updates for all other keys.
+    if (fresh.length > 0 && fresh.some((k) => !k.error)) {
       creditsCache = fresh
       creditsCacheTime = Date.now()
     }
@@ -117,8 +118,8 @@ export async function getCachedApiCredits(): Promise<KeyCredits[]> {
     return structuredClone(creditsCache)
   }
   const fresh = await getAllKeyCredits()
-  // Only cache if all entries are error-free
-  if (fresh.length > 0 && fresh.every((k) => !k.error)) {
+  // Cache if at least one entry is error-free
+  if (fresh.length > 0 && fresh.some((k) => !k.error)) {
     creditsCache = fresh
     creditsCacheTime = now
   }

@@ -83,12 +83,12 @@ export async function GET(req: NextRequest) {
             createdAt: { gte: startOfToday },
           },
         }),
-        // Daily posts — uses createdAt with calendar day WIB boundary for consistency
+        // Daily posts — uses updatedAt to match actual post cap enforcement
         db.submission.count({
           where: {
             submitterId: submitter.id,
             status: 'posted',
-            createdAt: { gte: startOfToday },
+            updatedAt: { gte: startOfToday },
           },
         }),
         db.submission.findFirst({
