@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/james2256/tweetfess/compare/v1.3.0...v1.4.0) (2026-05-25)
+
+
+### Features
+
+* add safety filter rules (selfHarm/CSAM/solicitation/PII) + UsersDialog pagination with server-side search ([c152a33](https://github.com/james2256/tweetfess/commit/c152a335456a5e6974012f64ed253672ae37e376))
+* merge phoneNumbers into pii, move selfHarm/csam/solicitation to admin review ([9994f1c](https://github.com/james2256/tweetfess/commit/9994f1cb336915483ef1d933ce9e8a5fead5df3f))
+
+
+### Bug Fixes
+
+* blocklist reason input layout ([293a365](https://github.com/james2256/tweetfess/commit/293a365c67c866b81097274f570e7bb116d1a953))
+* filter ([47d4f70](https://github.com/james2256/tweetfess/commit/47d4f70ddcc6be4b73aa6db25b4a4c309aff8878))
+
 ## [1.3.0](https://github.com/james2256/tweetfess/compare/v1.2.4...v1.3.0) (2026-05-25)
 
 
