@@ -1,5 +1,6 @@
 import { getSubmitterFromCookies } from '@/lib/twitter-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { safeGet } from '@/lib/utils'
 import { HomeClient } from './home-client'
 import { Footer } from '@/components/layout/footer'
 
@@ -15,7 +16,7 @@ export default async function HomePage() {
     const { blockedUsernames, blockedReasons } = await getFilterSettings()
     initialIsBlocked = blockedUsernames.includes(submitterInfo.username.toLowerCase())
     if (initialIsBlocked) {
-      initialBlockReason = blockedReasons[submitterInfo.username.toLowerCase()] || undefined
+      initialBlockReason = safeGet(blockedReasons, submitterInfo.username.toLowerCase())
     }
   }
 

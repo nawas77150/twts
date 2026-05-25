@@ -5,6 +5,7 @@ import { UserX } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
 import { UserListCard } from '@/components/shared/user-list-card'
 import type { UserListCardConfig } from '@/components/shared/user-list-card'
+import { safeGet } from '@/lib/utils'
 
 interface BlocklistCardProps {
   blockedUsernames: string[]
@@ -22,7 +23,7 @@ export function BlocklistCard({ blockedUsernames, blockedReasons, onBlocklistCha
     addErrorText: 'Gagal menambahkan ke blocklist',
     addApi: (username, reason) => apiClient.blockUser(username, reason),
     reasonPlaceholder: 'alasan (opsional)',
-    getRowMeta: (username) => blockedReasons[username],
+    getRowMeta: (username) => safeGet(blockedReasons, username),
     removeApi: (username) => apiClient.unblockUser(username),
     addSuccessText: (username) => `${username} ditambahkan ke blocklist`,
     removeSuccessText: (username) => `${username} di-unblock`,

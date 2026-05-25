@@ -27,3 +27,18 @@ export function safeAccess<T extends object, K extends keyof T>(obj: T, key: K):
   if (ownKeys.includes(key)) return obj[key]
   throw new Error(`Invalid key: ${String(key)}`)
 }
+
+/**
+ * Prototype-pollution-safe optional property accessor.
+ * Like safeAccess() but returns undefined for missing keys instead of throwing.
+ *
+ * Use for Record<string, T> lookups where the key may not exist
+ * (e.g. blockedReasons[username]).
+ *
+ * SAST tools flag obj[dynamicKey] as "Generic Object Injection Sink";
+ * Object.hasOwn() validates the key is an own property before access,
+ * preventing prototype-chain traversal (__proto__, constructor, etc.).
+ */
+export function safeGet<T>(obj: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(obj, key) ? obj[key] : undefined
+}

@@ -11,6 +11,7 @@ import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
+import { safeGet } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 // Log a rate limit hit (fire-and-forget, never blocks the response)
@@ -122,7 +123,7 @@ export async function checkSubmissionRateLimits(
     return NextResponse.json({
       error: 'Akun diblokir',
       message: 'Akun kamu tidak diperbolehkan mengirim pesan.',
-      blockReason: filterSettings.blockedReasons[submitter.username.toLowerCase()] || undefined,
+      blockReason: safeGet(filterSettings.blockedReasons, submitter.username.toLowerCase()),
     }, { status: 403 })
   }
 

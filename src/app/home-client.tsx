@@ -68,7 +68,8 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockRea
         // The 403 response body includes blockReason from the server — use it
         // to update the displayed reason in case it changed since the last auth check.
         const errData = (err as { data?: Record<string, unknown> }).data
-        setBlocked(true, (errData?.blockReason as string) ?? undefined)
+        const blockReason = typeof errData?.blockReason === 'string' ? errData.blockReason : undefined
+        setBlocked(true, blockReason)
       }
       if (status === 409) {
         // Status changed by another process — tell user to check their submission list

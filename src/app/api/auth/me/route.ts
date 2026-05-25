@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
+import { safeGet } from '@/lib/utils'
 
 // GET /api/auth/me - Check if user is logged in via Twitter OAuth
 export async function GET(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
         const settings = await getFilterSettings()
         blocked = settings.blockedUsernames.includes(submitter.username.toLowerCase())
         if (blocked) {
-          blockReason = settings.blockedReasons[submitter.username.toLowerCase()] || undefined
+          blockReason = safeGet(settings.blockedReasons, submitter.username.toLowerCase())
         }
       } catch {
         // If settings can't be loaded, treat as not blocked
