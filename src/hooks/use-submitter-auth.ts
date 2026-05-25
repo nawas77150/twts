@@ -5,12 +5,12 @@ import type { SubmitterInfo } from '@/types'
 import { apiClient, onUnauthorized } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 
-export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initialIsBlocked?: boolean) {
+export function useSubmitterAuth(initialSubmitter?: SubmitterInfo | null, initialIsBlocked?: boolean, initialBlockReason?: string) {
   const [submitter, setSubmitter] = useState<SubmitterInfo | null>(initialSubmitter ?? null)
   const [isChecking, setIsChecking] = useState(initialSubmitter === undefined)
   const [authError, setAuthError] = useState<string | null>(null)
   const [isBlocked, setIsBlocked] = useState(initialIsBlocked ?? false)
-  const [blockReason, setBlockReason] = useState<string | null>(null)
+  const [blockReason, setBlockReason] = useState<string | null>(initialBlockReason ?? null)
   const { toast } = useToast()
 
   const checkAuth = useCallback(async () => {

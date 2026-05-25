@@ -16,11 +16,12 @@ import type { SubmitterInfo, SubmissionLimitsData } from '@/types'
 interface HomeClientProps {
   initialSubmitter?: SubmitterInfo | null
   initialIsBlocked?: boolean
+  initialBlockReason?: string
   initialLimits?: SubmissionLimitsData | null
 }
 
-export function HomeClient({ initialSubmitter, initialIsBlocked, initialLimits }: HomeClientProps) {
-  const { submitter, isChecking, authError, isBlocked, blockReason, setBlocked, logout, checkAuth } = useSubmitterAuth(initialSubmitter, initialIsBlocked)
+export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockReason, initialLimits }: HomeClientProps) {
+  const { submitter, isChecking, authError, isBlocked, blockReason, setBlocked, logout, checkAuth } = useSubmitterAuth(initialSubmitter, initialIsBlocked, initialBlockReason)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
