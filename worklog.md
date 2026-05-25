@@ -747,3 +747,122 @@ Stage Summary:
 - Phase 0 complete: B-1 fixed, L-9 fixed, L-1/L-6 fixed, L-8 fixed, M-1 skip (correct), M-2 deferred
 - PLAN-v5.4.md updated with review corrections
 - Ready for Phase 1+2 (can run in parallel)
+
+---
+Task ID: plan-A+B+C
+Agent: main
+Task: Produce detailed Track A+B+C coding plan verified against GitHub original + current code
+
+Work Log:
+- Fetched all 7 files from GitHub james2256/tweetfess (main branch) via curl
+- Read all 7 local files for side-by-side comparison
+- Identified all differences between original and current code
+- Verified Track A is complete (3 stale features fixed, 1 dead key removed, fieldToggles deleted)
+- Verified Track B is done inline but suboptimal (7 gaps identified)
+- Designed Track B refactor: create-tweet-spec.ts with guaranteed non-null returns
+- Designed Track C: classifyError + ErrorClass + circuit breaker filtering
+- Verified all fetchLiveQueryId references (6 locations across 2 files)
+- Verified all x_placeholder_json references (5 locations in twitter-post-cookie.ts)
+- Verified all recordPostFailure call sites (3 locations: execute-post.ts ×2, test-x/route.ts ×1)
+- Confirmed stale-posting.ts does NOT call recordPostFailure (no changes needed)
+- Counted cyclomatic complexity impact: net -3 CC across all files
+
+Stage Summary:
+- Track A: DONE, no further action needed
+- Track B: Plan created with line-level changes for create-tweet-spec.ts extraction
+- Track C: Plan created with classifyError + ErrorClass + CB filtering
+- Total: 1 new file, 5 modified files, 3 deleted functions, net -3 CC
+- Key safety: response.text()/response.json() remain separate (no SyntaxError risk)
+- Key safety: getCreateTweetSpec() never returns null (eliminates null check)
+
+---
+Task ID: plan-A+B+C-v2
+Agent: main
+Task: Updated Track B plan — keep fetchLiveQueryId as step 3 fallback per user request
+
+Work Log:
+- User requested: Keep fetchLiveQueryId() demoted to step 3 fallback (GitHub repo stop updating scenario)
+- New priority: 1. DB cache → 2. placeholder.json (GitHub) → 3. fetchLiveQueryId() (x.com) → 4. Hardcoded FALLBACK_SPEC
+- Revised create-tweet-spec.ts design to include fetchLiveQueryId internally
+- fetchLiveQueryId() moved from twitter-post-cookie.ts → create-tweet-spec.ts (self-contained module)
+- fetchXcomHtml() import from x-transaction-id.ts preserved (shared HTML cache still works)
+- BROWSER_UA defined locally in create-tweet-spec.ts (3rd copy, but it's a rarely-changing constant)
+- fetchLiveQueryId result: update DB with queryId + paired features for future cold starts
+- Stale DB cache step removed (fetchLiveQueryId replaces it — if x.com reachable for POST, it's reachable for queryId fetch)
+- No stale x-transaction-id.ts comments to update (fetchLiveQueryId still referenced)
+
+Stage Summary:
+- Track B revised: fetchLiveQueryId kept as step 3, moved into create-tweet-spec.ts
+- create-tweet-spec.ts is now fully self-contained: resolves spec without any caller callbacks
+- twitter-post-cookie.ts changes simplified: no fetchLiveQueryId reference remains
+- CC impact unchanged: net -3 CC across all files
+
+---
+Task ID: plan-B+C-final
+Agent: main
+Task: Final Track B+C plan — preserves 0-extra-DB-queries, keeps fetchLiveQueryId as step 3, keeps x_placeholder_json DB key
+
+Work Log:
+- Re-read all 6 files for line-accurate plan
+- Verified DB key stays as x_placeholder_json (no migration needed)
+- Verified getCreateTweetSpec(settings) accepts settings map (0 extra DB queries)
+- Verified fetchLiveQueryId moved to create-tweet-spec.ts (shared HTML cache preserved)
+- Verified clearAllCaches flow unchanged (delegates to clearCreateTweetSpecCache)
+- Verified UI text "4 jam" bug exists at direct-posting-card.tsx line 228
+- Verified x-transaction-id.ts comment update needed at line 39
+
+Stage Summary:
+- Track B: create-tweet-spec.ts (new ~140 lines), twitter-post-cookie.ts (-115 lines, -12 CC)
+- Track C: classifyError replaces isStaleCacheError+is226Error, circuit breaker filtering
+- Net CC: -3 across all files
+- 0 extra DB queries preserved
+- 1 existing bug fixed (UI says "4 jam" but TTL is 3 days)
+---
+Task ID: track-b
+Agent: main
+Task: Implement Track B — Extract create-tweet-spec.ts with 5-step resolution, never-null guarantee, step 4 persistence
+
+Work Log:
+- Created src/lib/create-tweet-spec.ts (223 lines) with CreateTweetSpec type, CachedSpec internal type, FALLBACK_SPEC, isValidSpec(), fetchLiveQueryId(), getCreateTweetSpec(), clearCreateTweetSpecCache()
+- Modified src/lib/twitter-post-cookie.ts (751→595 lines): removed upsertSetting + fetchXcomHtml imports, added create-tweet-spec import, deleted PlaceholderData/memPlaceholder/resolvePlaceholderData/fetchLiveQueryId/CREATE_TWEET_FEATURES, rewrote spec resolution to use getCreateTweetSpec (never null), replaced features fallback with spec.features, replaced memPlaceholder=null with clearCreateTweetSpecCache()
+- Updated src/lib/x-transaction-id.ts: comment reference changed from twitter-post-cookie.ts to create-tweet-spec.ts
+- Fixed cosmetic bug in direct-posting-card.tsx: "4 jam" → "3 hari" (TTL was actually 3 days, UI was stale)
+- Fixed cosmetic bug in use-posting-settings.ts: toast text updated to include "Placeholder"
+- ESLint: zero errors
+- Dev server: compiles and serves 200 OK
+
+Stage Summary:
+- getCreateTweetSpec(settings) never returns null — 5-step fallback ends with FALLBACK_SPEC
+- Step 4 (fetchLiveQueryId) now persists to DB + memory (was ephemeral before)
+- Step 5 (FALLBACK_SPEC) intentionally NOT persisted — documented rationale
+- DB key stays x_placeholder_json (provenance name), type is CreateTweetSpec (semantic name)
+- 0 extra DB queries preserved (settings param from getSettings batch)
+- Net line reduction: -156 lines from cookie file, +223 in new spec file
+
+---
+Task ID: track-c
+Agent: main
+Task: Implement Track C — Error classifier, stealth ban detection, circuit breaker filtering
+
+Work Log:
+- Replaced isStaleCacheError() + is226Error() with table-driven classifyError() + ErrorClass type in twitter-post-cookie.ts
+- Added ErrorClass type: 'stale_cache' | 'transient' | 'auth_failure' | 'rate_limit' | 'stealth_ban' | 'terminal'
+- Added ERROR_PATTERNS table: 5 regex→ErrorClass entries for stale_cache, transient, auth_failure, rate_limit, stealth_ban
+- Added errorClass field to TweetResult type
+- Added errorClass param to fallbackOrFail opts
+- Updated all retry logic call sites (2 HTTP error paths, 2 GraphQL error paths) to use classifyError + pass errorClass
+- Classified empty tweet_results as 'transient' (was implicit), network exceptions as 'transient'
+- Classified non-empty missing data as 'terminal'
+- Added errorClass first param to recordPostFailure in circuit-breaker.ts with early return for auth_failure/rate_limit/stealth_ban
+- Added ErrorClass import from twitter-post-cookie in circuit-breaker.ts
+- Updated execute-post.ts: 2 call sites now pass errorClass (tweetResult.errorClass ?? 'terminal' and 'terminal')
+- Updated test-x/route.ts: 1 call site now passes errorClass (result.errorClass ?? 'terminal')
+- ESLint: zero errors
+- Dev server: compiles and serves 200 OK
+
+Stage Summary:
+- classifyError() replaces both isStaleCacheError() (CC 3) + is226Error() (CC 4) with single CC 3 function → net -4 CC
+- 3 new error classes added (auth_failure, rate_limit, stealth_ban) with zero CC increase (table-driven)
+- Circuit breaker now skips counting for auth_failure, rate_limit, stealth_ban (admin intervention needed, not cooldown)
+- isEmptyResults() stays separate (operates on parsed JSON, not error strings)
+- response.text() / response.json() stay separate (no SyntaxError on HTML error pages)

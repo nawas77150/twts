@@ -157,7 +157,7 @@ export function usePostingSettings() {
     try {
       const data = await apiClient.clearCache()
       if (!data.error) {
-        toast({ title: 'Cache dibersihkan!', description: 'Query ID & transaction ID cache telah direset.' })
+        toast({ title: 'Cache dibersihkan!', description: 'Placeholder, queryId & transaction ID cache telah direset.' })
       } else {
         toast({ title: 'Gagal', description: 'Tidak dapat membersihkan cache', variant: 'destructive' })
       }

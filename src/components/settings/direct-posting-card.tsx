@@ -225,7 +225,7 @@ export function DirectPostingCard({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="text-xs text-[#536471]">
-            <span className="font-medium">Cache</span> — queryId & transaction ID di-cache di memori (4 jam). Bersihkan jika X update frontend-nya.
+            <span className="font-medium">Cache</span> — queryId & transaction ID di-cache di memori & DB (3 hari). Bersihkan jika X update frontend-nya.
           </div>
           {cookieStatus?.lastUpdated && (
             <span className="text-[10px] text-[#71767B]">

@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     } else {
       try {
         const settings = await getFilterSettings()
-        await recordPostFailure(settings.rateLimits)
+        await recordPostFailure(result.errorClass ?? 'terminal', settings.rateLimits)
       } catch { /* best effort */ }
     }
 

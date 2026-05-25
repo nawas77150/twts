@@ -36,7 +36,7 @@ const BROWSER_UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
 
 // --- Shared HTML Cache ---
-// Both fetchLiveQueryId (twitter-post-cookie.ts) and getTransactionIdConfig
+// Both fetchLiveQueryId (create-tweet-spec.ts) and getTransactionIdConfig
 // need the x.com homepage HTML. To avoid fetching it twice on cold starts,
 // we cache the HTML here with a short TTL. Both functions call fetchXcomHtml()
 // instead of fetching independently.

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { upsertSetting } from '@/lib/db-helpers'
 import { debug } from '@/lib/debug'
+import type { ErrorClass } from '@/lib/twitter-post-cookie'
 
 // Circuit breaker protects against cascading X API failures.
 // After N consecutive post failures within a configurable time window,
@@ -199,7 +200,17 @@ export async function recordPostSuccess(): Promise<void> {
  * (conditional write), which prevents resetting the cooldown timer when
  * failures occur while the circuit is already paused.
  */
-export async function recordPostFailure(rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }): Promise<void> {
+export async function recordPostFailure(
+  errorClass: ErrorClass,
+  rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }
+): Promise<void> {
+  // Don't count these toward circuit breaker — they need admin intervention, not cooldown.
+  // Pausing auto-post won't fix an expired cookie, a rate limit, or a shadowban.
+  if (errorClass === 'auth_failure' || errorClass === 'rate_limit' || errorClass === 'stealth_ban') {
+    debug('circuit-breaker', 'Skipping failure record —', errorClass, '(requires admin intervention)')
+    return
+  }
+
   const config = getConfig(rateLimits)
   const now = Date.now()
   const windowMs = config.failureWindowMinutes * 60 * 1000

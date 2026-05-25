@@ -1,10 +1,10 @@
 import crypto from 'crypto'
 import { db } from '@/lib/db'
-import { upsertSetting } from '@/lib/db-helpers'
-import { generateTransactionId, fetchXcomHtml, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
+import { generateTransactionId, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
 import { generateTransactionIdFromPair, clearPairCache } from '@/lib/x-transaction-id-pair'
 import { postViaCookieApi, postViaTwitterApi, isV2LoginEnabled } from '@/lib/twitter-api-fallback'
 import { readSettingsMap } from '@/lib/twitter-api-shared'
+import { getCreateTweetSpec, clearCreateTweetSpecCache } from '@/lib/create-tweet-spec'
 import { debug } from '@/lib/debug'
 
 // ============================================================
@@ -16,7 +16,8 @@ import { debug } from '@/lib/debug'
 // How it works:
 // 1. Read cookie string from DB → env var → null
 // 2. Parse auth_token, ct0, and twid from the cookie string
-// 3. Resolve queryId: in-memory cache → DB → live fetch → DB fallback
+// 3. Resolve CreateTweet spec (queryId + features) via create-tweet-spec.ts:
+//    memory → DB → GitHub → x.com JS → hardcoded fallback (never null)
 // 4. Read bearer token from DB (required, no default)
 // 5. Generate x-client-transaction-id:
 //    - Primary: pair-dict approach (0 x.com fetches, includes WebRTC bytes)
@@ -49,10 +50,9 @@ import { debug } from '@/lib/debug'
 // - fa0311/x-client-transaction-id-pair-dict (daily pre-computed pairs)
 // ============================================================
 
-// No hardcoded defaults for queryId or bearer token.
-// queryId is auto-fetched from X's live JS bundle (with in-memory + DB cache).
-// bearer token must be set via Admin → X Settings. Stale defaults cause
-// silent 404s that are hard to debug. Explicit configuration = clear errors.
+// CreateTweet spec (queryId + features) is resolved via create-tweet-spec.ts.
+// 5-step priority: memory → DB → GitHub placeholder.json → x.com JS → hardcoded.
+// Never returns null. Bearer token must be set via Admin → X Settings.
 
 // Chrome 148 on Linux — synced from fa0311/latest-user-agent
 const BROWSER_UA =
@@ -61,75 +61,13 @@ const BROWSER_UA =
 // Chrome Client Hints — matches the User-Agent above (Chrome 148 format)
 const SEC_CH_UA = '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"'
 
-// --- Query ID Cache ---
-// In-memory cache avoids re-fetching X's homepage + JS bundle on every post.
-// On Vercel cold starts this resets, but the DB upsert (below) serves as the
-// persistent fallback. The in-memory cache only helps during warm instances
-// (burst posting), while the DB is the effective cache for cold starts.
-let cachedQueryId: string | null = null
-let cachedQueryIdTime: number = 0
-const QUERY_ID_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours — matches x-transaction-id.ts
-
-/**
- * Auto-fetch the current CreateTweet queryId from X's live JS bundle.
- * Steps:
- *   1. Check in-memory cache (warm instance optimization)
- *   2. Fetch x.com HTML → extract main bundle filename (e.g. main.05927b2a.js)
- *   3. Fetch that bundle → extract queryId from CreateTweet operation definition
- *
- * If X changes their bundle structure, this silently returns null and
- * postTweetViaCookie falls back to the DB-stored value.
- *
- * Cache strategy: in-memory (4h TTL) + DB upsert (persistent across cold starts).
- * This minimizes requests to X's servers — fetching the homepage + JS bundle
- * before every tweet is a bot fingerprint pattern that real browsers don't exhibit.
- */
-async function fetchLiveQueryId(): Promise<string | null> {
-  // Check in-memory cache first (only helps during warm instances)
-  const now = Date.now()
-  if (cachedQueryId && now - cachedQueryIdTime < QUERY_ID_CACHE_TTL) {
-    return cachedQueryId
-  }
-
-  try {
-    // Step 1: get current bundle name from x.com homepage (shared cache)
-    const html = await fetchXcomHtml()
-
-    const bundle = html.match(/main\.[a-z0-9]+\.js/)?.[0]
-    if (!bundle) return null
-
-    // Step 2: extract queryId from the bundle JS
-    const js = await fetch(
-      `https://abs.twimg.com/responsive-web/client-web/${bundle}`,
-      { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(10_000) }
-    ).then((r) => r.text())
-
-    // Match pattern like: {queryId:"FtGeaqS11k1UG-kGv_YUVg",operationName:"CreateTweet"}
-    const match = js.match(
-      /([A-Za-z0-9_-]{15,35})",operationName:"CreateTweet"/
-    )
-
-    const result = match?.[1] ?? null
-
-    // Update in-memory cache
-    if (result) {
-      cachedQueryId = result
-      cachedQueryIdTime = now
-    }
-
-    return result
-  } catch {
-    return null
-  }
-}
-
 /**
  * Batch-read all X-related settings from DB in one query.
  * Uses the shared readSettingsMap helper to avoid duplicating the
  * findMany→map→for→decryptSetting pattern.
  */
 async function getSettings(): Promise<Record<string, string>> {
-  return readSettingsMap(['x_cookie_string', 'x_query_id', 'x_bearer_token', 'post_method', 'twitterapi_keys'])
+  return readSettingsMap(['x_cookie_string', 'x_query_id', 'x_bearer_token', 'post_method', 'twitterapi_keys', 'x_placeholder_json'])
 }
 
 /**
@@ -156,31 +94,42 @@ export function parseXCookies(cookieString: string): {
   return { auth_token, ct0, twid, raw: cookieString }
 }
 
-/**
- * Detect errors likely caused by stale cached data.
- * When X updates their frontend, cached queryIds and transaction ID
- * configs become stale, causing 404s or code 48/344 errors.
- * Auto-clearing cache and retrying once avoids manual intervention.
- */
-function isStaleCacheError(error: string): boolean {
-  return (
-    error.includes('code: 48') ||   // Endpoint retired — stale queryId
-    error.includes('HTTP 404')       // Not found — stale queryId in URL
-  )
-}
+// ── Error Classification ───────────────────────────────
 
 /**
- * Detect Error 226 — X's transient anti-automation check.
- * V2: Always resolves on retry with 2-3s delay.
- * V4: Only affects CreateTweet, not reads.
- * V5: Clean residential proxies help reduce frequency.
+ * Classified error types from X API responses.
+ * Used to drive retry logic and circuit breaker filtering.
+ *
+ * - stale_cache: X rotated queryId → clear caches and retry
+ * - transient: Temporary issue (226, empty results) → retry with backoff
+ * - auth_failure: Cookie/bearer expired → needs admin intervention
+ * - rate_limit: X imposed rate limit → needs admin to wait
+ * - stealth_ban: Account shadowbanned → needs admin to check account
+ * - terminal: Unrecognized/unrecoverable error → no retry
  */
-function is226Error(error: string): boolean {
-  return (
-    error.includes('HTTP 226') ||
-    error.includes('code: 226') ||
-    error.includes('This request looks like it might be automated')
-  )
+export type ErrorClass = 'stale_cache' | 'transient' | 'auth_failure' | 'rate_limit' | 'stealth_ban' | 'terminal'
+
+/**
+ * Table-driven error classifier. Replaces isStaleCacheError() + is226Error().
+ * Adding new error patterns = adding 1 row to ERROR_PATTERNS. Zero CC increase.
+ */
+const ERROR_PATTERNS: [RegExp, ErrorClass][] = [
+  [/code: 48|HTTP 404/, 'stale_cache'],
+  [/HTTP 226|code: 226|might be automated/, 'transient'],
+  [/HTTP 401|Could not authenticate/, 'auth_failure'],
+  [/HTTP 429|code: 88|Rate limit exceeded/, 'rate_limit'],
+  // Best-effort — not definitive. code: 64 is a hard suspension (not stealth),
+  // code: 353 is poorly documented, and "suspended" may appear in non-ban messages.
+  // Misclassifying as stealth_ban is safe: it just skips circuit-breaker retry,
+  // which is the conservative (fail-open) failure mode.
+  [/code: 353|suspended|code: 64/, 'stealth_ban'],
+]
+
+function classifyError(error: string): ErrorClass {
+  for (const [pattern, cls] of ERROR_PATTERNS) {
+    if (pattern.test(error)) return cls
+  }
+  return 'terminal'
 }
 
 /**
@@ -209,6 +158,7 @@ export type TweetResult = {
   success: boolean
   tweetId?: string
   error?: string
+  errorClass?: ErrorClass     // classified error type for circuit breaker filtering
   method: 'direct' | 'retry' | 'fallback_cookie' | 'fallback_login'
   retriesUsed?: number
 }
@@ -218,61 +168,6 @@ const MAX_DIRECT_ATTEMPTS = 4
 
 /** Retry delay bases (ms) — indexed by failed attempt number */
 const RETRY_DELAYS = [1000, 2000, 4000]
-
-// Feature switches — synced from fa0311/TwitterInternalAPIDocument
-// develop branch (auto-updated daily). Last synced: 2025-07
-const CREATE_TWEET_FEATURES = {
-  premium_content_api_read_enabled: false,
-  communities_web_enable_tweet_community_results_fetch: true,
-  c9s_tweet_anatomy_moderator_badge_enabled: true,
-  responsive_web_grok_analyze_button_fetch_trends_enabled: false,
-  responsive_web_grok_analyze_post_followups_enabled: false,
-  rweb_cashtags_composer_attachment_enabled: false,
-  responsive_web_jetfuel_frame: true,
-  responsive_web_grok_share_attachment_enabled: true,
-  responsive_web_grok_annotations_enabled: true,
-  responsive_web_edit_tweet_api_enabled: true,
-  rweb_conversational_replies_downvote_enabled: false,
-  graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-  view_counts_everywhere_api_enabled: true,
-  longform_notetweets_consumption_enabled: true,
-  responsive_web_twitter_article_tweet_consumption_enabled: true,
-  content_disclosure_indicator_enabled: true,
-  content_disclosure_ai_generated_indicator_enabled: true,
-  responsive_web_grok_show_grok_translated_post: true,
-  responsive_web_grok_analysis_button_from_backend: true,
-  responsive_web_enhance_cards_enabled: false,
-  post_ctas_fetch_enabled: false,
-  longform_notetweets_rich_text_read_enabled: true,
-  longform_notetweets_inline_media_enabled: false,
-  profile_label_improvements_pcf_label_in_post_enabled: true,
-  responsive_web_profile_redirect_enabled: false,
-  rweb_tipjar_consumption_enabled: false,
-  verified_phone_label_enabled: false,
-  articles_preview_enabled: true,
-  rweb_cashtags_enabled: true,
-  responsive_web_grok_community_note_auto_translation_is_enabled: true,
-  responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-  freedom_of_speech_not_reach_fetch_enabled: true,
-  standardized_nudges_misinfo: true,
-  tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
-  responsive_web_grok_image_annotation_enabled: true,
-  responsive_web_grok_imagine_annotation_enabled: true,
-  responsive_web_graphql_timeline_navigation_enabled: true,
-}
-
-// Field toggles — required by X's CreateTweet endpoint since 2025.
-// Source: fa0311/TwitterInternalAPIDocument
-const CREATE_TWEET_FIELD_TOGGLES = {
-  withArticleRichContentState: true,
-  withArticlePlainText: true,
-  withArticleSummaryText: true,
-  withArticleVoiceOver: true,
-  withGrokAnalyze: true,
-  withDisallowedReplyControls: true,
-  withPayments: true,
-  withAuxiliaryUserLabels: true,
-}
 
 // Base headers for CreateTweet — static portion that never changes.
 // Dynamic headers (Authorization, Cookie, X-Csrf-Token, x-client-transaction-id)
@@ -408,12 +303,13 @@ async function fallbackOrFail(opts: {
   text: string
   postMethod: string
   error: string
+  errorClass?: ErrorClass
   method: 'direct' | 'retry'
   retriesUsed?: number
 }): Promise<TweetResult> {
-  const { text, postMethod, error, method, retriesUsed = 0 } = opts
+  const { text, postMethod, error, errorClass, method, retriesUsed = 0 } = opts
   if (postMethod !== 'auto') {
-    return { success: false, error, method, retriesUsed }
+    return { success: false, error, errorClass, method, retriesUsed }
   }
   debug('direct', 'Direct posting failed, trying API fallback:', error.slice(0, 100))
   return tryApiFallback({ text, directError: error, retriesUsed })
@@ -493,33 +389,23 @@ export async function postTweetViaCookie(
     return fallbackOrFail({ text, postMethod, error: 'x_bearer_token not set. Update in Admin → X Settings.', method: 'direct' })
   }
 
-  // 5-7. Resolve queryId + make request + parse response
+  // 5-7. Resolve queryId + features + make request + parse response
   // Retry loop: up to MAX_DIRECT_ATTEMPTS, delay happens right after each failure
   let lastError = ''
 
+  // Resolve CreateTweet spec ONCE before the loop (re-resolve on stale cache retry)
+  let spec = await getCreateTweetSpec(settings)
+
   for (let attempt = 0; attempt < MAX_DIRECT_ATTEMPTS; attempt++) {
-    // On retry for stale cache: clear caches immediately (no delay needed)
-    if (attempt === 1 && isStaleCacheError(lastError)) {
-      clearAllCaches()
+    // On retry for stale cache: clear caches and re-resolve
+    if (attempt === 1 && classifyError(lastError) === 'stale_cache') {
+      await clearAllCaches()
+      spec = await getCreateTweetSpec(settings)
     }
 
-    // Resolve queryId: in-memory cache → live fetch → DB fallback
-    let queryId = await fetchLiveQueryId()
+    const queryId = spec.queryId  // always defined — 5-step fallback guarantees non-null
 
-    debug('direct', 'Attempt', attempt, '- queryId:', queryId ? `${queryId.slice(0, 8)}...` : '(null, will try DB)')
-
-    if (queryId && queryId !== settings.x_query_id) {
-      try {
-        await upsertSetting('x_query_id', queryId)
-      } catch {
-        // Non-fatal: cache update failed, but we can still use the queryId for this request
-      }
-    }
-
-    queryId = queryId || settings.x_query_id || null
-    if (!queryId) {
-      return fallbackOrFail({ text, postMethod, error: 'x_query_id not set and live fetch failed. Check network or set manually in Admin → X Settings.', method: 'direct' })
-    }
+    debug('direct', 'Attempt', attempt, '- queryId:', `${queryId.slice(0, 8)}...`)
 
     // Make the request
     try {
@@ -556,8 +442,7 @@ export async function postTweetViaCookie(
         body: JSON.stringify({
           variables,
           queryId,
-          features: CREATE_TWEET_FEATURES,
-          fieldToggles: CREATE_TWEET_FIELD_TOGGLES,
+          features: spec.features,
         }),
         signal: AbortSignal.timeout(15_000),
       })
@@ -569,19 +454,20 @@ export async function postTweetViaCookie(
         const errorText = await response.text()
         lastError = `X API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`
 
+        const ec = classifyError(lastError)
         // Stale cache → clear caches and retry (no delay needed)
-        if (attempt === 0 && isStaleCacheError(lastError)) {
-          clearAllCaches()
+        if (attempt === 0 && ec === 'stale_cache') {
+          await clearAllCaches()
           continue
         }
-        // 226 → wait then retry
-        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && is226Error(lastError)) {
+        // Transient (226, etc.) → wait then retry
+        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && ec === 'transient') {
           await waitBeforeRetry(attempt)
           continue
         }
 
-        // Other HTTP errors — don't retry (auth, rate limit, etc.), try fallback in auto mode
-        return fallbackOrFail({ text, postMethod, error: lastError, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        // auth_failure, rate_limit, stealth_ban, terminal → don't retry, try fallback in auto mode
+        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: ec, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
       }
 
       const body = await response.json()
@@ -594,19 +480,20 @@ export async function postTweetViaCookie(
           .join('; ')
         lastError = `X GraphQL error: ${errorMessages}`
 
+        const ec = classifyError(lastError)
         // Stale cache → clear caches and retry (no delay needed)
-        if (attempt === 0 && isStaleCacheError(lastError)) {
-          clearAllCaches()
+        if (attempt === 0 && ec === 'stale_cache') {
+          await clearAllCaches()
           continue
         }
-        // 226 in GraphQL errors → wait then retry
-        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && is226Error(lastError)) {
+        // Transient (226, etc.) → wait then retry
+        if (attempt < MAX_DIRECT_ATTEMPTS - 1 && ec === 'transient') {
           await waitBeforeRetry(attempt)
           continue
         }
 
-        // Non-retryable GraphQL error — try fallback in auto mode
-        return fallbackOrFail({ text, postMethod, error: lastError, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        // auth_failure, rate_limit, stealth_ban, terminal → don't retry, try fallback in auto mode
+        return fallbackOrFail({ text, postMethod, error: lastError, errorClass: ec, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
       }
 
       // Layer 3: Missing data / empty tweet_results
@@ -619,9 +506,11 @@ export async function postTweetViaCookie(
             await waitBeforeRetry(attempt)
             continue
           }
+          // Last attempt — transient error
+          return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
         }
 
-        return fallbackOrFail({ text, postMethod, error: `Tweet was not created. Response: ${JSON.stringify(body).slice(0, 300)}`, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+        return fallbackOrFail({ text, postMethod, error: `Tweet was not created. Response: ${JSON.stringify(body).slice(0, 300)}`, errorClass: 'terminal', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
       }
 
       // Success!
@@ -641,7 +530,7 @@ export async function postTweetViaCookie(
       }
 
       // All retries exhausted on network errors — try fallback in auto mode
-      return fallbackOrFail({ text, postMethod, error: lastError, method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
+      return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'transient', method: attempt > 0 ? 'retry' : 'direct', retriesUsed: attempt })
     }
   }
 
@@ -706,13 +595,18 @@ export async function getCookieAuthStatus(): Promise<{
 }
 
 /**
- * Clear all in-memory caches (queryId + transaction ID + HTML).
+ * Clear all caches (in-memory + DB + transaction ID + pair-dict).
  * Useful when X updates their frontend and cached data becomes stale.
  * Exposed via Admin → X Settings → "Clear Cache" button.
+ * Deleting DB rows forces a fresh GitHub fetch on next post.
  */
-export function clearAllCaches(): void {
-  cachedQueryId = null
-  cachedQueryIdTime = 0
+export async function clearAllCaches(): Promise<void> {
+  clearCreateTweetSpecCache()
   clearXactCache()
   clearPairCache()
+  try {
+    await db.setting.deleteMany({
+      where: { key: { in: ['x_placeholder_json', 'x_query_id'] } }
+    })
+  } catch { /* non-fatal: DB may be unavailable */ }
 }

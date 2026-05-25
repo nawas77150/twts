@@ -226,7 +226,7 @@ export async function executePostAndRecord(
         })
 
         // Record failure for circuit breaker
-        try { await recordPostFailure(rateLimits) } catch { /* best effort */ }
+        try { await recordPostFailure(tweetResult.errorClass ?? 'terminal', rateLimits) } catch { /* best effort */ }
 
         return await releaseAndReturn({
           success: false,
@@ -244,7 +244,7 @@ export async function executePostAndRecord(
         data: { status: 'post_failed', postError: errorMsg },
       })
 
-      try { await recordPostFailure(rateLimits) } catch { /* best effort */ }
+      try { await recordPostFailure('terminal', rateLimits) } catch { /* best effort */ }
 
       return await releaseAndReturn({ success: false, error: errorMsg })
     }
