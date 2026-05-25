@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FilterRules, RateLimitSettings, FilterSettings, SaveFilterSettingsRequest } from '@/types'
-import { DEFAULT_FILTER_RULES } from '@/types'
+import { DEFAULT_FILTER_RULES } from '@/lib/content-filter-engine'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'

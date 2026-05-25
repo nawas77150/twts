@@ -21,7 +21,7 @@ import { XLogo } from '@/components/shared/x-logo'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { FilterReasons } from '@/components/shared/filter-reasons'
 import type { Submission } from '@/types'
-import { formatDate } from '@/types'
+import { formatDate } from '@/lib/format'
 
 interface SubmissionCardProps {
   submission: Submission

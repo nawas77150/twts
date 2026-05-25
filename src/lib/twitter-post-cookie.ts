@@ -3,8 +3,9 @@ import { db } from '@/lib/db'
 import { generateTransactionId, clearTransactionIdCache as clearXactCache } from '@/lib/x-transaction-id'
 import { generateTransactionIdFromPair, clearPairCache } from '@/lib/x-transaction-id-pair'
 import { postViaCookieApi, postViaTwitterApi, isV2LoginEnabled } from '@/lib/twitter-api-fallback'
-import { readSettingsMap } from '@/lib/twitter-api-shared'
+import { readSettingsMap, X_DIRECT_SETTINGS_KEYS } from '@/lib/twitter-api-shared'
 import { getCreateTweetSpec, clearCreateTweetSpecCache } from '@/lib/create-tweet-spec'
+import { BROWSER_UA, SEC_CH_UA } from '@/lib/x-browser-constants'
 import { debug } from '@/lib/debug'
 
 // ============================================================
@@ -54,12 +55,7 @@ import { debug } from '@/lib/debug'
 // 5-step priority: memory → DB → GitHub placeholder.json → x.com JS → hardcoded.
 // Never returns null. Bearer token must be set via Admin → X Settings.
 
-// Chrome 148 on Linux — synced from fa0311/latest-user-agent
-const BROWSER_UA =
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
-
-// Chrome Client Hints — matches the User-Agent above (Chrome 148 format)
-const SEC_CH_UA = '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"'
+// BROWSER_UA + SEC_CH_UA imported from @/lib/x-browser-constants
 
 /**
  * Batch-read all X-related settings from DB in one query.
@@ -67,7 +63,7 @@ const SEC_CH_UA = '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v=
  * findMany→map→for→decryptSetting pattern.
  */
 async function getSettings(): Promise<Record<string, string>> {
-  return readSettingsMap(['x_cookie_string', 'x_query_id', 'x_bearer_token', 'post_method', 'twitterapi_keys', 'x_placeholder_json'])
+  return readSettingsMap(X_DIRECT_SETTINGS_KEYS)
 }
 
 /**

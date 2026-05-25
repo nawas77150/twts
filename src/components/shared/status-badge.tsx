@@ -1,7 +1,7 @@
 'use client'
 
 import type { SubmissionStatus } from '@/types'
-import { STATUS_CONFIG } from '@/types'
+import { STATUS_CONFIG } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { safeAccess } from '@/lib/utils'
 

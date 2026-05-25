@@ -5,6 +5,7 @@ import { loginViaTwitterApi } from '@/lib/twitter-api-fallback'
 import { withAdmin } from '@/lib/admin-auth'
 import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
 import { isPrivateIP } from '@/lib/is-private-ip'
+import { maskProxyUrl, LOGIN_CREDENTIAL_KEYS } from '@/lib/twitter-api-shared'
 import { debugError } from '@/lib/debug'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -26,11 +27,6 @@ const VALID_KEYS = [
 const MAX_VALUE_LENGTH = 50000 // Larger for twitterapi_keys (JSON array)
 const VALID_POST_METHODS = ['direct', 'api', 'auto']
 const VALID_BOOLEAN_SETTINGS = ['v2_login_enabled']
-
-// Keys that should trigger an auto-login attempt when saved
-const LOGIN_TRIGGER_KEYS = [
-  'x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys',
-]
 
 // Keys that contain sensitive data — always encrypt and never reveal in GET
 const SENSITIVE_KEYS = ['x_password', 'x_totp_secret', 'twitterapi_login_cookie']
@@ -66,8 +62,8 @@ export const GET = withAdmin(async (_req: NextRequest) => {
         const atIdx = decrypted.indexOf('@')
         displayValue = atIdx > 0 ? decrypted.slice(0, 3) + '***@' + decrypted.slice(atIdx + 1) : decrypted.slice(0, 5) + '***'
       } else if (s.key === 'twitterapi_proxy') {
-        // Mask password in proxy URL
-        displayValue = decrypted.replace(/\/\/([^:]+):([^@]+)@/, '//****:****@')
+        // Mask password in proxy URL (consistent with maskProxyUrl in twitter-api-shared)
+        displayValue = maskProxyUrl(decrypted)
       } else if (s.key === 'post_hashtags') {
         displayValue = decrypted // hashtags are not sensitive
       } else if (SENSITIVE_KEYS.includes(s.key)) {
@@ -123,12 +119,14 @@ export const POST = withAdmin(async (req: NextRequest) => {
     )
   }
 
-  // Validate cookie string has required fields
+  // Validate cookie string has required fields (using parseXCookies for strict regex matching)
   if (key === 'x_cookie_string') {
-    const missing = []
-    if (!value.includes('auth_token=')) missing.push('auth_token')
-    if (!value.includes('ct0=')) missing.push('ct0')
-    if (!value.includes('twid=')) missing.push('twid')
+    const parsed = parseXCookies(value)
+    const missing = [
+      !parsed.auth_token && 'auth_token',
+      !parsed.ct0 && 'ct0',
+      !parsed.twid && 'twid',
+    ].filter(Boolean) as string[]
     if (missing.length > 0) {
       return NextResponse.json(
         {
@@ -240,11 +238,11 @@ export const POST = withAdmin(async (req: NextRequest) => {
   // check if ALL credentials are present and try to login
   let autoLoginResult: { attempted: boolean; success?: boolean; error?: string } | null = null
 
-  if (LOGIN_TRIGGER_KEYS.includes(key)) {
+  if (LOGIN_CREDENTIAL_KEYS.includes(key)) {
     // Check if all login credentials are present
     const allSettings = await db.setting.findMany({
       where: {
-        key: { in: ['x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys'] },
+        key: { in: [...LOGIN_CREDENTIAL_KEYS] },
       },
     })
     // Decrypt + filter: DB-level { not: '' } misses encrypted empties and
@@ -256,7 +254,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
       return decrypted.trim() !== ''
     })
 
-    const hasAll = ['x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys'].every(
+    const hasAll = [...LOGIN_CREDENTIAL_KEYS].every(
       (k) => nonEmptySettings.some((s) => s.key === k)
     )
 
@@ -325,7 +323,7 @@ export const DELETE = withAdmin(async (req: NextRequest) => {
 
   // If deleting a login credential, also clear the cached login cookie
   // so the fallback module doesn't use stale auth
-  if (LOGIN_TRIGGER_KEYS.includes(key)) {
+  if (LOGIN_CREDENTIAL_KEYS.includes(key)) {
     await db.setting.deleteMany({ where: { key: 'twitterapi_login_cookie' } })
   }
 

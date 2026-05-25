@@ -4,10 +4,9 @@ import { executePostAndRecord, createCooldownWindowChecks, countGlobalPostsToday
 import type { PerUserCheck } from '@/lib/execute-post'
 import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
 import { debug, debugError } from '@/lib/debug'
-import { normalizeText, decodeHtmlEntities, DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS, DEFAULT_FILTER_RULES } from '@/lib/content-filter'
-import { getFilterSettings } from '@/lib/filter-settings'
+import { normalizeText, decodeHtmlEntities } from '@/lib/content-filter'
+import { getFilterSettings, getDefaultFilterSettings } from '@/lib/filter-settings'
 import { appendHashtags } from '@/lib/append-hashtags'
-import { DEFAULT_RATE_LIMITS, DEFAULT_GEMINI_MODEL } from '@/lib/rate-limit-defaults'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { getCensoredReason, validateSubmission, runFilterPipeline, createQueuedSubmission } from './_lib'
 import { logLimitHit, checkSubmissionRateLimits } from './_rate-limits'
@@ -96,21 +95,7 @@ export async function POST(req: NextRequest) {
     } catch {
       // If filter settings can't be loaded, fall back to defaults with auto-approve OFF
       debug('submit', 'Failed to load filter settings, using defaults with auto-approve OFF')
-      filterSettings = {
-        autoApprove: false,
-        blockedWords: DEFAULT_BLOCKED_WORDS,
-        nsfwWords: DEFAULT_NSFW_WORDS,
-        filterRules: { ...DEFAULT_FILTER_RULES },
-        geminiEnabled: false,
-        geminiApiKeySet: false,
-        geminiApiKey: null,
-        geminiModel: DEFAULT_GEMINI_MODEL,
-        rateLimits: { ...DEFAULT_RATE_LIMITS },
-        whitelistUsernames: [],
-        blockedUsernames: [],
-        blockedReasons: {},
-        postHashtags: '',
-      }
+      filterSettings = getDefaultFilterSettings()
     }
 
     // 3. Check rate limits

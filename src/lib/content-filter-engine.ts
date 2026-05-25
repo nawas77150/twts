@@ -247,6 +247,14 @@ export function runContentFilter(
 
 // --- Display Helpers ---
 
+// Table-driven rejection messages for always-on rules.
+// Adding new always-on rejections = adding 1 row. Zero CC increase.
+const REJECTION_MESSAGES: Record<string, string> = {
+  caps_spam: 'Pesan menggunakan huruf kapital semua (ALL CAPS). Gunakan huruf biasa.',
+  too_short: 'Pesan terlalu pendek. Minimal 5 karakter.',
+  duplicate_24h: 'Pesan ini sudah dikirim dalam 24 jam terakhir.',
+}
+
 // Get user-facing error message for always-on rejections (hardblock only)
 // Only called when hasAlwaysOnReason() returns true — caps_spam, too_short, duplicate_24h
 export function getRejectionMessage(reasons: string[]): string {
@@ -254,18 +262,8 @@ export function getRejectionMessage(reasons: string[]): string {
 
   for (const reason of reasons) {
     const prefix = reason.includes(':') ? reason.split(':')[0] : reason
-
-    switch (prefix) {
-      case 'caps_spam':
-        messages.push('Pesan menggunakan huruf kapital semua (ALL CAPS). Gunakan huruf biasa.')
-        break
-      case 'too_short':
-        messages.push('Pesan terlalu pendek. Minimal 5 karakter.')
-        break
-      case 'duplicate_24h':
-        messages.push('Pesan ini sudah dikirim dalam 24 jam terakhir.')
-        break
-    }
+    const msg = REJECTION_MESSAGES[prefix]
+    if (msg) messages.push(msg)
   }
 
   return messages.join(' ')

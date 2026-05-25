@@ -25,6 +25,30 @@ export const FILTER_SETTING_KEYS = [
 ]
 
 /**
+ * Default filter settings — safe fallback when getFilterSettings() throws.
+ * Used by submissions/route.ts catch block to ensure auto-approve is OFF
+ * when settings can't be loaded (fail-closed).
+ * CC = 1 (zero decision points — just returns an object literal).
+ */
+export function getDefaultFilterSettings() {
+  return {
+    autoApprove: false,
+    blockedWords: DEFAULT_BLOCKED_WORDS,
+    nsfwWords: DEFAULT_NSFW_WORDS,
+    filterRules: { ...DEFAULT_FILTER_RULES },
+    geminiEnabled: false,
+    geminiApiKeySet: false,
+    geminiApiKey: null as string | null,
+    geminiModel: DEFAULT_GEMINI_MODEL,
+    rateLimits: { ...DEFAULT_RATE_LIMITS },
+    whitelistUsernames: [] as string[],
+    blockedUsernames: [] as string[],
+    blockedReasons: {} as Record<string, string>,
+    postHashtags: '',
+  }
+}
+
+/**
  * Parse a JSON setting value with try/catch and type validation.
  * Eliminates repeated try/catch JSON.parse blocks in getFilterSettings().
  * Returns fallback when raw is null/empty, JSON is malformed, or validate returns null.

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { FilterReasons } from '@/components/shared/filter-reasons'
-import { formatDate, type Submission } from '@/types'
+import type { Submission } from '@/types'
+import { formatDate } from '@/lib/format'
 
 interface MyPostsProps {
   posts: Submission[]

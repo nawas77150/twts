@@ -239,13 +239,3 @@ export interface AuthCheckResponse {
 export interface AdminLoginResponse {
   token: string
 }
-
-// --- Default Values ---
-
-export { DEFAULT_FILTER_RULES } from '@/lib/content-filter-engine'
-
-export { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
-
-// --- UI Helpers (re-exported from @/lib/format) ---
-
-export { STATUS_CONFIG, getFilterReasonLabel, parseFilterReasons, formatDate } from '@/lib/format'

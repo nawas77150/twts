@@ -30,10 +30,9 @@
 
 import { buildTransactionId } from '@/lib/x-transaction-id-shared'
 import { extractSiteVerificationKey, extractOnDemandFileUrl, extractIndices, computeAnimationKey } from '@/lib/x-transaction-id-html'
+import { BROWSER_UA } from '@/lib/x-browser-constants'
 
-// Chrome 148 on Linux — synced from fa0311/latest-user-agent
-const BROWSER_UA =
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
+// BROWSER_UA imported from @/lib/x-browser-constants
 
 // --- Shared HTML Cache ---
 // Both fetchLiveQueryId (create-tweet-spec.ts) and getTransactionIdConfig

@@ -4,7 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import type { Stats } from '@/types'
-import { STATUS_CONFIG } from '@/types'
+import { STATUS_CONFIG } from '@/lib/format'
 
 interface SubmissionFiltersProps {
   filterStatus: string

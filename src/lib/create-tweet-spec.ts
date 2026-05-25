@@ -1,5 +1,6 @@
 import { upsertSetting } from '@/lib/db-helpers'
 import { fetchXcomHtml } from '@/lib/x-transaction-id'
+import { BROWSER_UA } from '@/lib/x-browser-constants'
 import { debug } from '@/lib/debug'
 
 // ============================================================
@@ -28,11 +29,7 @@ import { debug } from '@/lib/debug'
 // semantic name. Not renaming to avoid a migration with no functional benefit.
 // ============================================================
 
-// Chrome 148 on Linux — synced from fa0311/latest-user-agent
-// (Also defined in twitter-post-cookie.ts for headers — duplicated to avoid
-// cross-module constant coupling; update both when bumping Chrome version.)
-const BROWSER_UA =
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
+// BROWSER_UA imported from @/lib/x-browser-constants
 
 const PLACEHOLDER_URL =
   'https://raw.githubusercontent.com/fa0311/twitter-openapi/refs/heads/main/src/config/placeholder.json'

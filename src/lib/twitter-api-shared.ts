@@ -19,6 +19,18 @@ import { debug } from '@/lib/debug'
 
 export const TWITTERAPI_BASE = 'https://api.twitterapi.io'
 
+// --- Login Credential Keys ---
+
+/** Keys required for V2 login via twitterapi.io. Shared by settings/route.ts and getApiSettings(). */
+export const LOGIN_CREDENTIAL_KEYS: string[] = [
+  'x_username', 'x_email', 'x_password', 'x_totp_secret', 'twitterapi_proxy', 'twitterapi_keys',
+]
+
+/** Keys read by the direct-posting path (twitter-post-cookie.ts getSettings). */
+export const X_DIRECT_SETTINGS_KEYS: string[] = [
+  'x_cookie_string', 'x_query_id', 'x_bearer_token', 'post_method', 'twitterapi_keys', 'x_placeholder_json',
+]
+
 // --- Shared Interfaces ---
 
 export interface FallbackResult {
@@ -134,8 +146,7 @@ export async function readSettingsMap(keys: string[]): Promise<Record<string, st
  */
 export async function getApiSettings(): Promise<Record<string, string>> {
   return readSettingsMap([
-    'twitterapi_keys', 'twitterapi_proxy',
-    'x_username', 'x_email', 'x_password', 'x_totp_secret',
+    ...LOGIN_CREDENTIAL_KEYS,
     'twitterapi_login_cookie', 'v2_login_enabled',
     'x_cookie_string',
   ])

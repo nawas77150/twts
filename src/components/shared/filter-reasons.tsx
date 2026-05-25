@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { ShieldAlert, Info } from 'lucide-react'
-import { getFilterReasonLabel, parseFilterReasons } from '@/types'
+import { getFilterReasonLabel, parseFilterReasons } from '@/lib/format'
 
 interface FilterReasonsProps {
   filterReasons: string | null
