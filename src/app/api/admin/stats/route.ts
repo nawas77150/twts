@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
+import { postingService } from '@/lib/posting-service'
 import { getApiCreditsNonBlocking, getCachedApiCredits, getApiLoginStatus, invalidateCreditsCache } from '@/lib/twitter-api-fallback'
 import { withAdmin } from '@/lib/admin-auth'
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
@@ -45,7 +45,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
     await Promise.all([
       db.submitter.count(),
       getPostMethodStats(),
-      getCookieAuthStatus(),
+      postingService.getAuthStatus(),
       getApiLoginStatus(),
       getPostMethodSetting(),
       getFilterSettings(),

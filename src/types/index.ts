@@ -4,13 +4,14 @@
 
 import type { FilterRules } from '@/lib/content-filter-engine'
 import type { RateLimitSettings } from '@/lib/rate-limit-defaults'
+import type { CookieAuthStatus } from '@/lib/posting-service-types'
 
 // --- Status ---
 
 export type SubmissionStatus = 'pending' | 'censored' | 'posting' | 'post_failed' | 'rejected' | 'posted'
 
 export type PostMethodSetting = 'direct' | 'api' | 'auto'
-export type PostMethodResult = 'direct' | 'retry' | 'fallback' | 'fallback_cookie' | 'fallback_login'
+export type PostMethodResult = string
 
 // --- Models ---
 
@@ -67,12 +68,7 @@ export interface PostMethodStats {
   fallbackRate: number
 }
 
-export interface CookieAuthStatus {
-  configured: boolean
-  source: string | null
-  lastUpdated: string | null
-  missing: string[]
-}
+export type { CookieAuthStatus } from '@/lib/posting-service-types'
 
 // --- Filter Types ---
 

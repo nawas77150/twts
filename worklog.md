@@ -12,6 +12,35 @@
      ============================================================ -->
 
 ---
+
+---
+Task ID: 1
+Agent: main
+Task: Implement PostingService abstraction boundary (3 new files + 8 edited files)
+
+Work Log:
+- Created `src/lib/posting-service-types.ts` — pure types (FailureKind, PostResult, CookieAuthStatus, PostingService), zero imports, zero runtime
+- Created `src/lib/x-posting-service.ts` — X implementation with FAILURE_MAP (7 ErrorClass → 3 FailureKind), exhaustiveness checks, classifyFailure(), createXPostingService() factory
+- Created `src/lib/posting-service.ts` — singleton postingService + type re-exports (THE ONLY file business logic imports from)
+- Edited `src/lib/circuit-breaker.ts` — Changed `ErrorClass` import → `FailureKind`, `recordPostFailure(errorClass: ErrorClass)` → `recordPostFailure(failureKind: FailureKind)`, 4-OR skip condition → `!== 'transient'` (CC: -3)
+- Edited `src/lib/execute-post.ts` — Sealed 4 leakage points: import swap, method type widening, `errorClass === 'duplicate_posted'` → `failureKind === 'duplicate'`, `?? 'terminal'` → `?? 'transient'`, exception path `'terminal'` → `'transient'`
+- Edited `src/app/api/test-x/route.ts` — Sealed 3 leakage points: import swap, getAuthStatus/post call, failureKind
+- Edited `src/app/api/autopost/route.ts` — Sealed 1 leakage point: import + getAuthStatus call
+- Edited `src/app/api/admin/clear-cache/route.ts` — Sealed 1 leakage point: import + clearCaches call
+- Edited `src/app/api/admin/stats/route.ts` — Sealed 1 leakage point: import + getAuthStatus call
+- Edited `src/types/index.ts` — PostMethodResult widened to string, CookieAuthStatus re-exported from posting-service-types (with import type for local binding)
+- Edited `src/lib/twitter-post-cookie.ts` — Fixed tryApiFallback pre-existing bug: added `directErrorClass` parameter, propagated through fallbackOrFail and retry loop exit path, added `lastErrorClass` tracking in retry loop, added `errorClass` to direct-mode-only dead-code return
+- Fixed compilation errors: FallbackResult doesn't have errorClass (simplified to directErrorClass only), CookieAuthStatus re-export needed local import type binding
+- Verified: `tsc --noEmit` passes clean (0 errors), `bun run lint` passes clean
+
+Stage Summary:
+- 3 new files created, 8 existing files modified
+- CC delta: -3 (circuit-breaker) + 8 (x-posting-service) = net +5
+- 10 leakage points sealed (all ErrorClass/twitter-post-cookie direct imports removed from business logic)
+- 2 bugs fixed: tryApiFallback missing errorClass propagation, L329 'terminal' compile error
+- Zero backward-compat shims, zero duplication, zero cycles
+- Behavioral equivalence verified for all 7 ErrorClass values in CB skip logic
+
 Task ID: 1.3
 Agent: main
 Task: Phase 1.3 — ENCRYPTION_KEY warning on missing key

@@ -1,4 +1,4 @@
-import { clearAllCaches } from '@/lib/twitter-post-cookie'
+import { postingService } from '@/lib/posting-service'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { withAdmin } from '@/lib/admin-auth'
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // Deleting DB rows forces a fresh GitHub fetch on next post.
 // Useful when X updates their frontend and cached data becomes stale.
 export const POST = withAdmin(async (_req: NextRequest) => {
-  await clearAllCaches()
+  await postingService.clearCaches()
   invalidateFilterSettingsCache()
 
   return NextResponse.json({

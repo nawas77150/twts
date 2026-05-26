@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { upsertSetting } from '@/lib/db-helpers'
 import { debug } from '@/lib/debug'
-import type { ErrorClass } from '@/lib/twitter-post-error'
+import type { FailureKind } from '@/lib/posting-service-types'
 
 // Circuit breaker protects against cascading X API failures.
 // After N consecutive post failures within a configurable time window,
@@ -201,14 +201,14 @@ export async function recordPostSuccess(): Promise<void> {
  * failures occur while the circuit is already paused.
  */
 export async function recordPostFailure(
-  errorClass: ErrorClass,
+  failureKind: FailureKind,
   rateLimits?: { circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }
 ): Promise<void> {
-  // Don't count these toward circuit breaker:
-  // - auth_failure / rate_limit / stealth_ban: need admin intervention, not cooldown
-  // - duplicate_posted: the tweet IS on X (phantom success), not a real failure
-  if (errorClass === 'auth_failure' || errorClass === 'rate_limit' || errorClass === 'stealth_ban' || errorClass === 'duplicate_posted') {
-    debug('circuit-breaker', 'Skipping failure record —', errorClass, '(requires admin intervention)')
+  // Skip non-transient failures — they need admin intervention, not cooldown.
+  // 'permanent' (auth_failure, rate_limit, stealth_ban) and 'duplicate' (phantom success)
+  // are not real transient failures that cooldown would fix.
+  if (failureKind !== 'transient') {
+    debug('circuit-breaker', 'Skipping failure record —', failureKind, '(requires admin intervention)')
     return
   }
 

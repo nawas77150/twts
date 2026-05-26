@@ -17,7 +17,7 @@
 // ============================================================
 
 import { db } from '@/lib/db'
-import { postTweetViaCookie } from '@/lib/twitter-post-cookie'
+import { postingService } from '@/lib/posting-service'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
 import { recordPostSuccess, recordPostFailure } from '@/lib/circuit-breaker'
 import { getStartOfTodayWIB } from '@/lib/constants'
@@ -166,7 +166,7 @@ export interface ExecutePostResult {
   success: boolean
   tweetId?: string
   error?: string
-  method?: 'direct' | 'retry' | 'fallback_cookie' | 'fallback_login'
+  method?: string
   retriesUsed?: number
 
   // Lifecycle flags — callers use these to determine HTTP status + response shape
@@ -249,7 +249,7 @@ export async function executePostAndRecord(
 
     // ── 5. Post to X ───────────────────────────────────
     try {
-      const tweetResult = await postTweetViaCookie(message)
+      const tweetResult = await postingService.post(message)
 
       if (tweetResult.success) {
         debug('execute-post', 'Post succeeded! tweetId:', tweetResult.tweetId, 'method:', tweetResult.method)
@@ -288,7 +288,7 @@ export async function executePostAndRecord(
         })
       } else {
         // Post failed — check for phantom success before marking as failed
-        if (tweetResult.errorClass === 'duplicate_posted') {
+        if (tweetResult.failureKind === 'duplicate') {
           const recovered = await handleDuplicatePosted(submissionId)
           if (recovered) {
             return await releaseAndReturn({
@@ -308,7 +308,7 @@ export async function executePostAndRecord(
         })
 
         // Record failure for circuit breaker
-        try { await recordPostFailure(tweetResult.errorClass ?? 'terminal', rateLimits) } catch { /* best effort */ }
+        try { await recordPostFailure(tweetResult.failureKind ?? 'transient', rateLimits) } catch { /* best effort */ }
 
         return await releaseAndReturn({
           success: false,
@@ -326,7 +326,7 @@ export async function executePostAndRecord(
         data: { status: 'post_failed', postError: errorMsg },
       })
 
-      try { await recordPostFailure('terminal', rateLimits) } catch { /* best effort */ }
+      try { await recordPostFailure('transient', rateLimits) } catch { /* best effort */ }
 
       return await releaseAndReturn({ success: false, error: errorMsg })
     }

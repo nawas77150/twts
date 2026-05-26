@@ -120,9 +120,10 @@ async function waitBeforeRetry(failedAttempt: number): Promise<void> {
 async function tryApiFallback(opts: {
   text: string
   directError?: string
+  directErrorClass?: ErrorClass
   retriesUsed?: number
 }): Promise<TweetResult> {
-  const { text, directError, retriesUsed = 0 } = opts
+  const { text, directError, directErrorClass, retriesUsed = 0 } = opts
   // Layer 2: Cookie-based API (300 credits)
   debug('direct', 'Trying Layer 2: Cookie API fallback')
   const cookieResult = await postViaCookieApi(text)
@@ -157,6 +158,7 @@ async function tryApiFallback(opts: {
     return {
       success: false,
       error: combinedError,
+      errorClass: directErrorClass,
       method: v2Result.method,
       retriesUsed,
     }
@@ -169,6 +171,7 @@ async function tryApiFallback(opts: {
   return {
     success: false,
     error: combinedError,
+    errorClass: directErrorClass,
     method: cookieResult.method,
     retriesUsed,
   }
@@ -191,7 +194,7 @@ async function fallbackOrFail(opts: {
     return { success: false, error, errorClass, method, retriesUsed }
   }
   debug('direct', 'Direct posting failed, trying API fallback:', error.slice(0, 100))
-  return tryApiFallback({ text, directError: error, retriesUsed })
+  return tryApiFallback({ text, directError: error, directErrorClass: errorClass, retriesUsed })
 }
 
 // ── Main posting function ──
@@ -279,6 +282,7 @@ export async function postTweetViaCookie(
   // 5-7. Resolve queryId + features + make request + parse response
   // Retry loop: up to MAX_DIRECT_ATTEMPTS, delay happens right after each failure
   let lastError = ''
+  let lastErrorClass: ErrorClass | undefined
 
   // Resolve CreateTweet spec ONCE before the loop (re-resolve on stale cache retry)
   let spec = await getCreateTweetSpec(settings)
@@ -332,6 +336,7 @@ export async function postTweetViaCookie(
         lastError = `X API returned HTTP ${response.status}: ${errorText.slice(0, 200)}`
 
         const ec = classifyError(lastError)
+        lastErrorClass = ec
         const decision = shouldRetry(attempt, ec)
         if (decision === 'clear_and_continue') {
           await clearAllCaches()
@@ -359,6 +364,7 @@ export async function postTweetViaCookie(
 
       if (outcome.kind === 'empty_results') {
         lastError = 'Empty tweet_results — X silently rejected the tweet'
+        lastErrorClass = 'transient'
         if (attempt < MAX_DIRECT_ATTEMPTS - 1) {
           await waitBeforeRetry(attempt)
           continue
@@ -368,6 +374,7 @@ export async function postTweetViaCookie(
 
       if (outcome.kind === 'graphql_error') {
         lastError = outcome.error
+        lastErrorClass = outcome.errorClass
         const decision = shouldRetry(attempt, outcome.errorClass)
         if (decision === 'clear_and_continue') {
           await clearAllCaches()
@@ -384,9 +391,11 @@ export async function postTweetViaCookie(
 
       // unknown_failure
       lastError = `Tweet was not created. Response: ${JSON.stringify(outcome.body).slice(0, 300)}`
+      lastErrorClass = 'terminal'
       return fallbackOrFail({ text, postMethod, error: lastError, errorClass: 'terminal', method: methodLabel(attempt), retriesUsed: attempt })
     } catch (error) {
       lastError = `Network error: ${error instanceof Error ? error.message : String(error)}`
+      lastErrorClass = 'transient'
       // Network errors are transient — wait then retry
       if (attempt < MAX_DIRECT_ATTEMPTS - 1) {
         await waitBeforeRetry(attempt)
@@ -401,13 +410,14 @@ export async function postTweetViaCookie(
   // All direct retries exhausted — try API fallback (if auto mode)
   if (postMethod === 'auto') {
     debug('direct', 'All retries exhausted, falling back to API')
-    return tryApiFallback({ text, directError: lastError, retriesUsed: MAX_DIRECT_ATTEMPTS })
+    return tryApiFallback({ text, directError: lastError, directErrorClass: lastErrorClass, retriesUsed: MAX_DIRECT_ATTEMPTS })
   }
 
   // Direct mode only — no fallback
   return {
     success: false,
     error: `Post gagal setelah ${MAX_DIRECT_ATTEMPTS} percobaan. Coba lagi dalam 1-2 menit atau ubah ke mode Auto untuk fallback API.`,
+    errorClass: lastErrorClass,
     method: 'retry',
     retriesUsed: MAX_DIRECT_ATTEMPTS,
   }

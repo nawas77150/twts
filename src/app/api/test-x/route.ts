@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { postTweetViaCookie, getCookieAuthStatus } from '@/lib/twitter-post-cookie'
+import { postingService } from '@/lib/posting-service'
 import { verifyAdmin, getAdminTokenFromRequest } from '@/lib/admin-auth'
 import { debug } from '@/lib/debug'
 import { acquirePostingLock, releasePostingLock } from '@/lib/posting-lock'
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Check cookie auth (posting)
-  const cookieAuthStatus = await getCookieAuthStatus()
+  const cookieAuthStatus = await postingService.getAuthStatus()
 
   return NextResponse.json({
     oauth2: oauth2Status,
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await postTweetViaCookie(testText)
+    const result = await postingService.post(testText)
     debug('test-x', 'Test post result:', { success: result.success, tweetId: result.tweetId, method: result.method, retriesUsed: result.retriesUsed, error: result.error?.slice(0, 100) })
 
     // Update circuit breaker state
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     } else {
       try {
         const settings = await getFilterSettings()
-        await recordPostFailure(result.errorClass ?? 'terminal', settings.rateLimits)
+        await recordPostFailure(result.failureKind ?? 'transient', settings.rateLimits)
       } catch { /* best effort */ }
     }
 

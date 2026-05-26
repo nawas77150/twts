@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { executePostAndRecord, createCooldownWindowChecks } from '@/lib/execute-post'
 import { isCircuitBreakerPaused, getCircuitBreakerStatus } from '@/lib/circuit-breaker'
-import { getCookieAuthStatus } from '@/lib/twitter-post-cookie'
+import { postingService } from '@/lib/posting-service'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { decodeHtmlEntities } from '@/lib/content-filter'
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     // Pre-flight check avoids wasted lock acquisition + CAS cycling
     // when cookie/bearer are not set. These failures are 'auth_failure'
     // (handled by Change 1) but skipping them entirely saves DB writes.
-    const authStatus = await getCookieAuthStatus()
+    const authStatus = await postingService.getAuthStatus()
     if (!authStatus.configured) {
       return cronJson({
         processed: false,
