@@ -117,10 +117,10 @@ export function extractAnimationFrames(html: string, keyBytes: number[]): number
   }
 
   // Select frame based on keyBytes[5] % 4
-  /* eslint-disable @typescript-eslint/no-non-null-assertion */
+  /* eslint-disable @typescript-eslint/no-non-null-assertion, security/detect-object-injection -- integer array index */
   const frameIndex = keyBytes[5]! % Math.min(frames.length, 4)
   const frameContent = frames[frameIndex]!
-  /* eslint-enable @typescript-eslint/no-non-null-assertion */
+  /* eslint-enable @typescript-eslint/no-non-null-assertion, security/detect-object-injection */
 
   // Navigate: first child's second child's "d" attribute
   // Reference (DOM): frame.children[0].children[1].getAttribute("d")
@@ -184,12 +184,12 @@ export function computeAnimationKey(
   const totalTime = 4096
 
   // Compute row index
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, security/detect-object-injection -- integer array index
   const actualRowIndex = keyBytes[rowIndex]! % 16
 
   // Compute frame time
   let frameTime = keyBytesIndices.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, security/detect-object-injection -- integer array index
     (product, idx) => product * (keyBytes[idx]! % 16),
     1
   )
@@ -197,10 +197,12 @@ export function computeAnimationKey(
 
   // Get 2D array from SVG
   const arr = extractAnimationFrames(html, keyBytes)
+  // eslint-disable-next-line security/detect-object-injection -- integer array index
   if (!arr[actualRowIndex]) {
     throw new Error(`Animation frame row ${actualRowIndex} not found`)
   }
 
+  // eslint-disable-next-line security/detect-object-injection -- integer array index
   const frameRow = arr[actualRowIndex]
   const targetTime = frameTime / totalTime
 

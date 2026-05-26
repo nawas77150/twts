@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
 import type { Stats } from '@/types'
 import { STATUS_CONFIG } from '@/lib/format'
+import { safeAccess } from '@/lib/utils'
 
 interface SubmissionFiltersProps {
   filterStatus: string
@@ -48,7 +49,7 @@ export function SubmissionFilters({
           >
             {status === 'all'
               ? 'Semua'
-              : STATUS_CONFIG[status].label}
+              : safeAccess(STATUS_CONFIG, status).label}
             {statusCount != null && statusCount > 0 && (
               <span
                 className={`text-[10px] ${

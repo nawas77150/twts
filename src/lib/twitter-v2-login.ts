@@ -238,6 +238,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
 
   for (let i = 0; i < apiKeys.length; i++) {
     const keyIndex = (startIndex + i) % apiKeys.length
+    // eslint-disable-next-line security/detect-object-injection -- integer array index
     const apiKey = apiKeys[keyIndex]
 
     try {

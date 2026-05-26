@@ -7,6 +7,7 @@
 // ============================================================
 
 import { parseApiKeys, maskProxyUrl } from './twitter-api-shared'
+import { safeGet } from '@/lib/utils'
 
 // --- Constants ---
 
@@ -25,7 +26,7 @@ const LOGIN_COOKIE_ERROR_SUBSTRINGS = [
 
 /** Check which keys are missing (empty/undefined) from a settings map */
 export function getMissingCredentialKeys(settings: Record<string, string>, keys: string[]): string[] {
-  return keys.filter(k => !settings[k])
+  return keys.filter(k => !safeGet(settings, k))
 }
 
 // --- Cookie API Readiness ---

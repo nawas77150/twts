@@ -125,7 +125,7 @@ export function checkBlockedWords(
   // without false positives on unrelated adjacent words like "ikon tol".
   const tokenSet = new Set<string>(words)
   for (let i = 0; i < words.length - 1; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, security/detect-object-injection -- integer array index
     tokenSet.add(words[i]! + words[i + 1]!)
   }
 

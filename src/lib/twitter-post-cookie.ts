@@ -99,6 +99,7 @@ const RETRY_DELAYS = [1000, 2000, 4000]
  *   After attempt 2 fails: ~4s  (3000-6000ms)
  */
 async function waitBeforeRetry(failedAttempt: number): Promise<void> {
+  // eslint-disable-next-line security/detect-object-injection -- integer array index with fallback
   const base = RETRY_DELAYS[failedAttempt] ?? 4000
   const jitter = Math.round(base * (0.8 + crypto.randomInt(501) / 1000)) // 80%-130%
   debug('direct', 'Attempt', failedAttempt, 'failed — waiting', jitter, 'ms before retry')

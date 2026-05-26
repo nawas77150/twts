@@ -13,6 +13,8 @@
 // Common cross-script homoglyphs that NFKC doesn't catch.
 // These are visually identical but have different codepoints.
 
+import { safeGet } from '@/lib/utils'
+
 const HOMOGLYPH_MAP: Record<string, string> = {
   // Cyrillic → Latin
   '\u0430': 'a', // а → a
@@ -110,7 +112,7 @@ export function normalizeText(text: string): string {
     // 5. Replace homoglyphs (Cyrillic/Greek → Latin)
     //    \P{ASCII} matches non-ASCII — semantically identical to [^\u0000-\u007F]
     //    but avoids referencing control character code points (Vercel HIGH warning).
-    .replace(/\P{ASCII}/gu, (ch) => HOMOGLYPH_MAP[ch] || ch)
+    .replace(/\P{ASCII}/gu, (ch) => safeGet(HOMOGLYPH_MAP, ch) || ch)
     // 6. Lowercase — ensures case-insensitive duplicate detection and
     //    consistent blocked word matching (prevents bypass by toggling case)
     .toLowerCase()

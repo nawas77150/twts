@@ -89,7 +89,7 @@ export class Cubic {
 }
 
 export function interpolate(from: number[], to: number[], val: number): number[] {
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, security/detect-object-injection -- integer array index
   return from.map((f, i) => f + (to[i]! - f) * val)
 }
 

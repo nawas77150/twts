@@ -17,6 +17,7 @@ export function getEffectiveLimit(
   globalValue: number
 ): number {
   if (customLimits && typeof customLimits === 'object' && !Array.isArray(customLimits)) {
+    // eslint-disable-next-line security/detect-object-injection -- key is keyof PerUserLimits (compile-time constrained)
     const override = (customLimits as Record<string, unknown>)[key]
     if (typeof override === 'number' && override >= 0) return override
   }
@@ -51,6 +52,7 @@ export function hasCustomLimits(customLimits: unknown): boolean {
   }
   const obj = customLimits as Record<string, unknown>
   return PER_USER_LIMIT_KEYS.some(key => {
+    // eslint-disable-next-line security/detect-object-injection -- key from PER_USER_LIMIT_KEYS constant
     const val = obj[key]
     return typeof val === 'number' && val >= 0
   })

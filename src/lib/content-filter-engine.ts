@@ -13,6 +13,7 @@
 // ============================================================
 
 import { checkBlockedWords, DEFAULT_SELF_HARM_KEYWORDS, DEFAULT_CSAM_SEXUAL_TERMS, DEFAULT_CSAM_AGE_INDICATORS, DEFAULT_SOLICITATION_SEXUAL_TERMS, DEFAULT_SOLICITATION_PAYMENT_TERMS } from './content-filter-blocked'
+import { safeGet } from '@/lib/utils'
 import {
   checkJualan,
   checkUrls,
@@ -204,6 +205,7 @@ export function runContentFilter(
   // Merge always-on rules with user-configurable rules
   const effectiveRules = { ...rules }
   for (const key of ALWAYS_ON_RULES) {
+    // eslint-disable-next-line security/detect-object-injection -- key is keyof FilterRules from ALWAYS_ON_RULES constant
     effectiveRules[key] = true // Always-on rules cannot be disabled
   }
 
@@ -263,7 +265,7 @@ export function getRejectionMessage(reasons: string[]): string {
   for (const reason of reasons) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const prefix = reason.includes(':') ? reason.split(':')[0]! : reason
-    const msg = REJECTION_MESSAGES[prefix] ?? ''
+    const msg = safeGet(REJECTION_MESSAGES, prefix) ?? ''
     if (msg) messages.push(msg)
   }
 

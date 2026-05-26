@@ -223,6 +223,7 @@ export function cookieStringToLoginCookies(cookieString: string): string | null 
     const key = trimmed.slice(0, eqIdx).trim()
     const value = trimmed.slice(eqIdx + 1).trim()
     if (key && value) {
+      // eslint-disable-next-line security/detect-object-injection -- key parsed from cookie string (write, not read)
       cookies[key] = value
     }
   }

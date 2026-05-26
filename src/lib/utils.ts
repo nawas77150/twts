@@ -24,6 +24,7 @@ export function getErrorMessage(err: unknown, fallback = 'Unknown error'): strin
  */
 export function safeAccess<T extends object, K extends keyof T>(obj: T, key: K): T[K] {
   const ownKeys = Object.keys(obj) as K[]
+  // eslint-disable-next-line security/detect-object-injection -- this function IS the key validation
   if (ownKeys.includes(key)) return obj[key]
   throw new Error(`Invalid key: ${String(key)}`)
 }
@@ -40,5 +41,6 @@ export function safeAccess<T extends object, K extends keyof T>(obj: T, key: K):
  * preventing prototype-chain traversal (__proto__, constructor, etc.).
  */
 export function safeGet<T>(obj: Record<string, T>, key: string): T | undefined {
+  // eslint-disable-next-line security/detect-object-injection -- Object.hasOwn validates before access
   return Object.hasOwn(obj, key) ? obj[key] : undefined
 }

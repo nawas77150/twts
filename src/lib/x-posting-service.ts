@@ -49,6 +49,7 @@ void _outputExhaustive
 
 /** Classify an X error into a failure kind for the posting abstraction. */
 function classifyFailure(errorClass?: ErrorClass): FailureKind {
+  // eslint-disable-next-line security/detect-object-injection -- errorClass is ErrorClass union type (compile-time constrained)
   return errorClass ? FAILURE_MAP[errorClass] : 'transient'
 }
 
