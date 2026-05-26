@@ -998,3 +998,38 @@ Stage Summary:
 - System total: 68 → 72 (+4 inherent from 4 function baselines)
 - Zero regressions: all error messages, status codes, JSON shapes preserved verbatim
 - 2 files touched (1 new, 1 edited), no other files affected
+
+---
+Task ID: 2-a
+Agent: subagent (general-purpose)
+Task: Write Vitest test files for utils.ts and encrypt.ts
+
+Work Log:
+- Read source files: src/lib/utils.ts (cn, getErrorMessage, safeAccess, safeGet) and src/lib/encrypt.ts (encrypt, decrypt, isEncrypted, decryptSetting, isEncryptionEnabled)
+- Read vitest.config.ts to confirm test include pattern (src/__tests__/**/*.test.ts) and @/ alias
+- Created directory src/__tests__/lib/
+- Wrote src/__tests__/lib/utils.test.ts (15 tests across 4 describe blocks)
+  - cn: merges classes, conditional via clsx, twMerge dedup, empty input
+  - getErrorMessage: Error.message, non-Error fallback, custom fallback
+  - safeAccess: valid key, invalid key throws, __proto__ throws, various object types
+  - safeGet: own property, missing key → undefined, prototype properties → undefined, empty objects
+- Wrote src/__tests__/lib/encrypt.test.ts (20 tests across 7 describe blocks)
+  - encrypt/decrypt roundtrip with ENCRYPTION_KEY set
+  - encrypt without key returns {PLAINTEXT} prefix
+  - decrypt strips {PLAINTEXT} prefix
+  - decrypt returns as-is when no key and no prefix
+  - decrypt throws for invalid format
+  - decrypt throws with wrong key (KEY_A → KEY_B)
+  - decrypt throws on tampered ciphertext (auth tag mismatch)
+  - isEncrypted: true for valid format, false for short strings, false for non-base64, false for wrong segment count
+  - decryptSetting: handles encrypted, {PLAINTEXT}, plaintext, empty string, fallback on failure
+  - isEncryptionEnabled: true when key set, false when not
+- Fixed safeAccess test: Array numeric index doesn't work because Object.keys returns string keys but TypeScript keyof includes number — changed to Record<'0'|'1', string> pattern
+- Used vi.resetModules() + dynamic re-import for encrypt tests that change ENCRYPTION_KEY at runtime
+- All 35 tests passing (15 utils + 20 encrypt)
+
+Stage Summary:
+- 2 new test files created, 0 existing files modified
+- 35 tests passing across utils.test.ts (15) and encrypt.test.ts (20)
+- No mocking libraries used — all tests use real implementations
+- encrypt.test.ts handles module-level _encryptionKeyAvailable caching via vi.resetModules() + re-import

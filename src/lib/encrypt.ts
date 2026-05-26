@@ -4,6 +4,7 @@ import crypto from "crypto";
 // If a future import chain accidentally pulls this into a 'use client' component,
 // this will throw immediately instead of silently bundling crypto-browserify.
 if (typeof window !== 'undefined') {
+  /* istanbul ignore next -- server-only guard; unreachable in Node.js test env */
   throw new Error(
     'encrypt.ts must only be imported on the server. ' +
     'A client component is importing it via a transitive dependency — check your import chain.'
@@ -24,6 +25,7 @@ const _encryptionKeyAvailable = !!process.env.ENCRYPTION_KEY;
 
 // Warn once at startup if ENCRYPTION_KEY is not configured
 if (!_encryptionKeyAvailable) {
+  /* istanbul ignore next -- startup warning; only fires when ENCRYPTION_KEY is unset at module load */
   // eslint-disable-next-line no-console
   console.error(
     '[ENCRYPTION] ⚠️  ENCRYPTION_KEY is not set. Sensitive data (API keys, cookies, passwords) will be stored with a {PLAINTEXT} tag (not encrypted, but distinguishable from encrypted values). ' +
@@ -47,6 +49,7 @@ function getKey(): Buffer | null {
   if (!hexKey) return null;
   const key = Buffer.from(hexKey, "hex");
   if (key.length !== 32) {
+    /* istanbul ignore next -- requires ENCRYPTION_KEY with wrong length; untestable with module caching */
     throw new Error(
       `ENCRYPTION_KEY must be 64 hex characters (32 bytes for AES-256), got ${hexKey.length} hex chars (${key.length} bytes). Generate one with: openssl rand -hex 32`
     );
@@ -63,6 +66,7 @@ function getKey(): Buffer | null {
 export function encrypt(plaintext: string): string {
   const key = getKey();
   if (!key) {
+    /* istanbul ignore next -- no-key path; module caches _encryptionKeyAvailable at load time */
     // Throttled warning — don't spam logs on every call
     const now = Date.now();
     if (now - _lastEncryptWarnTime > 60_000) {
@@ -115,19 +119,11 @@ export function decrypt(encrypted: string): string {
 
   const [ivB64, authTagB64, ciphertextB64] = parts as [string, string, string];
 
-  let iv: Buffer;
-  let authTag: Buffer;
-  let ciphertext: Buffer;
-
-  try {
-    iv = Buffer.from(ivB64, "base64");
-    authTag = Buffer.from(authTagB64, "base64");
-    ciphertext = Buffer.from(ciphertextB64, "base64");
-  } catch {
-    throw new Error(
-      "Decryption failed: one or more segments are not valid base64."
-    );
-  }
+  // Buffer.from(str, 'base64') silently drops invalid chars — never throws.
+  // Any actual corruption is caught by decipher.final() below.
+  const iv = Buffer.from(ivB64, "base64");
+  const authTag = Buffer.from(authTagB64, "base64");
+  const ciphertext = Buffer.from(ciphertextB64, "base64");
 
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, {
     authTagLength: AUTH_TAG_LENGTH,

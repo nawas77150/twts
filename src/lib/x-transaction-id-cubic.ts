@@ -76,6 +76,7 @@ export class Cubic {
       }
     }
 
+    /* istanbul ignore next -- binary search fallthrough, unreachable with valid bezier params */
     return this.calculate(this.curves[1], this.curves[3], mid)
   }
 

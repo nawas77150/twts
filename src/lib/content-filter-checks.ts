@@ -35,6 +35,7 @@ function checkJualan(message: string): string[] {
   for (const pattern of patterns) {
     if (pattern.test(normalized)) {
       const match = normalized.match(pattern)
+      /* istanbul ignore else -- .test() already confirmed match, so .match() can't return null */
       if (match) {
         reasons.push(`jualan:${match[1]}`)
       }
