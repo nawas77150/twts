@@ -48,7 +48,15 @@ import {
   maskApiKey,
   maskProxyUrl,
   extractTweetId,
+  LOGIN_CREDENTIAL_KEYS,
 } from './twitter-api-shared'
+import {
+  V2_LOGIN_FIELDS,
+  getMissingCredentialKeys,
+  getCookieApiReadiness,
+  isLoginCookieError,
+  maskLoginSettings,
+} from './twitter-v2-login-helpers'
 
 // --- Login Cookie Caching ---
 
@@ -77,22 +85,10 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
   const settings = await getApiSettings()
 
   // Debug: log what we're sending (mask sensitive values)
-  debug('twitterapi', 'loginViaTwitterApi settings:', {
-    x_username: settings.x_username || '(missing)',
-    x_email: settings.x_email ? settings.x_email.slice(0, 3) + '***' : '(missing)',
-    x_password: settings.x_password ? `(${settings.x_password.length} chars)` : '(missing)',
-    x_totp_secret: settings.x_totp_secret ? `(${settings.x_totp_secret.length} chars)` : '(missing)',
-    twitterapi_proxy: settings.twitterapi_proxy ? maskProxyUrl(settings.twitterapi_proxy) : '(missing)',
-    twitterapi_keys: settings.twitterapi_keys ? '(present)' : '(missing)',
-  })
+  debug('twitterapi', 'loginViaTwitterApi settings:', maskLoginSettings(settings))
 
   // Validate all required fields
-  const missing: string[] = []
-  if (!settings.x_username) missing.push('x_username')
-  if (!settings.x_email) missing.push('x_email')
-  if (!settings.x_password) missing.push('x_password')
-  if (!settings.x_totp_secret) missing.push('x_totp_secret')
-  if (!settings.twitterapi_proxy) missing.push('twitterapi_proxy')
+  const missing = getMissingCredentialKeys(settings, V2_LOGIN_FIELDS)
 
   if (missing.length > 0) {
     return {
@@ -237,6 +233,7 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
   // Round-robin through API keys
   const startIndex = await getRotationIndex()
   let lastApiError = '' // Capture the actual error for diagnostics
+  let didReLogin = false // Gate: only re-login once per call to avoid credit waste
 
   for (let i = 0; i < apiKeys.length; i++) {
     const keyIndex = (startIndex + i) % apiKeys.length
@@ -278,13 +275,9 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
 
       // login_cookies expired/invalid → re-login, update cookie, continue key rotation
       // Only match specific login_cookie errors — broad matches cause false positives
-      if (
-        errorMsg.includes('login_cookies is not valid') ||
-        errorMsg.includes('login_cookies is required') ||
-        errorMsg.includes('login_cookie is not valid') ||
-        errorMsg.includes('login_cookie is required')
-      ) {
+      if (isLoginCookieError(errorMsg) && !didReLogin) {
         const loginResult = await loginViaTwitterApi()
+        didReLogin = true
         if (!loginResult.success || !loginResult.loginCookie) {
           return {
             success: false,
@@ -337,33 +330,11 @@ export async function getApiLoginStatus(): Promise<{
   const settings = await getApiSettings()
 
   const hasLoginCookie = !!settings.twitterapi_login_cookie
-  const hasCredentials = !!(
-    settings.x_username &&
-    settings.x_email &&
-    settings.x_password &&
-    settings.x_totp_secret &&
-    settings.twitterapi_proxy &&
-    settings.twitterapi_keys
-  )
-
-  const missingCredentials: string[] = []
-  if (!settings.x_username) missingCredentials.push('x_username')
-  if (!settings.x_email) missingCredentials.push('x_email')
-  if (!settings.x_password) missingCredentials.push('x_password')
-  if (!settings.x_totp_secret) missingCredentials.push('x_totp_secret')
-  if (!settings.twitterapi_proxy) missingCredentials.push('twitterapi_proxy')
-  if (!settings.twitterapi_keys) missingCredentials.push('twitterapi_keys')
+  const missingCredentials = getMissingCredentialKeys(settings, LOGIN_CREDENTIAL_KEYS)
+  const hasCredentials = missingCredentials.length === 0
 
   // Cookie API readiness (Layer 2)
-  const hasCookieString = !!settings.x_cookie_string
-  const hasProxy = !!settings.twitterapi_proxy
-  const apiKeys = parseApiKeys(settings.twitterapi_keys)
-  const hasApiKeys = apiKeys.length > 0
-  const cookieApiReady = hasCookieString && hasProxy && hasApiKeys
-  const cookieApiMissing: string[] = []
-  if (!hasCookieString) cookieApiMissing.push('x_cookie_string')
-  if (!hasProxy) cookieApiMissing.push('twitterapi_proxy')
-  if (!hasApiKeys) cookieApiMissing.push('twitterapi_keys')
+  const { ready: cookieApiReady, missing: cookieApiMissing } = getCookieApiReadiness(settings)
 
   // V2 login toggle
   const v2LoginEnabled = settings.v2_login_enabled === 'true'
