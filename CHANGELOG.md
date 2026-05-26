@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/james2256/tweetfess/compare/v1.4.2...v1.4.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* stale cache retry, post cap updatedAt, decrypt fallback, V2 re-login rotation, pair-dict refetch loop, credits cache, 403 duplicate toast, autopost starvation ([d30e6cb](https://github.com/james2256/tweetfess/commit/d30e6cb49406aea0670cd04eb82daed932b21a11))
+
 ## [1.4.2](https://github.com/james2256/tweetfess/compare/v1.4.1...v1.4.2) (2026-05-25)
 
 
