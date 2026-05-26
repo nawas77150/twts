@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/james2256/tweetfess/compare/v1.4.3...v1.5.0) (2026-05-26)
+
+
+### Features
+
+* add eslint-plugin-security, fix object-injection and exhaustive-deps findings ([529fd49](https://github.com/james2256/tweetfess/commit/529fd49e0b6fd56101ffecfadfb4cab6d6137afa))
+* strict TS config, hardened ESLint, and security header improvements ([9ea3c9d](https://github.com/james2256/tweetfess/commit/9ea3c9da313bc0bee9579ba66ac3a6f9cfa42436))
+
+
+### Bug Fixes
+
+* introduce PostingService abstraction to decouple business logic from X internals ([f7f023c](https://github.com/james2256/tweetfess/commit/f7f023c8bc3739f576c2240f60621f09e452a318))
+
 ## [1.4.3](https://github.com/james2256/tweetfess/compare/v1.4.2...v1.4.3) (2026-05-26)
 
 
