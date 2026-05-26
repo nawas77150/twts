@@ -18,7 +18,7 @@ const ENABLED_NAMESPACES = DEBUG_ALL ? null : new Set(DEBUG_ENV.split(',').map(s
 function isNamespaceEnabled(namespace: string): boolean {
   if (!DEBUG_ENV) return false
   if (DEBUG_ALL) return true
-  return ENABLED_NAMESPACES!.has(namespace)
+  return ENABLED_NAMESPACES?.has(namespace) ?? false
 }
 
 function timestamp(): string {

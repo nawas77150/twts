@@ -54,7 +54,8 @@ export function getClientIp(req: Request): string {
   // x-forwarded-for may contain multiple IPs — first is the client
   const forwarded = req.headers.get('x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return forwarded.split(',')[0]!.trim()
   }
   const realIp = req.headers.get('x-real-ip')
   if (realIp) {

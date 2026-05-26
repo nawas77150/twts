@@ -1,5 +1,5 @@
 import { withAdmin } from '@/lib/admin-auth'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/logout — Clear the HttpOnly admin cookie
 export const POST = withAdmin(async (_req: NextRequest) => {

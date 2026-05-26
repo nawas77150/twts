@@ -26,9 +26,9 @@
 // with negative control points produced by isOdd() returning -1.0.
 
 export class Cubic {
-  private curves: number[]
+  private curves: [number, number, number, number]
 
-  constructor(curves: number[]) {
+  constructor(curves: [number, number, number, number]) {
     this.curves = curves
   }
 
@@ -89,7 +89,8 @@ export class Cubic {
 }
 
 export function interpolate(from: number[], to: number[], val: number): number[] {
-  return from.map((f, i) => f + (to[i] - f) * val)
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return from.map((f, i) => f + (to[i]! - f) * val)
 }
 
 export function solve(value: number, minVal: number, maxVal: number, rounding: boolean): number {

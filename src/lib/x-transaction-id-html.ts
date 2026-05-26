@@ -36,7 +36,8 @@ export function extractSiteVerificationKey(html: string): string {
   if (!match) {
     throw new Error('Could not find twitter-site-verification meta tag')
   }
-  return match[1]
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return match[1]!
 }
 
 /**
@@ -52,8 +53,10 @@ export function extractOnDemandFileUrl(html: string): string {
   // Extract inline script contents using matchAll (fixes HIGH: assignment in expression)
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi
   for (const scriptMatch of html.matchAll(scriptRegex)) {
-    if (scriptMatch[1].includes(ON_DEMAND_CHUNK_NAME)) {
-      scriptBlocks.push(scriptMatch[1])
+      /* eslint-disable @typescript-eslint/no-non-null-assertion */
+    if (scriptMatch[1]!.includes(ON_DEMAND_CHUNK_NAME)) {
+      scriptBlocks.push(scriptMatch[1]!)
+      /* eslint-enable @typescript-eslint/no-non-null-assertion */
     }
   }
 
@@ -63,7 +66,8 @@ export function extractOnDemandFileUrl(html: string): string {
   for (const block of scriptBlocks) {
     const onDemandMatch = ON_DEMAND_FILE_HASH_REGEX.exec(block)
     if (onDemandMatch) {
-      return `https://abs.twimg.com/responsive-web/client-web/${ON_DEMAND_CHUNK_NAME}.${onDemandMatch[2]}a.js`
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return `https://abs.twimg.com/responsive-web/client-web/${ON_DEMAND_CHUNK_NAME}.${onDemandMatch[2]!}a.js`
     }
   }
 
@@ -80,14 +84,16 @@ export function extractOnDemandFileUrl(html: string): string {
 export function extractIndices(ondemandJs: string): [number, number[]] {
   const keyByteIndices: number[] = []
   for (const match of ondemandJs.matchAll(INDICES_REGEX)) {
-    keyByteIndices.push(parseInt(match[1], 10))
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    keyByteIndices.push(parseInt(match[1]!, 10))
   }
 
   if (keyByteIndices.length === 0) {
     throw new Error('Could not extract key byte indices from ondemand file')
   }
 
-  return [keyByteIndices[0], keyByteIndices.slice(1)]
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return [keyByteIndices[0]!, keyByteIndices.slice(1)]
 }
 
 /**
@@ -102,7 +108,8 @@ export function extractAnimationFrames(html: string, keyBytes: number[]): number
   const framePattern = /<svg[^>]*id=["']loading-x-anim-\d+["'][^>]*>([\s\S]*?)<\/svg>/gi
   const frames: string[] = []
   for (const frameMatch of html.matchAll(framePattern)) {
-    frames.push(frameMatch[1])
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    frames.push(frameMatch[1]!)
   }
 
   if (frames.length === 0) {
@@ -110,34 +117,41 @@ export function extractAnimationFrames(html: string, keyBytes: number[]): number
   }
 
   // Select frame based on keyBytes[5] % 4
-  const frameIndex = keyBytes[5] % Math.min(frames.length, 4)
-  const frameContent = frames[frameIndex]
+  /* eslint-disable @typescript-eslint/no-non-null-assertion */
+  const frameIndex = keyBytes[5]! % Math.min(frames.length, 4)
+  const frameContent = frames[frameIndex]!
+  /* eslint-enable @typescript-eslint/no-non-null-assertion */
 
   // Navigate: first child's second child's "d" attribute
   // Reference (DOM): frame.children[0].children[1].getAttribute("d")
   // That means: first <g> → second child <path> → "d" attribute
   const gMatch = frameContent.match(/<g[^>]*>([\s\S]*?)<\/g>/i)
   if (gMatch) {
-    const gContent = gMatch[1]
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const gContent = gMatch[1]!
     const pathRegex = /<path[^>]*\sd=["']([^"']+)["']/gi
     const paths: string[] = []
     // matchAll (fixes HIGH: assignment in expression)
     for (const pMatch of gContent.matchAll(pathRegex)) {
-      paths.push(pMatch[1])
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      paths.push(pMatch[1]!)
     }
     // Reference: children[1] → second path element
     if (paths.length >= 2) {
-      return parseDAttribute(paths[1])
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return parseDAttribute(paths[1]!)
     }
     if (paths.length === 1) {
-      return parseDAttribute(paths[0])
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return parseDAttribute(paths[0]!)
     }
   }
 
   // Fallback: find any path with "d" attribute directly in the SVG
   const pathMatch = frameContent.match(/<path[^>]*\sd=["']([^"']+)["']/i)
   if (pathMatch) {
-    return parseDAttribute(pathMatch[1])
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return parseDAttribute(pathMatch[1]!)
   }
 
   throw new Error('Could not extract SVG path data from animation frame')
@@ -170,11 +184,13 @@ export function computeAnimationKey(
   const totalTime = 4096
 
   // Compute row index
-  const actualRowIndex = keyBytes[rowIndex] % 16
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const actualRowIndex = keyBytes[rowIndex]! % 16
 
   // Compute frame time
   let frameTime = keyBytesIndices.reduce(
-    (product, idx) => product * (keyBytes[idx] % 16),
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    (product, idx) => product * (keyBytes[idx]! % 16),
     1
   )
   frameTime = Math.round(frameTime / 10) * 10
@@ -192,20 +208,22 @@ export function computeAnimationKey(
   const fromColor = [...frameRow.slice(0, 3), 1].map(Number)
   const toColor = [...frameRow.slice(3, 6), 1].map(Number)
   const fromRotation = [0.0]
-  const toRotation = [solve(frameRow[6], 60.0, 360.0, true)]
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const toRotation = [solve(frameRow[6]!, 60.0, 360.0, true)]
 
   const remainingFrames = frameRow.slice(7)
   const curves = remainingFrames.map((item, counter) =>
     solve(item, isOdd(counter), 1.0, false)
   )
 
-  const cubic = new Cubic(curves)
+  const cubic = new Cubic(curves as [number, number, number, number])
   const val = cubic.getValue(targetTime)
   const color = interpolate(fromColor, toColor, val).map((v) =>
     Math.max(0, v)
   )
   const rotation = interpolate(fromRotation, toRotation, val)
-  const matrix = convertRotationToMatrix(rotation[0])
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const matrix = convertRotationToMatrix(rotation[0]!)
 
   // Convert to hex string
   const strArr: string[] = color

@@ -28,7 +28,7 @@ export function isPrivateIP(hostname: string): boolean {
     return false
   }
 
-  const [a, b] = octets
+  const [a, b] = octets as [number, number, number, number]
 
   // Loopback 127.0.0.0/8
   if (a === 127) return true

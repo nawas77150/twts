@@ -79,9 +79,9 @@ export function useSettingsSync({
     if (!stats?.filterSettings) return
     if (!hasLoadedRef.current) return // skip during initial load (handled above)
     const { blockedUsernames, blockedReasons, whitelistUsernames } = stats.filterSettings
-    if (blockedUsernames) filterSettings.setBlockedUsernames(blockedUsernames)
-    if (blockedReasons) filterSettings.setBlockedReasons(blockedReasons)
-    if (whitelistUsernames) filterSettings.setWhitelistUsernames(whitelistUsernames)
+    filterSettings.setBlockedUsernames(blockedUsernames)
+    filterSettings.setBlockedReasons(blockedReasons)
+    filterSettings.setWhitelistUsernames(whitelistUsernames)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.filterSettings, filterSettings.setBlockedUsernames, filterSettings.setBlockedReasons, filterSettings.setWhitelistUsernames])
 }

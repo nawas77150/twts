@@ -35,21 +35,21 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
           <span className="flex items-center gap-1.5">
             <CircleDot
               className={`w-2.5 h-2.5 ${
-                cookieStatus?.configured
+                cookieStatus.configured
                   ? 'text-green-500 fill-green-500'
                   : 'text-red-500 fill-red-500'
               }`}
             />
             <span
               className={
-                cookieStatus?.configured
+                cookieStatus.configured
                   ? 'text-green-700 font-medium'
                   : 'text-red-600'
               }
             >
-              Direct: {cookieStatus?.configured ? 'Connected' : 'Not configured'}
+              Direct: {cookieStatus.configured ? 'Connected' : 'Not configured'}
             </span>
-            {cookieStatus?.source && (
+            {cookieStatus.source && (
               <span className="text-[#71767B]">
                 (via {cookieStatus.source === 'database' ? 'Database' : 'Env Var'})
               </span>
@@ -120,8 +120,7 @@ export function ConnectionBanner({ cookieStatus, apiLoginStatus }: ConnectionBan
           )}
 
           {/* Missing credentials warning */}
-          {cookieStatus?.missing &&
-            cookieStatus.missing.length > 0 &&
+          {cookieStatus.missing.length > 0 &&
             !cookieStatus.configured && (
               <>
                 <span className="text-[#71767B] hidden sm:inline">|</span>

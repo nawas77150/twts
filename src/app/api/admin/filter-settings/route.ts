@@ -10,7 +10,7 @@ import {
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { debugError } from '@/lib/debug'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 
 // Rate-limit settings: field name → DB key + clamp bounds

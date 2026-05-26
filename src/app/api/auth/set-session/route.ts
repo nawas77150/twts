@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/twitter-auth'
 import { db } from '@/lib/db'
 import { debugError } from '@/lib/debug'

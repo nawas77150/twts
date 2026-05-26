@@ -66,7 +66,7 @@ export function useSubmissions({ isAdmin }: UseSubmissionsParams) {
         status: (currentFilter === 'all' ? 'all' : currentFilter) as SubmissionStatus | 'all',
         page: p,
         limit: 50,
-        search: q || undefined,
+        ...(q && { search: q }),
       })
 
       // Discard stale response if a newer request was made

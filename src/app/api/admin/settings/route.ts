@@ -4,7 +4,7 @@ import { withAdmin } from '@/lib/admin-auth'
 import { invalidateCreditsCache } from '@/lib/twitter-api-credits'
 import { LOGIN_CREDENTIAL_KEYS } from '@/lib/twitter-api-shared'
 import { debugError } from '@/lib/debug'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import {
   VALID_KEYS,
   NON_ENCRYPTED_KEYS,

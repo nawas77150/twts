@@ -24,8 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import type { SubmitterWithStats } from '@/types'
-import { PER_USER_LIMIT_KEYS, PER_USER_LIMIT_LABELS, type PerUserLimits } from '@/types'
+import { type SubmitterWithStats, PER_USER_LIMIT_KEYS, PER_USER_LIMIT_LABELS, type PerUserLimits } from '@/types'
 import { useToast } from '@/hooks/use-toast'
 import { safeAccess } from '@/lib/utils'
 
@@ -96,7 +95,7 @@ export function UsersDialog({
     for (const key of PER_USER_LIMIT_KEYS) {
       const limits = submitter.customLimits as Partial<PerUserLimits> | null
       const override = limits ? safeAccess(limits, key) : undefined
-      vals.set(key, override !== undefined && override !== null ? String(override) : '')
+      vals.set(key, String(override))
     }
     setEditValues(vals)
   }, [])

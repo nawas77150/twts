@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { generateAdminToken, ADMIN_TOKEN_TTL } from '@/lib/admin-auth'
 import { getClientIp, checkLoginRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/login-rate-limit'
 import { debugError } from '@/lib/debug'

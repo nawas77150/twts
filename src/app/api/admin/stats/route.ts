@@ -7,7 +7,7 @@ import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
 import { debugError } from '@/lib/debug'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — multiple DB queries + external API calls
 export const maxDuration = 30

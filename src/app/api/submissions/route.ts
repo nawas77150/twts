@@ -10,8 +10,8 @@ import { appendHashtags } from '@/lib/append-hashtags'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { getCensoredReason, validateSubmission, runFilterPipeline, createQueuedSubmission } from './_lib'
 import { logLimitHit, checkSubmissionRateLimits } from './_rate-limits'
-import { Prisma } from '@prisma/client'
-import { NextRequest, NextResponse } from 'next/server'
+import { type Prisma } from '@prisma/client'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — auto-post + Gemini can take up to 15s with retries
 export const maxDuration = 30

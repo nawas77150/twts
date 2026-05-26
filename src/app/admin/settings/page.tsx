@@ -74,7 +74,7 @@ export default function AdminSettingsPage() {
   const postingSaveSetting = useCallback(async (key: string, value: string, onSuccess?: () => void, onFailure?: () => void) => {
     await posting.saveSetting(key, value, () => {
       onSuccess?.()
-      refetchAdminStats()
+      void refetchAdminStats()
     }, onFailure)
   }, [posting, refetchAdminStats])
 

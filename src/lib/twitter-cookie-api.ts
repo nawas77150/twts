@@ -15,9 +15,9 @@
 
 import { debug } from '@/lib/debug'
 import {
-  FallbackResult,
-  CookieApiPrereqs,
-  ApiErrorClass,
+  type FallbackResult,
+  type CookieApiPrereqs,
+  type ApiErrorClass,
   parseApiKeys,
   extractApiError,
   getApiSettings,
@@ -161,10 +161,12 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
         login_cookies: `(${loginCookies.length} chars, base64)`,
         tweet_text: text ? `(${text.length} chars)` : '(missing)',
         proxy: maskProxyUrl(proxy),
-        apiKey: maskApiKey(apiKey),
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        apiKey: maskApiKey(apiKey!),
       })
 
-      const { response, data } = await callCreateTweetV2(apiKey, body, 'cookie-api')
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { response, data } = await callCreateTweetV2(apiKey!, body, 'cookie-api')
 
       // Success
       const tweetId = extractTweetId(data)
@@ -174,7 +176,8 @@ export async function postViaCookieApi(text: string): Promise<FallbackResult> {
           success: true,
           tweetId,
           method: 'fallback_cookie',
-          apiKeyUsed: maskApiKey(apiKey),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          apiKeyUsed: maskApiKey(apiKey!),
         }
       }
 

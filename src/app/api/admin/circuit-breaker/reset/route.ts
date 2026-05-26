@@ -1,7 +1,7 @@
 import { withAdmin } from '@/lib/admin-auth'
 import { debugError } from '@/lib/debug'
 import { resetCircuitBreaker } from '@/lib/circuit-breaker'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/circuit-breaker/reset — Manually reset the circuit breaker
 export const POST = withAdmin(async (_req: NextRequest) => {

@@ -225,7 +225,7 @@ export async function tryAutoLogin(key: string): Promise<AutoLoginResult | null>
   const result: AutoLoginResult = { attempted: true }
   const loginResult = await loginViaTwitterApi()
   result.success = loginResult.success
-  if (!loginResult.success) {
+  if (!loginResult.success && loginResult.error != null) {
     result.error = loginResult.error
   }
   return result

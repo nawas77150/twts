@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import {
   exchangeCodeForToken,
   fetchTwitterUser,
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
   try {
     const submitter = await upsertSubmitterFromTwitter(twitterUser, {
       accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
+      ...(tokenData.refresh_token != null && { refreshToken: tokenData.refresh_token }),
     })
 
     // Create session token

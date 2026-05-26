@@ -1,7 +1,7 @@
 import { postingService } from '@/lib/posting-service'
 import { invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { withAdmin } from '@/lib/admin-auth'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // POST /api/admin/clear-cache — Clear all caches (in-memory + DB)
 // (placeholder, queryId, transaction ID config, HTML cache, filter settings).

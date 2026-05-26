@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { db } from '@/lib/db'
 import { PER_USER_LIMIT_KEYS } from '@/types'

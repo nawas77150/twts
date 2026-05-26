@@ -25,15 +25,15 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockRea
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  const isAnonUser = submitter?.username?.startsWith('anon_') ?? false
+  const isAnonUser = submitter?.username.startsWith('anon_') ?? false
   const { myPosts, limits, isLoading: myPostsLoading, error: myPostsError, refetch: refetchMyPosts } = useMyPosts({
     submitter,
     isAnonUser,
-    initialLimits,
+    ...(initialLimits !== undefined && { initialLimits }),
   })
 
   const handleLogin = useCallback(() => { window.location.assign('/api/auth/twitter') }, [])
-  const handleLogout = useCallback(() => { logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }, [logout, toast])
+  const handleLogout = useCallback(() => { void logout(); toast({ title: 'Logout berhasil', description: 'Sampai jumpa!' }) }, [logout, toast])
 
   const handleSubmit = useCallback(async (message: string, category: string): Promise<boolean> => {
     if (!message.trim()) { toast({ title: 'Error', description: 'Pesan tidak boleh kosong', variant: 'destructive' }); return false }
@@ -41,7 +41,7 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockRea
 
     setIsSubmitting(true)
     try {
-      const data = await apiClient.submitMessage({ message, category: category || undefined })
+      const data = await apiClient.submitMessage({ message, ...(category && { category }) })
       if (data.autoPosted) {
         toast({ title: 'Terkirim & diposting!', description: 'Pesanmu langsung diposting ke X.' })
       } else if (data.postCapped) {
@@ -60,7 +60,7 @@ export function HomeClient({ initialSubmitter, initialIsBlocked, initialBlockRea
       } else {
         toast({ title: 'Berhasil dikirim!', description: 'Pesanmu sedang menunggu moderasi admin.' })
       }
-      refetchMyPosts()
+      void refetchMyPosts()
       return true
     } catch (err: unknown) {
       const status = (err as { status?: number }).status

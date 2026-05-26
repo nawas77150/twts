@@ -42,7 +42,7 @@ export function useSubmitters() {
       const data = await apiClient.getSubmitters({
         page: p,
         limit: PAGE_SIZE,
-        search: q || undefined,
+        ...(q && { search: q }),
       })
 
       // Discard stale response if a newer request was made

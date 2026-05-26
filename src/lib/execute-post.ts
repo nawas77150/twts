@@ -207,8 +207,8 @@ export async function executePostAndRecord(
   async function releaseAndReturn(
     result: ExecutePostResult,
   ): Promise<ExecutePostResult> {
-    if (!lockReleased) {
-      await releasePostingLock(lockValue!)
+    if (!lockReleased && lockValue) {
+      await releasePostingLock(lockValue)
       lockReleased = true
     }
     return result
@@ -260,7 +260,7 @@ export async function executePostAndRecord(
           data: {
             status: 'posted',
             tweetId: tweetResult.tweetId || null,
-            postMethod: tweetResult.method,
+            postMethod: tweetResult.method ?? null,
             postError: null,
           },
         })
@@ -273,18 +273,18 @@ export async function executePostAndRecord(
           debug('execute-post', 'Post succeeded but status was changed by another process')
           return await releaseAndReturn({
             success: true,
-            tweetId: tweetResult.tweetId,
-            method: tweetResult.method,
-            retriesUsed: tweetResult.retriesUsed,
+            ...(tweetResult.tweetId != null && { tweetId: tweetResult.tweetId }),
+            method: tweetResult.method as string,
+            ...(tweetResult.retriesUsed != null && { retriesUsed: tweetResult.retriesUsed }),
             warning: 'Tweet posted, but submission status was changed by another process.',
           })
         }
 
         return await releaseAndReturn({
           success: true,
-          tweetId: tweetResult.tweetId,
-          method: tweetResult.method,
-          retriesUsed: tweetResult.retriesUsed,
+          ...(tweetResult.tweetId != null && { tweetId: tweetResult.tweetId }),
+          method: tweetResult.method as string,
+          ...(tweetResult.retriesUsed != null && { retriesUsed: tweetResult.retriesUsed }),
         })
       } else {
         // Post failed — check for phantom success before marking as failed
@@ -293,8 +293,8 @@ export async function executePostAndRecord(
           if (recovered) {
             return await releaseAndReturn({
               success: true,
-              method: tweetResult.method,
-              retriesUsed: tweetResult.retriesUsed,
+              method: tweetResult.method as string,
+              ...(tweetResult.retriesUsed != null && { retriesUsed: tweetResult.retriesUsed }),
             })
           }
         }
@@ -313,8 +313,8 @@ export async function executePostAndRecord(
         return await releaseAndReturn({
           success: false,
           error: errorMsg,
-          method: tweetResult.method,
-          retriesUsed: tweetResult.retriesUsed,
+          method: tweetResult.method as string,
+          ...(tweetResult.retriesUsed != null && { retriesUsed: tweetResult.retriesUsed }),
         })
       }
     } catch (postError) {
@@ -333,6 +333,7 @@ export async function executePostAndRecord(
   } catch (e) {
     // Safety: release lock on unexpected errors (e.g. updateMany threw
     // between lock acquisition and inner try/finally)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!lockReleased) {
       await releasePostingLock(lockValue).catch(() => {})
       lockReleased = true

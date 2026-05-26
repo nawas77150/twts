@@ -212,7 +212,7 @@ export function runContentFilter(
   let severity: FilterSeverity = 'none'
 
   // Run all applicable rule checkers
-  const extra = { blockedWords, nsfwWords }
+  const extra = { blockedWords, ...(nsfwWords != null && { nsfwWords }) }
 
   for (const checker of RULE_CHECKERS) {
     if (!effectiveRules[checker.ruleKey]) continue
@@ -240,7 +240,7 @@ export function runContentFilter(
   return {
     passed,
     reasons,
-    matchedWords: matchedWords.length > 0 ? matchedWords : undefined,
+    ...(matchedWords.length > 0 && { matchedWords }),
     severity: passed ? 'none' : severity,
   }
 }
@@ -261,8 +261,9 @@ export function getRejectionMessage(reasons: string[]): string {
   const messages: string[] = []
 
   for (const reason of reasons) {
-    const prefix = reason.includes(':') ? reason.split(':')[0] : reason
-    const msg = REJECTION_MESSAGES[prefix]
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const prefix = reason.includes(':') ? reason.split(':')[0]! : reason
+    const msg = REJECTION_MESSAGES[prefix] ?? ''
     if (msg) messages.push(msg)
   }
 

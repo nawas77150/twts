@@ -28,7 +28,7 @@ export function useCircuitBreaker() {
     const pausedUntil = circuitBreakerStatus.pausedUntil
 
     function tick() {
-      const remaining = (pausedUntil ?? 0) - Date.now()
+      const remaining = pausedUntil - Date.now()
       if (remaining <= 0) {
         setLiveRemainingMinutes(0)
         // Auto-clear paused state when timer expires

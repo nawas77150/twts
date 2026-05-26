@@ -63,7 +63,7 @@ export function usePostingSettings() {
 
   const isSavingAnySetting = savingKeys.size > 0
   // For backward compat: return the last key being saved (or null)
-  const isSavingSetting = savingKeys.size > 0 ? [...savingKeys][savingKeys.size - 1] : null
+  const isSavingSetting = savingKeys.size > 0 ? [...savingKeys][savingKeys.size - 1] ?? null : null
 
   const { toast } = useToast()
 
@@ -186,7 +186,7 @@ export function usePostingSettings() {
 
   useEffect(() => {
     registerResetCallback(resetState)
-    return () => unregisterResetCallback(resetState)
+    return () => { unregisterResetCallback(resetState); }
   }, [registerResetCallback, unregisterResetCallback, resetState])
 
   return {

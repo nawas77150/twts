@@ -12,7 +12,6 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = safeAccess(STATUS_CONFIG, status)
-  if (!config) return null
 
   return (
     <Badge

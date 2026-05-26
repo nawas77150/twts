@@ -99,6 +99,7 @@ export type DirectPostOutcome =
 
 export function parseDirectPostResponse(body: unknown): DirectPostOutcome {
   // Layer 1: tweetId present = tweet created (even if errors[] exists)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- X API response shape is untyped
   const tweetId = (body as any)?.data?.create_tweet?.tweet_results?.result?.rest_id
   if (tweetId) return { kind: 'success', tweetId }
 
@@ -106,6 +107,7 @@ export function parseDirectPostResponse(body: unknown): DirectPostOutcome {
   if (isEmptyResults(body)) return { kind: 'empty_results' }
 
   // Layer 3: GraphQL errors array
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- X API response shape is untyped
   const errors = (body as any)?.errors
   if (errors?.length) {
     const msgs = errors

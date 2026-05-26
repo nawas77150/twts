@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
 import { withAdmin } from '@/lib/admin-auth'
 import { debugError } from '@/lib/debug'
-import { NextRequest, NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
+import { type NextRequest, NextResponse } from 'next/server'
+import { type Prisma } from '@prisma/client'
 
 // GET /api/admin/submitters — List all submitters with their submission counts (page-based pagination + server-side search)
 export const GET = withAdmin(async (req: NextRequest) => {
@@ -23,7 +23,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
 
   // Run count + data queries in parallel
   const [totalCount, statusCounts, submitters] = await Promise.all([
-    db.submitter.count({ where }),
+    db.submitter.count({ where: where as Prisma.SubmitterWhereInput }),
     db.$queryRaw<
       { submitterId: string; status: string; count: bigint }[]
     >`
@@ -32,7 +32,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
       GROUP BY "submitterId", status
     `,
     db.submitter.findMany({
-      where,
+      where: where as Prisma.SubmitterWhereInput,
       select: {
         id: true,
         username: true,

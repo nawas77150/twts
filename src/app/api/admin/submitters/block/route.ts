@@ -4,7 +4,7 @@
 // requires plaintext values. Do NOT apply encrypt() to these settings.
 
 import { db } from '@/lib/db'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/admin-auth'
 import { parseUsernameRequest, atomicJsonbAppend, atomicJsonbRemove, atomicJsonbSetKey } from '../_lib'
 import { debugError } from '@/lib/debug'

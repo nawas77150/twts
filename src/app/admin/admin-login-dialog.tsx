@@ -56,8 +56,8 @@ export function AdminLoginDialog() {
                       type="password"
                       placeholder="Password admin..."
                       value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                      onChange={(e) => { setLoginPassword(e.target.value); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void handleLogin() }}
                     />
                     <Button
                       onClick={handleLogin}

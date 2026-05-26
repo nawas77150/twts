@@ -113,7 +113,7 @@ function isValidSpec(spec: unknown): spec is CreateTweetSpec {
     typeof (spec as CreateTweetSpec).queryId === 'string' &&
     (spec as CreateTweetSpec).queryId.length > 0 &&
     typeof (spec as CreateTweetSpec).features === 'object' &&
-    (spec as CreateTweetSpec).features !== null
+    (spec as CreateTweetSpec).features !== null // eslint-disable-line @typescript-eslint/no-unnecessary-condition
   )
 }
 
@@ -184,7 +184,7 @@ export async function getCreateTweetSpec(
     })
     if (resp.ok) {
       const json = await resp.json() as Record<string, unknown>
-      const ct = json?.CreateTweet as { queryId?: string; features?: Record<string, boolean> } | undefined
+      const ct = json.CreateTweet as { queryId?: string; features?: Record<string, boolean> } | undefined
       if (ct?.queryId) {
         const spec: CachedSpec = {
           fetchedAt: now,

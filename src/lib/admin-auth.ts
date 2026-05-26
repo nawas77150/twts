@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 /**
  * Admin authentication helper.

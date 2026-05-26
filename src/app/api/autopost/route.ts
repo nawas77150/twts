@@ -10,7 +10,7 @@ import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug, debugError } from '@/lib/debug'
 import { recoverStalePostings } from '@/lib/stale-posting'
 import crypto from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 30
 

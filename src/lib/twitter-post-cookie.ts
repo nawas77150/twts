@@ -130,7 +130,7 @@ async function tryApiFallback(opts: {
   if (cookieResult.success) {
     return {
       success: true,
-      tweetId: cookieResult.tweetId,
+      ...(cookieResult.tweetId != null && { tweetId: cookieResult.tweetId }),
       method: 'fallback_cookie',
       retriesUsed,
     }
@@ -146,7 +146,7 @@ async function tryApiFallback(opts: {
     if (v2Result.success) {
       return {
         success: true,
-        tweetId: v2Result.tweetId,
+        ...(v2Result.tweetId != null && { tweetId: v2Result.tweetId }),
         method: 'fallback_login',
         retriesUsed,
       }
@@ -158,7 +158,7 @@ async function tryApiFallback(opts: {
     return {
       success: false,
       error: combinedError,
-      errorClass: directErrorClass,
+      ...(directErrorClass != null && { errorClass: directErrorClass }),
       method: v2Result.method,
       retriesUsed,
     }
@@ -171,7 +171,7 @@ async function tryApiFallback(opts: {
   return {
     success: false,
     error: combinedError,
-    errorClass: directErrorClass,
+    ...(directErrorClass != null && { errorClass: directErrorClass }),
     method: cookieResult.method,
     retriesUsed,
   }
@@ -191,10 +191,10 @@ async function fallbackOrFail(opts: {
 }): Promise<TweetResult> {
   const { text, postMethod, error, errorClass, method, retriesUsed = 0 } = opts
   if (postMethod !== 'auto') {
-    return { success: false, error, errorClass, method, retriesUsed }
+    return { success: false, error, ...(errorClass != null && { errorClass }), method, retriesUsed }
   }
   debug('direct', 'Direct posting failed, trying API fallback:', error.slice(0, 100))
-  return tryApiFallback({ text, directError: error, directErrorClass: errorClass, retriesUsed })
+  return tryApiFallback({ text, directError: error, ...(errorClass != null && { directErrorClass: errorClass }), retriesUsed })
 }
 
 // ── Main posting function ──
@@ -410,14 +410,14 @@ export async function postTweetViaCookie(
   // All direct retries exhausted — try API fallback (if auto mode)
   if (postMethod === 'auto') {
     debug('direct', 'All retries exhausted, falling back to API')
-    return tryApiFallback({ text, directError: lastError, directErrorClass: lastErrorClass, retriesUsed: MAX_DIRECT_ATTEMPTS })
+    return tryApiFallback({ text, directError: lastError, ...(lastErrorClass != null && { directErrorClass: lastErrorClass }), retriesUsed: MAX_DIRECT_ATTEMPTS })
   }
 
   // Direct mode only — no fallback
   return {
     success: false,
     error: `Post gagal setelah ${MAX_DIRECT_ATTEMPTS} percobaan. Coba lagi dalam 1-2 menit atau ubah ke mode Auto untuk fallback API.`,
-    errorClass: lastErrorClass,
+    ...(lastErrorClass != null && { errorClass: lastErrorClass }),
     method: 'retry',
     retriesUsed: MAX_DIRECT_ATTEMPTS,
   }

@@ -44,10 +44,10 @@ export function useFilterSettings() {
     setGeminiEnabled(settings.geminiEnabled)
     setGeminiApiKeySet(settings.geminiApiKeySet)
     setGeminiModel(settings.geminiModel || '')
-    if (settings.rateLimits) setRateLimits(settings.rateLimits)
-    if (settings.whitelistUsernames) setWhitelistUsernames(settings.whitelistUsernames)
-    if (settings.blockedUsernames) setBlockedUsernames(settings.blockedUsernames)
-    if (settings.blockedReasons) setBlockedReasons(settings.blockedReasons)
+    setRateLimits(settings.rateLimits)
+    setWhitelistUsernames(settings.whitelistUsernames)
+    setBlockedUsernames(settings.blockedUsernames)
+    setBlockedReasons(settings.blockedReasons)
     if (settings.defaultBlockedWords) setDefaultBlockedWords(settings.defaultBlockedWords)
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
     setIsLoaded(true)
@@ -213,7 +213,7 @@ export function useFilterSettings() {
 
   useEffect(() => {
     registerResetCallback(resetState)
-    return () => unregisterResetCallback(resetState)
+    return () => { unregisterResetCallback(resetState); }
   }, [registerResetCallback, unregisterResetCallback, resetState])
 
   return {

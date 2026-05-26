@@ -3,7 +3,7 @@ import { withAdmin } from '@/lib/admin-auth'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { safeAccess } from '@/lib/utils'
 import { debugError } from '@/lib/debug'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 const LIMIT_TYPE_LABELS: Record<string, string> = {
   cooldown: 'Cooldown',
@@ -53,7 +53,7 @@ export const GET = withAdmin(async (_req: NextRequest) => {
       const distinctRow = distinctByType.find((r) => r.limitType === type)
       return {
         limitType: type,
-        label: safeAccess(LIMIT_TYPE_LABELS, type as keyof typeof LIMIT_TYPE_LABELS),
+        label: safeAccess(LIMIT_TYPE_LABELS, type),
         totalHits: hitRow?._count._all ?? 0,
         uniqueUsers: Number(distinctRow?.uniqueUsers ?? 0),
       }

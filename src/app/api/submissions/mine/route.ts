@@ -4,7 +4,7 @@ import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveMaxLength } from '@/lib/append-hashtags'
 import { resolveEffectiveLimits, hasCustomLimits } from '@/lib/limit-resolver'
 import { getStartOfTodayWIB } from '@/lib/constants'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { debugError } from '@/lib/debug'
 
 // GET /api/submissions/mine - Get current user's submissions + limits
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Anon users (profile fetch failed) cannot access submissions
-    if (submitter.username?.startsWith('anon_')) {
+    if (submitter.username.startsWith('anon_')) {
       return NextResponse.json({
         error: 'Profil X belum dimuat',
         message: 'Coba login ulang.',
@@ -52,9 +52,11 @@ export async function GET(req: NextRequest) {
     })
     const stats: Record<string, number> = { total: 0, pending: 0, censored: 0, posted: 0, rejected: 0, postFailed: 0 }
     for (const row of statusCounts) {
-      stats.total += row._count.status
-      if (row.status === 'pending' || row.status === 'posting') stats.pending += row._count.status
-      else if (row.status === 'censored') stats.censored += row._count.status
+      /* eslint-disable @typescript-eslint/no-non-null-assertion */
+      stats['total']! += row._count.status
+      if (row.status === 'pending' || row.status === 'posting') stats['pending']! += row._count.status
+      else if (row.status === 'censored') stats['censored']! += row._count.status
+      /* eslint-enable @typescript-eslint/no-non-null-assertion */
       else if (row.status === 'posted') stats.posted = row._count.status
       else if (row.status === 'rejected') stats.rejected = row._count.status
       else if (row.status === 'post_failed') stats.postFailed = row._count.status
@@ -99,7 +101,7 @@ export async function GET(req: NextRequest) {
       ])
 
       // Whitelisted users bypass per-user cooldown, daily cap, and pending cap
-      const isWhitelisted = filterSettings.whitelistUsernames.includes(submitter.username?.toLowerCase() ?? '')
+      const isWhitelisted = filterSettings.whitelistUsernames.includes(submitter.username.toLowerCase())
 
       const cooldownSeconds = isWhitelisted ? 0 : (() => {
         const cooldownMs = effectiveLimits.submissionCooldown * 60 * 1000

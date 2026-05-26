@@ -37,6 +37,7 @@ const STATUS_TO_KEY = new Map<SubmissionStatus, keyof Stats>([
 
 /** Explicit property read — avoids dynamic key access that SAST flags. */
 function getStatValue(stats: Stats, key: keyof Stats): number {
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (key) {
     case 'pending':     return stats.pending
     case 'censored':    return stats.censored
@@ -51,6 +52,7 @@ function getStatValue(stats: Stats, key: keyof Stats): number {
 
 /** Explicit property set — avoids dynamic key assignment that SAST flags. */
 function setStatValue(stats: Stats, key: keyof Stats, value: number): Stats {
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (key) {
     case 'pending':     return { ...stats, pending: value }
     case 'censored':    return { ...stats, censored: value }
@@ -82,9 +84,9 @@ export function AdminStatsProvider({ children }: { children: ReactNode }) {
       if (thisRequestId !== requestIdRef.current) return
       setStats(data)
       setPendingCount(data.pending)
-      if (data.cookieAuthStatus !== undefined) setCookieStatus(data.cookieAuthStatus)
-      if (data.apiCredits !== undefined) setApiCredits(data.apiCredits ?? [])
-      if (data.apiLoginStatus !== undefined) setApiLoginStatus(data.apiLoginStatus)
+      setCookieStatus(data.cookieAuthStatus)
+      setApiCredits(data.apiCredits ?? [])
+      setApiLoginStatus(data.apiLoginStatus)
       if (data.postMethodStats) setPostMethodStats(data.postMethodStats)
       setConsecutiveFailures(0)
     } catch {

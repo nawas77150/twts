@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { encrypt } from '@/lib/encrypt'

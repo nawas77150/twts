@@ -11,7 +11,7 @@ export default async function HomePage() {
   // Check blocked status server-side (30s-cached — no extra DB hit)
   // so blocked users see the block screen immediately, not after a failed submit
   let initialIsBlocked = false
-  let initialBlockReason: string | undefined
+  let initialBlockReason: string | undefined = undefined
   if (submitterInfo?.username) {
     const { blockedUsernames, blockedReasons } = await getFilterSettings()
     initialIsBlocked = blockedUsernames.includes(submitterInfo.username.toLowerCase())
@@ -22,7 +22,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F9F9]">
-      <HomeClient initialSubmitter={submitterInfo} initialIsBlocked={initialIsBlocked} initialBlockReason={initialBlockReason} />
+      <HomeClient initialSubmitter={submitterInfo} initialIsBlocked={initialIsBlocked} {...(initialBlockReason != null && { initialBlockReason })} />
       <Footer />
     </div>
   )

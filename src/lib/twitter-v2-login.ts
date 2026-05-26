@@ -37,8 +37,8 @@ import { encrypt } from '@/lib/encrypt'
 import { debug } from '@/lib/debug'
 import {
   TWITTERAPI_BASE,
-  FallbackResult,
-  LoginResult,
+  type FallbackResult,
+  type LoginResult,
   parseApiKeys,
   extractApiError,
   getApiSettings,
@@ -107,7 +107,8 @@ export async function loginViaTwitterApi(): Promise<LoginResult> {
     }
   }
 
-  const apiKey = apiKeys[0]
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const apiKey = apiKeys[0]!
 
   try {
     const response = await fetch(`${TWITTERAPI_BASE}/twitter/user_login_v2`, {
@@ -254,7 +255,8 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
         proxy: proxy ? maskProxyUrl(proxy) : '(missing)',
       })
 
-      const { response, data } = await callCreateTweetV2(apiKey, body, 'twitterapi')
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const { response, data } = await callCreateTweetV2(apiKey!, body, 'twitterapi')
 
       // Success — try multiple possible response formats
       const tweetId = extractTweetId(data)
@@ -265,7 +267,8 @@ export async function postViaTwitterApi(text: string): Promise<FallbackResult> {
           success: true,
           tweetId,
           method: 'fallback_login',
-          apiKeyUsed: maskApiKey(apiKey),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          apiKeyUsed: maskApiKey(apiKey!),
         }
       }
 

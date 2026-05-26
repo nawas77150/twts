@@ -9,7 +9,7 @@
 import { db } from '@/lib/db'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { debug } from '@/lib/debug'
-import { getFilterSettings } from '@/lib/filter-settings'
+import { type getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveLimit } from '@/lib/limit-resolver'
 import { safeGet } from '@/lib/utils'
 import { NextResponse } from 'next/server'

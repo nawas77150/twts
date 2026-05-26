@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getSubmitterFromNextRequest } from '@/lib/twitter-auth'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { debugError } from '@/lib/debug'

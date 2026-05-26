@@ -116,7 +116,8 @@ export async function generateTransactionIdFromPair(
   try {
     const pairs = await fetchPairs()
     // Cryptographically-secure random selection (not Math.random)
-    const pair = pairs[crypto.randomInt(pairs.length)]
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const pair = pairs[crypto.randomInt(pairs.length)]!
 
     // Decode verification key (base64 → bytes — the twitter-site-verification key)
     const keyBytes = Array.from(Buffer.from(pair.verification, 'base64'))

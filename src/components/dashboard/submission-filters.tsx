@@ -48,7 +48,7 @@ export function SubmissionFilters({
           >
             {status === 'all'
               ? 'Semua'
-              : STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label}
+              : STATUS_CONFIG[status].label}
             {statusCount != null && statusCount > 0 && (
               <span
                 className={`text-[10px] ${

@@ -17,7 +17,7 @@ import { runContentFilter, checkDuplicate24h, normalizeText, sanitizeInput, hasA
 import { runGeminiSubmissionCheck } from '@/lib/gemini-filter'
 import { getFilterSettings } from '@/lib/filter-settings'
 import { getEffectiveMaxLength } from '@/lib/append-hashtags'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Determine censored reason from filter reasons
 export function getCensoredReason(reasons: string[]): 'ai' | 'filter' | 'both' {
@@ -55,7 +55,7 @@ export async function validateSubmission(req: NextRequest): Promise<ValidatedInp
   }
 
   // Anon users (profile fetch failed) cannot submit — they need to re-login
-  if (submitter.username?.startsWith('anon_')) {
+  if (submitter.username.startsWith('anon_')) {
     return NextResponse.json({
       error: 'Profil X belum dimuat',
       message: 'Coba login ulang untuk mengirim pesan.',

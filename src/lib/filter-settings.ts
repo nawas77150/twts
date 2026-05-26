@@ -132,7 +132,7 @@ export async function getFilterSettings(): Promise<{
   blockedReasons: Record<string, string>  // Per-user custom block messages (companion to blocked_usernames)
   postHashtags: string          // Hashtags appended to auto-posted tweets
 }> {
-  if (isCacheValid()) return structuredClone(cachedSettings!.data)
+  if (isCacheValid() && cachedSettings) return structuredClone(cachedSettings.data)
 
   const settings = await db.setting.findMany({
     where: { key: { in: FILTER_SETTING_KEYS } },

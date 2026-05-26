@@ -113,7 +113,7 @@ export function decrypt(encrypted: string): string {
     );
   }
 
-  const [ivB64, authTagB64, ciphertextB64] = parts;
+  const [ivB64, authTagB64, ciphertextB64] = parts as [string, string, string];
 
   let iv: Buffer;
   let authTag: Buffer;

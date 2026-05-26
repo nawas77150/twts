@@ -183,7 +183,7 @@ function useToast() {
     }
   }, [])
 
-  const dismiss = React.useCallback((toastId?: string) => { dispatch({ type: "DISMISS_TOAST", toastId }); }, [])
+  const dismiss = React.useCallback((toastId?: string) => { dispatch({ type: "DISMISS_TOAST", ...(toastId !== undefined && { toastId }) }); }, [])
 
   return {
     ...state,

@@ -61,11 +61,11 @@ export function createXPostingService(): PostingService {
       const result = await postTweetViaCookie(text)
       return {
         success: result.success,
-        tweetId: result.tweetId,
-        error: result.error,
-        failureKind: result.success ? undefined : classifyFailure(result.errorClass),
+        ...(result.tweetId != null && { tweetId: result.tweetId }),
+        ...(result.error != null && { error: result.error }),
+        ...(!result.success && { failureKind: classifyFailure(result.errorClass) }),
         method: result.method,
-        retriesUsed: result.retriesUsed,
+        ...(result.retriesUsed != null && { retriesUsed: result.retriesUsed }),
       }
     },
 

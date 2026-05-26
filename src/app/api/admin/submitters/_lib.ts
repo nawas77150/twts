@@ -4,8 +4,8 @@
 
 import { db } from '@/lib/db'
 import { debugError } from '@/lib/debug'
-import { Prisma } from '@prisma/client'
-import { NextRequest, NextResponse } from 'next/server'
+import { type Prisma } from '@prisma/client'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // --- Helper 1: Parse + validate + normalize username from request body ---
 // Must be async because req.json() returns Promise<unknown>.
@@ -24,7 +24,7 @@ export async function parseUsernameRequest(req: NextRequest): Promise<{ normaliz
   // _rate-limits.ts silently fails: ['@alice'].includes('alice') → false.
   return {
     normalizedUsername: username.toLowerCase().trim().replace(/^@/, ''),
-    reason: typeof reason === 'string' ? (reason.trim() || undefined) : undefined,
+    ...(typeof reason === 'string' && reason.trim() !== '' && { reason: reason.trim() }),
   }
 }
 
