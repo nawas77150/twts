@@ -10,6 +10,7 @@ import {
 import { getFilterSettings, invalidateFilterSettingsCache } from '@/lib/filter-settings'
 import { debugError } from '@/lib/debug'
 import { DEFAULT_RATE_LIMITS } from '@/lib/rate-limit-defaults'
+import { DEFAULT_GEMINI_SYSTEM_PROMPT } from '@/lib/gemini-filter'
 import { type NextRequest, NextResponse } from 'next/server'
 import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 
@@ -95,6 +96,7 @@ export const GET = withAdmin(async (_req: NextRequest) => {
       geminiEnabled: settings.geminiEnabled,
       geminiApiKeySet: settings.geminiApiKeySet,
       geminiModel: settings.geminiModel,
+      geminiSystemPrompt: settings.geminiSystemPrompt,
       rateLimits: settings.rateLimits,
       whitelistUsernames: settings.whitelistUsernames,
       blockedUsernames: settings.blockedUsernames,
@@ -105,6 +107,7 @@ export const GET = withAdmin(async (_req: NextRequest) => {
         nsfwWords: DEFAULT_NSFW_WORDS,
         filterRules: DEFAULT_FILTER_RULES,
         rateLimits: DEFAULT_RATE_LIMITS,
+        geminiSystemPrompt: DEFAULT_GEMINI_SYSTEM_PROMPT,
       },
     })
   } catch (e) {
@@ -117,7 +120,7 @@ export const GET = withAdmin(async (_req: NextRequest) => {
 export const POST = withAdmin(async (req: NextRequest) => {
   try {
     const body = await req.json()
-    const { autoApprove, blockedWords, nsfwWords, filterRules, geminiEnabled, geminiApiKey, geminiModel, rateLimits } = body as {
+    const { autoApprove, blockedWords, nsfwWords, filterRules, geminiEnabled, geminiApiKey, geminiModel, geminiSystemPrompt, rateLimits } = body as {
       autoApprove?: boolean
       blockedWords?: string[]
       nsfwWords?: string[]
@@ -125,6 +128,7 @@ export const POST = withAdmin(async (req: NextRequest) => {
       geminiEnabled?: boolean
       geminiApiKey?: string
       geminiModel?: string
+      geminiSystemPrompt?: string
       rateLimits?: { submissionCooldown?: number; submissionDailyCap?: number; autoPostCooldown?: number; autoPostWindowCap?: number; autoPostWindowMinutes?: number; globalPostDailyCap?: number; userPostDailyCap?: number; userPendingCap?: number; globalSubmissionDailyCap?: number; circuitBreakerThreshold?: number; circuitBreakerCooldownMinutes?: number; circuitBreakerFailureWindowMinutes?: number }
     }
 
@@ -199,6 +203,25 @@ export const POST = withAdmin(async (req: NextRequest) => {
         create: { key: 'gemini_model', value: geminiModel.trim() },
       })
       results.push({ key: 'gemini_model', updated: true })
+    }
+
+    // Save gemini_system_prompt (encrypted, like blocked_words/filter_rules)
+    if (typeof geminiSystemPrompt === 'string') {
+      if (geminiSystemPrompt.length > 5000) {
+        return NextResponse.json({ error: 'System prompt exceeds 5000 characters' }, { status: 400 })
+      }
+      if (geminiSystemPrompt.trim()) {
+        const encryptedValue = encrypt(geminiSystemPrompt.trim())
+        await db.setting.upsert({
+          where: { key: 'gemini_system_prompt' },
+          update: { value: encryptedValue },
+          create: { key: 'gemini_system_prompt', value: encryptedValue },
+        })
+      } else {
+        // Empty string = delete the key (revert to default)
+        await db.setting.deleteMany({ where: { key: 'gemini_system_prompt' } })
+      }
+      results.push({ key: 'gemini_system_prompt', updated: true })
     }
 
     // Save rate limit settings (not encrypted, simple integers)

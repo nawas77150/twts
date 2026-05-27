@@ -1033,3 +1033,30 @@ Stage Summary:
 - 35 tests passing across utils.test.ts (15) and encrypt.test.ts (20)
 - No mocking libraries used — all tests use real implementations
 - encrypt.test.ts handles module-level _encryptionKeyAvailable caching via vi.resetModules() + re-import
+
+---
+Task ID: gemini-system-prompt
+Agent: main
+Task: Make Gemini system prompt editable by admin via settings UI
+
+Work Log:
+- Read all 8 target files and verified no circular dependencies
+- File 1 (gemini-filter.ts): Renamed `SYSTEM_PROMPT` → `DEFAULT_GEMINI_SYSTEM_PROMPT` (exported). Added optional `systemPrompt` param to `runGeminiFilter()`. Added `geminiSystemPrompt` to `runGeminiSubmissionCheck()` filterSettings type and passed through.
+- File 2 (filter-settings.ts): Added `'gemini_system_prompt'` to `FILTER_SETTING_KEYS`. Added `DEFAULT_GEMINI_SYSTEM_PROMPT` import. Added `geminiSystemPrompt: null as string | null` to `getDefaultFilterSettings()`. Added `geminiSystemPrompt: string | null` to return type and loaded via `getRaw('gemini_system_prompt')`.
+- File 3 (types/index.ts): Added `geminiSystemPrompt: string | null` and `defaultGeminiSystemPrompt?: string` to `FilterSettings`. Added `geminiSystemPrompt?: string` to `SaveFilterSettingsRequest`.
+- File 4 (use-filter-settings.ts): Added state: `geminiSystemPrompt`, `defaultGeminiSystemPrompt`, `geminiSystemPromptSaving`. Added `saveGeminiSystemPrompt` callback with state update only in `onSuccess`. Updated `loadFromFilterSettings` and `resetState`. Added all new values to return object including `setGeminiSystemPrompt`.
+- File 5 (filter-settings/route.ts): Added `DEFAULT_GEMINI_SYSTEM_PROMPT` import. Added `geminiSystemPrompt` and `defaultGeminiSystemPrompt` to GET response. Added `geminiSystemPrompt` to POST destructuring and body type. Added save logic: validate max 5000 chars, encrypt non-empty values, delete key for empty strings.
+- File 6 (stats/route.ts): Added `DEFAULT_GEMINI_SYSTEM_PROMPT` import. Added `defaultGeminiSystemPrompt` to `filterSettings` in stats response.
+- File 7 (gemini-card.tsx): Full rewrite with new imports (Textarea, Collapsible, ChevronDown, FileText, RotateCcw, useEffect, useRef). Added 5 new props. Added Collapsible section with Textarea (min-h-[200px], font-mono, maxLength 5000). Added char counter showing `Using default (X chars)` when empty, `X/5000 chars (custom)` when filled. Added Save Prompt and Reset to Default buttons. Added `useEffect` + `useRef(false)` for auto-open when custom prompt exists.
+- File 8 (settings/page.tsx): Added 5 new props to GeminiCard JSX.
+- Verification: `tsc --noEmit` clean (0 errors), dev server running and responding 200 OK.
+
+Stage Summary:
+- 8 files modified, 0 new files created
+- Admin can now edit, save, and reset the Gemini system prompt via the Filter tab → Gemini AI Filter card
+- Custom prompt is encrypted at rest (consistent with blocked_words/filter_rules convention)
+- Empty string = delete key = revert to built-in default (same pattern as gemini_api_key)
+- State updates only in onSuccess callback (prevents race conditions)
+- Collapsible auto-opens on initial load when custom prompt exists (useEffect + useRef guard)
+- No cyclomatic complexity added (all changes additive)
+- No regressions (tsc clean, dev server 200, all existing call sites unchanged — new params are optional)

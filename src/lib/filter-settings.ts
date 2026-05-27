@@ -12,7 +12,7 @@ import { DEFAULT_RATE_LIMITS, parseIntSafe, type RateLimitSettings, DEFAULT_GEMI
 // Settings keys for the filter feature
 export const FILTER_SETTING_KEYS = [
   'auto_approve', 'blocked_words', 'filter_rules', 'nsfw_words',
-  'gemini_enabled', 'gemini_api_key', 'gemini_model',
+  'gemini_enabled', 'gemini_api_key', 'gemini_model', 'gemini_system_prompt',
   'submission_cooldown', 'submission_daily_cap', 'auto_post_cooldown',
   'auto_post_window_cap', 'auto_post_window_minutes',
   'global_post_daily_cap',
@@ -40,6 +40,7 @@ export function getDefaultFilterSettings() {
     geminiApiKeySet: false,
     geminiApiKey: null as string | null,
     geminiModel: DEFAULT_GEMINI_MODEL,
+    geminiSystemPrompt: null as string | null,
     rateLimits: { ...DEFAULT_RATE_LIMITS },
     whitelistUsernames: [] as string[],
     blockedUsernames: [] as string[],
@@ -126,6 +127,7 @@ export async function getFilterSettings(): Promise<{
   geminiApiKeySet: boolean  // Only whether a key exists (never expose to browser)
   geminiApiKey: string | null  // The actual key — server-side only, strip before sending to client
   geminiModel: string
+  geminiSystemPrompt: string | null
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]  // Twitter usernames bypassing rate limits
   blockedUsernames: string[]    // Twitter usernames blocked from submitting
@@ -201,6 +203,9 @@ export async function getFilterSettings(): Promise<{
     getRaw('blocked_reasons'), validateBlockedReasons, {} as Record<string, string>,
   )
 
+  // Gemini system prompt (custom override, encrypted like other content settings)
+  const geminiSystemPrompt = getRaw('gemini_system_prompt')?.trim() || null
+
   // Post hashtags (appended to auto-posted tweets)
   const postHashtags = getRaw('post_hashtags')?.trim() || ''
 
@@ -213,6 +218,7 @@ export async function getFilterSettings(): Promise<{
     geminiApiKeySet,
     geminiApiKey: geminiApiKey?.trim() || null,
     geminiModel,
+    geminiSystemPrompt,
     rateLimits: { submissionCooldown, submissionDailyCap, autoPostCooldown, autoPostWindowCap, autoPostWindowMinutes, globalPostDailyCap, userPostDailyCap, userPendingCap, globalSubmissionDailyCap, circuitBreakerThreshold, circuitBreakerCooldownMinutes, circuitBreakerFailureWindowMinutes },
     whitelistUsernames,
     blockedUsernames,

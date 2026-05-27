@@ -84,6 +84,7 @@ export interface FilterSettings {
   geminiEnabled: boolean
   geminiApiKeySet: boolean
   geminiModel: string
+  geminiSystemPrompt: string | null
   rateLimits: RateLimitSettings
   whitelistUsernames: string[]
   blockedUsernames: string[]
@@ -91,6 +92,7 @@ export interface FilterSettings {
   postHashtags: string
   defaultBlockedWords?: string[]
   defaultNsfwWords?: string[]
+  defaultGeminiSystemPrompt?: string
 }
 
 // --- Stats ---
@@ -213,6 +215,7 @@ export interface SaveFilterSettingsRequest {
   geminiEnabled?: boolean
   geminiApiKey?: string
   geminiModel?: string
+  geminiSystemPrompt?: string
   rateLimits?: Partial<RateLimitSettings>
   // whitelistUsernames and blockedUsernames are NOT included here.
   // They are managed exclusively through atomic API routes:

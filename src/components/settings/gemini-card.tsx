@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Sparkles,
   AlertTriangle,
@@ -9,12 +9,17 @@ import {
   Activity,
   CheckCircle2,
   XCircle,
+  ChevronDown,
+  FileText,
+  RotateCcw,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { SettingsCard } from '@/components/shared/settings-card'
 import { SecretInput } from '@/components/shared/secret-input'
 import { apiClient } from '@/lib/api-client'
@@ -40,6 +45,11 @@ interface GeminiCardProps {
   setGeminiModel: (v: string) => void
   saveGeminiModel: (model: string) => void
   geminiModelSaving: boolean
+  geminiSystemPrompt: string
+  setGeminiSystemPrompt: (v: string) => void
+  saveGeminiSystemPrompt: (prompt: string) => void
+  geminiSystemPromptSaving: boolean
+  defaultGeminiSystemPrompt: string
 }
 
 export function GeminiCard({
@@ -57,9 +67,24 @@ export function GeminiCard({
   setGeminiModel,
   saveGeminiModel,
   geminiModelSaving,
+  geminiSystemPrompt,
+  setGeminiSystemPrompt,
+  saveGeminiSystemPrompt,
+  geminiSystemPromptSaving,
+  defaultGeminiSystemPrompt,
 }: GeminiCardProps) {
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [isTesting, setIsTesting] = useState(false)
+  const [isPromptOpen, setIsPromptOpen] = useState(false)
+  const promptAutoOpened = useRef(false)
+
+  // Auto-open collapsible when a custom prompt exists (fires once on initial data load)
+  useEffect(() => {
+    if (!promptAutoOpened.current && geminiSystemPrompt) {
+      setIsPromptOpen(true)
+      promptAutoOpened.current = true
+    }
+  }, [geminiSystemPrompt])
 
   const testHealth = useCallback(async () => {
     setIsTesting(true)
@@ -185,6 +210,62 @@ export function GeminiCard({
           Common models: gemini-3.1-flash-lite, gemini-2.0-flash, gemini-1.5-flash
         </p>
       </div>
+
+      <Separator />
+
+      {/* System Prompt (Collapsible) */}
+      <Collapsible open={isPromptOpen} onOpenChange={setIsPromptOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full text-xs font-medium text-[#536471] hover:text-[#0F1419] transition-colors">
+          <span className="flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" /> System Prompt
+            {geminiSystemPrompt && (
+              <Badge variant="outline" className="text-[9px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                Custom
+              </Badge>
+            )}
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isPromptOpen ? 'rotate-180' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2 space-y-2">
+          <Textarea
+            value={geminiSystemPrompt}
+            onChange={(e) => { setGeminiSystemPrompt(e.target.value) }}
+            placeholder="Leave empty to use the built-in default prompt..."
+            className="min-h-[200px] font-mono text-[11px] border-[#EFF3F4] resize-y"
+            maxLength={5000}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-[#71767B]">
+              {geminiSystemPrompt
+                ? `${geminiSystemPrompt.length}/5000 chars (custom)`
+                : `Using default${defaultGeminiSystemPrompt ? ` (${defaultGeminiSystemPrompt.length} chars)` : ''}`}
+            </span>
+            <div className="flex gap-1.5">
+              {geminiSystemPrompt && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[10px] h-6 px-2 text-[#536471] hover:text-red-600"
+                  disabled={geminiSystemPromptSaving}
+                  onClick={() => { saveGeminiSystemPrompt('') }}
+                >
+                  <RotateCcw className="w-3 h-3 mr-0.5" /> Reset to Default
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-[10px] border-[#EFF3F4] h-6"
+                disabled={geminiSystemPrompt.length > 5000 || geminiSystemPromptSaving}
+                onClick={() => { saveGeminiSystemPrompt(geminiSystemPrompt) }}
+              >
+                {geminiSystemPromptSaving ? <Loader2 className="w-3 h-3 mr-0.5 animate-spin" /> : null}
+                Save Prompt
+              </Button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <Separator />
 

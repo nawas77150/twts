@@ -26,7 +26,7 @@ export interface GeminiFilterResult {
 
 // Designed for Alter menfess: lenient on typical alter content (venting, profanity,
 // relationship drama), strict on genuinely harmful content.
-const SYSTEM_PROMPT = `You are a content moderator for an Indonesian Twitter menfess (anonymous confession) account called an "Alter menfess". 
+export const DEFAULT_GEMINI_SYSTEM_PROMPT = `You are a content moderator for an Indonesian Twitter menfess (anonymous confession) account called an "Alter menfess". 
 
 Your job: decide if a submission is SAFE to auto-post or NEEDS manual admin review.
 
@@ -104,6 +104,7 @@ export async function runGeminiFilter(
   message: string,
   apiKey: string,
   model: string = DEFAULT_GEMINI_MODEL,
+  systemPrompt?: string | null,
 ): Promise<GeminiFilterResult> {
   if (!apiKey || !apiKey.trim()) {
     // No API key configured — skip Gemini filter entirely
@@ -126,7 +127,7 @@ export async function runGeminiFilter(
       signal: controller.signal,
       body: JSON.stringify({
         system_instruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
+          parts: [{ text: systemPrompt || DEFAULT_GEMINI_SYSTEM_PROMPT }],
         },
         contents: [
           {
@@ -239,7 +240,7 @@ export interface GeminiCheckResult {
 export async function runGeminiSubmissionCheck(
   trimmedMessage: string,
   ruleBasedPassed: boolean,
-  filterSettings: { geminiEnabled: boolean; geminiApiKeySet: boolean; geminiApiKey: string | null; geminiModel: string },
+  filterSettings: { geminiEnabled: boolean; geminiApiKeySet: boolean; geminiApiKey: string | null; geminiModel: string; geminiSystemPrompt?: string | null },
   allFilterReasons: string[],
 ): Promise<GeminiCheckResult> {
   if (!ruleBasedPassed || !filterSettings.geminiEnabled || !filterSettings.geminiApiKeySet) {
@@ -251,7 +252,7 @@ export async function runGeminiSubmissionCheck(
 
   try {
     debug('submit', 'Running Gemini AI filter')
-    const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey, filterSettings.geminiModel)
+    const geminiResult = await runGeminiFilter(trimmedMessage, geminiApiKey, filterSettings.geminiModel, filterSettings.geminiSystemPrompt)
 
     if (!geminiResult.passed) {
       if (geminiResult.error) {

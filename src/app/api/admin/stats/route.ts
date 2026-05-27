@@ -7,6 +7,7 @@ import { getCircuitBreakerStatus } from '@/lib/circuit-breaker'
 import { isEncryptionEnabled } from '@/lib/encrypt'
 import { debugError } from '@/lib/debug'
 import { DEFAULT_BLOCKED_WORDS, DEFAULT_NSFW_WORDS } from '@/lib/content-filter'
+import { DEFAULT_GEMINI_SYSTEM_PROMPT } from '@/lib/gemini-filter'
 import { type NextRequest, NextResponse } from 'next/server'
 
 // Vercel serverless function timeout — multiple DB queries + external API calls
@@ -83,6 +84,7 @@ export const GET = withAdmin(async (req: NextRequest) => {
       ...safeFilterSettings,
       defaultBlockedWords: DEFAULT_BLOCKED_WORDS,
       defaultNsfwWords: DEFAULT_NSFW_WORDS,
+      defaultGeminiSystemPrompt: DEFAULT_GEMINI_SYSTEM_PROMPT,
     },
     circuitBreaker,
     encryptionEnabled: isEncryptionEnabled(),

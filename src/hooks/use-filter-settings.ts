@@ -29,6 +29,9 @@ export function useFilterSettings() {
   const [blockedReasons, setBlockedReasons] = useState<Record<string, string>>({})
   const [defaultBlockedWords, setDefaultBlockedWords] = useState<string[]>([])
   const [defaultNsfwWords, setDefaultNsfwWords] = useState<string[]>([])
+  const [geminiSystemPrompt, setGeminiSystemPrompt] = useState('')
+  const [defaultGeminiSystemPrompt, setDefaultGeminiSystemPrompt] = useState('')
+  const [geminiSystemPromptSaving, setGeminiSystemPromptSaving] = useState(false)
   const { toast } = useToast()
 
   // Ref for latest filterRules to avoid stale closure in saveFilterRule
@@ -50,6 +53,8 @@ export function useFilterSettings() {
     setBlockedReasons(settings.blockedReasons)
     if (settings.defaultBlockedWords) setDefaultBlockedWords(settings.defaultBlockedWords)
     if (settings.defaultNsfwWords) setDefaultNsfwWords(settings.defaultNsfwWords)
+    setGeminiSystemPrompt(settings.geminiSystemPrompt || '')
+    if (settings.defaultGeminiSystemPrompt) setDefaultGeminiSystemPrompt(settings.defaultGeminiSystemPrompt)
     setIsLoaded(true)
   }, [])
 
@@ -135,6 +140,18 @@ export function useFilterSettings() {
     setGeminiModelSaving(false)
   }, [isAdmin, persistFilterSetting, toast])
 
+  const saveGeminiSystemPrompt = useCallback(async (prompt: string) => {
+    if (!isAdmin) return
+    const trimmed = prompt.trim()
+    setGeminiSystemPromptSaving(true)
+    await persistFilterSetting(
+      { geminiSystemPrompt: trimmed },
+      () => { setGeminiSystemPrompt(trimmed); toast({ title: trimmed ? 'Custom system prompt saved!' : 'System prompt reset to default' }) },
+      'Failed to save system prompt',
+    )
+    setGeminiSystemPromptSaving(false)
+  }, [isAdmin, persistFilterSetting, toast])
+
   const saveFilterSettings = useCallback(async () => {
     if (!isAdmin) return
     setIsSavingFilter(true)
@@ -199,6 +216,8 @@ export function useFilterSettings() {
     setBlockedReasons({})
     setDefaultBlockedWords([])
     setDefaultNsfwWords([])
+    setGeminiSystemPrompt('')
+    setDefaultGeminiSystemPrompt('')
     // Reset loading/visibility flags
     setIsSavingFilter(false)
     setIsSavingRateLimits(false)
@@ -208,6 +227,7 @@ export function useFilterSettings() {
     setGeminiSaving(false)
     setGeminiKeySaving(false)
     setGeminiModelSaving(false)
+    setGeminiSystemPromptSaving(false)
     setShowGeminiKey(false)
   }, [])
 
@@ -237,6 +257,10 @@ export function useFilterSettings() {
     blockedReasons,
     defaultBlockedWords,
     defaultNsfwWords,
+    geminiSystemPrompt,
+    setGeminiSystemPrompt,
+    defaultGeminiSystemPrompt,
+    geminiSystemPromptSaving,
     saveAutoApprove,
     isSavingAutoApprove,
     setBlockedWordsText,
@@ -256,6 +280,7 @@ export function useFilterSettings() {
     geminiKeySaving,
     saveGeminiModel,
     geminiModelSaving,
+    saveGeminiSystemPrompt,
     saveFilterSettings,
     saveRateLimits,
     saveCircuitBreaker,

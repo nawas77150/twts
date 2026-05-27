@@ -234,6 +234,11 @@ export default function AdminSettingsPage() {
               setGeminiModel={filterSettings.setGeminiModel}
               saveGeminiModel={filterSettings.saveGeminiModel}
               geminiModelSaving={filterSettings.geminiModelSaving}
+              geminiSystemPrompt={filterSettings.geminiSystemPrompt}
+              setGeminiSystemPrompt={filterSettings.setGeminiSystemPrompt}
+              saveGeminiSystemPrompt={filterSettings.saveGeminiSystemPrompt}
+              geminiSystemPromptSaving={filterSettings.geminiSystemPromptSaving}
+              defaultGeminiSystemPrompt={filterSettings.defaultGeminiSystemPrompt}
             />
           </TabPanel>
         </TabsContent>
