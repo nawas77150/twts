@@ -232,12 +232,12 @@ export function GeminiCard({
             onChange={(e) => { setGeminiSystemPrompt(e.target.value) }}
             placeholder="Leave empty to use the built-in default prompt..."
             className="min-h-[200px] font-mono text-[11px] border-[#EFF3F4] resize-y"
-            maxLength={5000}
+            maxLength={8000}
           />
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-[#71767B]">
               {geminiSystemPrompt
-                ? `${geminiSystemPrompt.length}/5000 chars (custom)`
+                ? `${geminiSystemPrompt.length}/8000 chars (custom)`
                 : `Using default${defaultGeminiSystemPrompt ? ` (${defaultGeminiSystemPrompt.length} chars)` : ''}`}
             </span>
             <div className="flex gap-1.5">
@@ -256,7 +256,7 @@ export function GeminiCard({
                 variant="outline"
                 size="sm"
                 className="text-[10px] border-[#EFF3F4] h-6"
-                disabled={geminiSystemPrompt.length > 5000 || geminiSystemPromptSaving}
+                disabled={geminiSystemPrompt.length > 8000 || geminiSystemPromptSaving}
                 onClick={() => { saveGeminiSystemPrompt(geminiSystemPrompt) }}
               >
                 {geminiSystemPromptSaving ? <Loader2 className="w-3 h-3 mr-0.5 animate-spin" /> : null}

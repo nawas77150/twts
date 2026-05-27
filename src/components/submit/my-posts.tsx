@@ -70,7 +70,7 @@ export function MyPosts({ posts, isLoading, error, onRefresh }: MyPostsProps) {
                     </a>
                   )}
                 </div>
-                <p className="text-sm text-[#0F1419] whitespace-pre-wrap break-words leading-snug line-clamp-2">{post.message}</p>
+                <p className="text-sm text-[#0F1419] whitespace-pre-wrap break-words leading-snug">{post.message}</p>
                 <FilterReasons filterReasons={post.filterReasons} />
               </div>
             ))}

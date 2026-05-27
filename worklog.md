@@ -18,7 +18,6 @@ Task ID: 1
 Agent: main
 Task: Implement PostingService abstraction boundary (3 new files + 8 edited files)
 
-
 Work Log:
 - Created `src/lib/posting-service-types.ts` — pure types (FailureKind, PostResult, CookieAuthStatus, PostingService), zero imports, zero runtime
 - Created `src/lib/x-posting-service.ts` — X implementation with FAILURE_MAP (7 ErrorClass → 3 FailureKind), exhaustiveness checks, classifyFailure(), createXPostingService() factory

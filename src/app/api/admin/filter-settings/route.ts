@@ -207,8 +207,8 @@ export const POST = withAdmin(async (req: NextRequest) => {
 
     // Save gemini_system_prompt (encrypted, like blocked_words/filter_rules)
     if (typeof geminiSystemPrompt === 'string') {
-      if (geminiSystemPrompt.length > 5000) {
-        return NextResponse.json({ error: 'System prompt exceeds 5000 characters' }, { status: 400 })
+      if (geminiSystemPrompt.length > 8000) {
+        return NextResponse.json({ error: 'System prompt exceeds 8000 characters' }, { status: 400 })
       }
       if (geminiSystemPrompt.trim()) {
         const encryptedValue = encrypt(geminiSystemPrompt.trim())
