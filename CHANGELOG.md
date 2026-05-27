@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/james2256/tweetfess/compare/v1.6.0...v1.7.0) (2026-05-27)
+
+
+### Features
+
+* add submitter limits bar to admin cards, extract shared LimitsBar component ([28988d4](https://github.com/james2256/tweetfess/commit/28988d4fcc20fda367533b7c2b332ecfffa36989))
+
 ## [1.6.0](https://github.com/james2256/tweetfess/compare/v1.5.0...v1.6.0) (2026-05-27)
 
 
