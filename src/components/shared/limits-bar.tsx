@@ -28,37 +28,34 @@ export function LimitsBar({ limits, compact = false, pendingOverCap = false, chi
   const v = getVariant(limits)
   const StatusIcon = v.Icon
 
-  return (
-    <div className={`flex items-center gap-x-2 text-xs px-3 rounded-lg ${v.bgCls} ${compact ? 'flex-nowrap overflow-x-auto py-1.5 mt-0.5' : 'flex-wrap gap-y-1 py-2'}`}>
-      {StatusIcon && <StatusIcon className={`w-3 h-3 ${v.iconCls}`} />}
+  if (compact) {
+    return (
+      <span className={`inline-flex items-center gap-x-1.5 text-xs ${v.valCls}`}>
+        {StatusIcon && <StatusIcon className={`w-3 h-3 ${v.iconCls}`} />}
+        <CalendarDays className="w-3 h-3" /> {fmt(limits.dailyUsed, limits.dailyCap)}
+        <span className={DOT}>&middot;</span>
+        <span className={`inline-flex items-center gap-0.5 ${pendingOverCap ? 'text-red-500' : v.valCls}`}>
+          <Hourglass className="w-3 h-3" /> {fmt(limits.pendingUsed, limits.pendingCap)}
+          {pendingOverCap && <AlertTriangle className="w-3 h-3 ml-0.5" />}
+        </span>
+        <span className={DOT}>&middot;</span>
+        <Send className="w-3 h-3" /> {fmt(limits.postUsed, limits.postCap)}
+        {children}
+      </span>
+    )
+  }
 
-      {compact ? (
-        <>
-          <span className={`inline-flex items-center gap-0.5 ${v.valCls}`}>
-            <CalendarDays className="w-3 h-3" /> {fmt(limits.dailyUsed, limits.dailyCap)}
-          </span>
-          <span className={DOT}>&middot;</span>
-          <span className={`inline-flex items-center gap-0.5 ${pendingOverCap ? 'text-red-500' : v.valCls}`}>
-            <Hourglass className="w-3 h-3" /> {fmt(limits.pendingUsed, limits.pendingCap)}
-            {pendingOverCap && <AlertTriangle className="w-3 h-3 ml-0.5" />}
-          </span>
-          <span className={DOT}>&middot;</span>
-          <span className={`inline-flex items-center gap-0.5 ${v.valCls}`}>
-            <Send className="w-3 h-3" /> {fmt(limits.postUsed, limits.postCap)}
-          </span>
-        </>
-      ) : (
-        <>
-          <span className={v.valCls}>{fmt(limits.dailyUsed, limits.dailyCap)} hari ini</span>
-          <span className={DOT}>&middot;</span>
-          <span className={pendingOverCap ? 'text-red-500' : v.valCls}>
-            antrean {fmt(limits.pendingUsed, limits.pendingCap)}
-            {pendingOverCap && <AlertTriangle className="w-3 h-3 inline ml-0.5" />}
-          </span>
-          <span className={DOT}>&middot;</span>
-          <span className={v.valCls}>post {fmt(limits.postUsed, limits.postCap)}</span>
-        </>
-      )}
+  return (
+    <div className={`flex items-center gap-x-2 text-xs px-3 rounded-lg ${v.bgCls} flex-wrap gap-y-1 py-2`}>
+      {StatusIcon && <StatusIcon className={`w-3 h-3 ${v.iconCls}`} />}
+      <span className={v.valCls}>{fmt(limits.dailyUsed, limits.dailyCap)} hari ini</span>
+      <span className={DOT}>&middot;</span>
+      <span className={pendingOverCap ? 'text-red-500' : v.valCls}>
+        antrean {fmt(limits.pendingUsed, limits.pendingCap)}
+        {pendingOverCap && <AlertTriangle className="w-3 h-3 inline ml-0.5" />}
+      </span>
+      <span className={DOT}>&middot;</span>
+      <span className={v.valCls}>post {fmt(limits.postUsed, limits.postCap)}</span>
       {children}
     </div>
   )
