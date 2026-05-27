@@ -597,6 +597,53 @@ Stage Summary:
 - Submission.postMethod (L26): typed as `string | null`, NOT `PostMethod | null` — workaround for mismatch
 - PostMethodStats interface (L56-64) uses `fallback: number` and `fallbackRate: number` but PostMethod type lacks 'fallback'
 - 'fallback' as postMethod value: stats/route.ts L111 checks `row.postMethod === 'fallback' || row.postMethod === 'fallback_cookie' || row.postMethod === 'fallback_login'`
+
+---
+Task ID: limits-bar
+Agent: main
+Task: Add SubmitterLimitBar to admin submission cards + refactor confession-form.tsx to use shared LimitsBar
+
+Work Log:
+- Added `isBanned?: boolean` to `SubmissionLimitsData` in `src/types/index.ts`
+- Added `limits?: SubmissionLimitsData` to `SubmitterInfo` in `src/types/index.ts`
+- Enriched GET `/api/submissions` in `src/app/api/submissions/route.ts`:
+  - Added `customLimits: true` to submitter select
+  - Added early exit when no submissions
+  - Added `getFilterSettings()` call (30s TTL cached)
+  - Added 3 batch `groupBy` queries for daily/pending/post counts
+  - Built `limitsMap` with `unlimitedCaps = isWhitelisted && !isBanned` guard
+  - Stripped `customLimits` from response, attached `limits` to each submitter
+  - Used `Map` instead of `Object.fromEntries` (avoids detect-object-injection lint errors)
+  - Added `getEffectiveLimit, hasCustomLimits` imports from `@/lib/limit-resolver`
+  - Added `SubmissionLimitsData` type import from `@/types`
+- Created `src/components/shared/limits-bar.tsx`:
+  - `LIMIT_VARIANTS` lookup table (banned/whitelisted/custom/default)
+  - `LimitsBar` component with `compact` prop and `children` slot
+  - Variant priority: banned > whitelisted > custom > default
+  - Colors match `confession-form.tsx` exactly (green/purple/neutral + new red for banned)
+  - `fmt()` helper: `cap > 0 ? used/cap : used/∞`
+  - `compact` mode: `flex-nowrap overflow-x-auto py-1.5 mt-0.5`
+  - Normal mode: `flex-wrap gap-y-1 py-2`
+- Updated `src/components/dashboard/submission-card.tsx`:
+  - Added `LimitsBar` import
+  - Rendered `<LimitsBar limits={sub.submitter.limits} compact />` between FilterReasons and postError div
+- Refactored `src/components/submit/confession-form.tsx`:
+  - Removed `fmtCap` function (now in LimitsBar)
+  - Removed `Zap` import (now in LimitsBar)
+  - Removed `bgColor` computed style (now in LimitsBar)
+  - Replaced inline limits display div with `<LimitsBar limits={limits}>` + children
+  - Children: pendingOverCap warning, cooldown countdown, "siap kirim"/"Habis" status
+  - Kept `valueColor`/`dotColor` for public-only extras (now also includes banned variant)
+  - Added `isBanned` check to color derivation
+- Verification: `tsc --noEmit` clean, `bun run lint` clean, dev server 200 OK
+
+Stage Summary:
+- 5 files changed (1 new, 4 modified)
+- Zero new types — reused `SubmissionLimitsData` with 1 new optional field
+- Zero duplication — `LimitsBar` is single source of truth for limits display
+- `confession-form.tsx` now uses `LimitsBar` for core metrics (was duplicate)
+- All where clauses match enforcement code exactly
+- `unlimitedCaps = isWhitelisted && !isBanned` prevents blocked+whitelisted edge case
 - PostMethod is a *setting* type (direct/api/auto), but the DB stores *outcome* values (direct/retry/fallback_cookie/fallback_login) — these are semantically different
 - FilterRules interface duplicated identically in types/index.ts (L75-86) and content-filter-engine.ts (L29-40)
 - DEFAULT_FILTER_RULES duplicated identically in types/index.ts (L257-268) and content-filter-engine.ts (L53-64)

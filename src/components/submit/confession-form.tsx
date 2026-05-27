@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Send, Loader2, MessageSquare, Zap, AlertTriangle } from 'lucide-react'
+import { Send, Loader2, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Image from 'next/image'
 import type { SubmissionLimitsData } from '@/types'
+import { LimitsBar } from '@/components/shared/limits-bar'
 import { useCountdown } from '@/hooks/use-countdown'
 
 interface ConfessionFormProps {
@@ -18,10 +19,6 @@ interface ConfessionFormProps {
   limits: SubmissionLimitsData | null
   autoApprove?: boolean
   onCooldownExpired?: () => void
-}
-
-function fmtCap(cap: number, isWhitelisted: boolean): number | '∞' {
-  return isWhitelisted ? '∞' : cap
 }
 
 export function ConfessionForm({
@@ -50,13 +47,11 @@ export function ConfessionForm({
 
   const isWhitelisted = limits?.isWhitelisted ?? false
   const remainingDaily = isWhitelisted ? null : (limits ? Math.max(0, limits.dailyCap - limits.dailyUsed) : null)
-  const isCustom = limits?.isCustom ?? false
   const pendingOverCap = isWhitelisted ? false : (limits ? limits.pendingUsed > limits.pendingCap : false)
 
-  // Pre-computed styling for limits bar (whitelisted → green, custom → purple, default → neutral)
-  const valueColor = isWhitelisted ? 'text-green-700' : isCustom ? 'text-purple-700' : 'text-[#536471]'
-  const dotColor = isWhitelisted ? 'text-green-400' : isCustom ? 'text-purple-400' : 'text-[#71767B]'
-  const bgColor = isWhitelisted ? 'bg-green-50 border border-green-100' : isCustom ? 'bg-purple-50 border border-purple-100' : 'bg-[#F7F9F9] border border-[#EFF3F4]'
+  // Derive colors for public-only extras (cooldown, status text) appended to LimitsBar
+  const valueColor = limits?.isBanned ? 'text-red-700' : isWhitelisted ? 'text-green-700' : limits?.isCustom ? 'text-purple-700' : 'text-[#536471]'
+  const dotColor = limits?.isBanned ? 'text-red-400' : isWhitelisted ? 'text-green-400' : limits?.isCustom ? 'text-purple-400' : 'text-[#71767B]'
 
   const cooldownRemaining = useCountdown(limits?.cooldownSeconds ?? 0)
 
@@ -139,29 +134,7 @@ export function ConfessionForm({
 
         {/* Limits display */}
         {limits && (
-          <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs px-3 py-2 rounded-lg ${bgColor}`}>
-            {isWhitelisted && (
-              <span className="inline-flex items-center gap-0.5 text-green-600 font-medium">
-                <Zap className="w-3 h-3" /> Whitelisted
-              </span>
-            )}
-            {isCustom && !isWhitelisted && (
-              <span className="inline-flex items-center gap-0.5 text-purple-600 font-medium">
-                <Zap className="w-3 h-3" /> Custom
-              </span>
-            )}
-            <span className={valueColor}>
-              {limits.dailyUsed}/{fmtCap(limits.dailyCap, isWhitelisted)} hari ini
-            </span>
-            <span className={dotColor}>&middot;</span>
-            <span className={pendingOverCap ? 'text-red-500' : valueColor}>
-              antrean {limits.pendingUsed}/{fmtCap(limits.pendingCap, isWhitelisted)}
-              {pendingOverCap && <AlertTriangle className="w-3 h-3 inline ml-0.5" />}
-            </span>
-            <span className={dotColor}>&middot;</span>
-            <span className={valueColor}>
-              post {limits.postUsed}/{fmtCap(limits.postCap, isWhitelisted)}
-            </span>
+          <LimitsBar limits={limits} pendingOverCap={pendingOverCap}>
             <span className={dotColor}>&middot;</span>
             <span className={valueColor}>
               {cooldownRemaining > 0
@@ -174,7 +147,7 @@ export function ConfessionForm({
                 <span className="text-red-500">Habis — coba besok</span>
               </>
             )}
-          </div>
+          </LimitsBar>
         )}
       </CardContent>
     </Card>

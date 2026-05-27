@@ -6,6 +6,8 @@ import { isCircuitBreakerPaused } from '@/lib/circuit-breaker'
 import { debug, debugError } from '@/lib/debug'
 import { normalizeText, decodeHtmlEntities } from '@/lib/content-filter'
 import { getFilterSettings, getDefaultFilterSettings } from '@/lib/filter-settings'
+import { getEffectiveLimit, hasCustomLimits } from '@/lib/limit-resolver'
+import type { SubmissionLimitsData } from '@/types'
 import { appendHashtags } from '@/lib/append-hashtags'
 import { getStartOfTodayWIB } from '@/lib/constants'
 import { getCensoredReason, validateSubmission, runFilterPipeline, createQueuedSubmission } from './_lib'
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
         where,
         include: {
           submitter: {
-            select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true },
+            select: { id: true, username: true, displayName: true, profileImage: true, twitterId: true, customLimits: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -63,15 +65,77 @@ export async function GET(req: NextRequest) {
       db.submission.count({ where }),
     ])
 
-    return NextResponse.json({
-      submissions,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: page * limit < total,
+    if (submissions.length === 0) {
+      return NextResponse.json({
+        submissions: [],
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasMore: page * limit < total },
+      })
+    }
+
+    // --- Submitter limits enrichment ---
+    const filterSettings = await getFilterSettings()
+    const submitterIds = [...new Set(submissions.map(s => s.submitter.id))]
+    const customLimitsMap = new Map(submissions.map(s => [s.submitter.id, s.submitter.customLimits]))
+    const usernameMap = new Map(submissions.map(s => [s.submitter.id, s.submitter.username.toLowerCase()]))
+    const startOfToday = getStartOfTodayWIB()
+
+    const [dailyCounts, pendingCounts, postCounts] = await Promise.all([
+      db.submission.groupBy({
+        by: ['submitterId'],
+        _count: { _all: true },
+        where: { submitterId: { in: submitterIds }, createdAt: { gte: startOfToday } },
+      }),
+      db.submission.groupBy({
+        by: ['submitterId'],
+        _count: { _all: true },
+        where: { submitterId: { in: submitterIds }, status: 'pending', createdAt: { gte: startOfToday } },
+      }),
+      db.submission.groupBy({
+        by: ['submitterId'],
+        _count: { _all: true },
+        where: { submitterId: { in: submitterIds }, status: 'posted', updatedAt: { gte: startOfToday } },
+      }),
+    ])
+
+    const dailyMap = new Map(dailyCounts.map(c => [c.submitterId, c._count._all]))
+    const pendingMap = new Map(pendingCounts.map(c => [c.submitterId, c._count._all]))
+    const postMap = new Map(postCounts.map(c => [c.submitterId, c._count._all]))
+
+    const limitsMap = new Map<string, SubmissionLimitsData>()
+    for (const id of submitterIds) {
+      const username = usernameMap.get(id) ?? ''
+      const cl = customLimitsMap.get(id)
+      const isWhitelisted = filterSettings.whitelistUsernames.includes(username)
+      const isBanned = filterSettings.blockedUsernames.includes(username)
+      const isCustom = hasCustomLimits(cl)
+      const unlimitedCaps = isWhitelisted && !isBanned
+
+      limitsMap.set(id, {
+        dailyCap: unlimitedCaps ? 0 : getEffectiveLimit('submissionDailyCap', cl, filterSettings.rateLimits.submissionDailyCap),
+        dailyUsed: dailyMap.get(id) ?? 0,
+        pendingCap: unlimitedCaps ? 0 : getEffectiveLimit('userPendingCap', cl, filterSettings.rateLimits.userPendingCap),
+        pendingUsed: pendingMap.get(id) ?? 0,
+        postCap: unlimitedCaps ? 0 : getEffectiveLimit('userPostDailyCap', cl, filterSettings.rateLimits.userPostDailyCap),
+        postUsed: postMap.get(id) ?? 0,
+        cooldownSeconds: 0, // not shown in admin card; real value computed in mine/route.ts
+        isWhitelisted,
+        isBanned,
+        isCustom,
+      })
+    }
+
+    // Strip customLimits from submitter and attach computed limits
+    const sanitizedSubmissions = submissions.map(({ submitter: { customLimits: _customLimits, ...submitterRest }, ...rest }) => ({
+      ...rest,
+      submitter: {
+        ...submitterRest,
+        limits: limitsMap.get(submitterRest.id),
       },
+    }))
+
+    return NextResponse.json({
+      submissions: sanitizedSubmissions,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit), hasMore: page * limit < total },
     })
   } catch (e) {
     debugError('submissions', 'GET error:', e)

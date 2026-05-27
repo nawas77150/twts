@@ -20,6 +20,7 @@ import {
 import { XLogo } from '@/components/shared/x-logo'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { FilterReasons } from '@/components/shared/filter-reasons'
+import { LimitsBar } from '@/components/shared/limits-bar'
 import type { Submission } from '@/types'
 import { formatDate } from '@/lib/format'
 
@@ -106,6 +107,7 @@ export function SubmissionCard({
                 </span>
               )}
               <FilterReasons filterReasons={sub.filterReasons} />
+              {sub.submitter.limits && <LimitsBar limits={sub.submitter.limits} compact />}
               {sub.status === 'post_failed' && sub.postError && (
                 <div className="flex items-start gap-1.5 mt-1.5 p-1.5 rounded-md bg-red-50 border border-red-200">
                   <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />

@@ -21,6 +21,7 @@ export interface SubmitterInfo {
   displayName: string | null
   profileImage: string | null
   twitterId: string | null
+  limits?: SubmissionLimitsData
 }
 
 export interface Submission {
@@ -170,6 +171,7 @@ export interface SubmissionLimitsData {
   postUsed: number
   cooldownSeconds: number
   isWhitelisted?: boolean    // Whitelisted users bypass per-user cooldown & caps
+  isBanned?: boolean         // Blocked users cannot submit; set by admin GET, absent in public /mine
   isCustom: boolean
   autoApprove?: boolean
   hashtags?: string          // Admin-configured hashtags appended to posts (e.g. "#conf #anon")
