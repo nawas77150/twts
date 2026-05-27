@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/james2256/tweetfess/compare/v1.5.0...v1.6.0) (2026-05-27)
+
+
+### Features
+
+* add vitest, Layer 1 unit tests (248 tests), istanbul ignores, and CI coverage gate ([c4af5df](https://github.com/james2256/tweetfess/commit/c4af5df5d359a89eeb56720e82af6494d01f15e2))
+* make Gemini system prompt editable by admin ([74b1cea](https://github.com/james2256/tweetfess/commit/74b1cea53041541bc9a76fa7b6dff20ecf82aa80))
+
+
+### Bug Fixes
+
+* increase system prompt char limit to 8000 and remove message truncation ([da6b092](https://github.com/james2256/tweetfess/commit/da6b0926d059e9eca1b15b0c0561c9e33c12819d))
+
 ## [1.5.0](https://github.com/james2256/tweetfess/compare/v1.4.3...v1.5.0) (2026-05-26)
 
 
